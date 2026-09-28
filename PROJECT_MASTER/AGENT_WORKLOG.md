@@ -151,5 +151,8 @@ cache-provenance and clean-checkout `npx cap sync android` items — and complet
 SEC-001–SEC-006 Keystore, device and APK runtime verification. Do not start a new security
 finding; none exists after NEW-002.
 
-* **Commit hash:** recorded in the checkpoint-log commit that immediately follows the
-  publication commit.
+* **Commit hash:** `0f65382ba785663d6472bd6dc4dd4c643cd63ca2` — "Preserve Uzbekistan pothole
+  detector development checkpoint", the publication commit containing all of the above.
+  This worklog line was added in the small checkpoint-log commit immediately after it.
+  Both were pushed to `origin` (`sabdur4hmonov/potholedetector`) on branch `main`; the
+  upstream repository `coding-parrot/pothole-reporter` was not pushed to.
