@@ -7,9 +7,13 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
 import org.json.JSONObject
+import org.json.JSONTokener
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.TimeUnit
+import dev.aiengg.potholereporter.security.AiRequestIdentity
+import dev.aiengg.potholereporter.security.AiUsageLimitException
+import dev.aiengg.potholereporter.security.NonReplayableAiBody
 
 internal class NativeInferenceException(
     message: String,
@@ -25,7 +29,9 @@ internal class NativeInferenceTransport(
     private val detail: String,
     private val debug: Boolean,
     private val endpoint: String = OAI_URL,
-    private val okHttpClient: OkHttpClient = defaultClient()
+    private val okHttpClient: OkHttpClient = defaultClient(),
+    private val sseLimits: NativeSseLimits = NativeSseLimits(),
+    private val budgetGate: (AiRequestIdentity) -> Unit = { throw AiUsageLimitException() }
 ) {
     // Live Drive can issue two bounded requests concurrently. Backoff state is shared by
     // that transport, so increments/resets must not race or lose updates.
@@ -48,7 +54,9 @@ internal class NativeInferenceTransport(
             imageUrls.clear()
         }
 
-        return withTrackedCall(authorizedRequest(body)) { call ->
+        return withTrackedCall(authorizedRequest(body), AiRequestIdentity(
+            "openai", endpoint, model, "pothole_binary_assessment", NativeDetectionContract.MAX_OUTPUT_TOKENS.toLong()
+        )) { call ->
             val response = try {
                 call.execute()
             } catch (error: IOException) {
@@ -106,7 +114,9 @@ internal class NativeInferenceTransport(
             imageUrls.clear()
         }
 
-        return withTrackedCall(authorizedRequest(body)) { call ->
+        return withTrackedCall(authorizedRequest(body), AiRequestIdentity(
+            "openai", endpoint, model, "road_repair_assessment", NativeRepairContract.MAX_OUTPUT_TOKENS.toLong()
+        )) { call ->
             val response = try {
                 call.execute()
             } catch (error: IOException) {
@@ -155,47 +165,49 @@ internal class NativeInferenceTransport(
     ): StreamText {
         val output = NativeSseTextAccumulator()
         var completed = false
-        var intentionallyStopped = false
         try {
-            responseBody.charStream().buffered().use { reader ->
-                while (true) {
-                    val line = reader.readLine()?.trim() ?: break
-                    if (!line.startsWith("data:")) continue
-                    val payload = line.substring(5).trim()
-                    if (payload.isEmpty()) continue
-                    if (payload == "[DONE]") {
-                        completed = true
-                        continue
-                    }
-
-                    val event = try {
-                        JSONObject(payload)
-                    } catch (_: Exception) {
-                        continue
-                    }
-                    if (event.optString("type") == "response.completed") completed = true
-                    if (event.optString("type") != "response.output_text.delta") continue
-                    if (!output.append(event.optString("delta", ""))) {
-                        call.cancel()
-                        throw NativeInferenceException(
-                            "$responseName exceeded the 64 KiB safety limit",
-                            suspendInference = true
-                        )
-                    }
-                    if (stopWhen?.invoke(output.snapshot()) == true) {
-                        intentionallyStopped = true
-                        call.cancel()
-                        break
-                    }
+            NativeBoundedSseReader(sseLimits).read(responseBody.byteStream(), call::isCanceled) { payload ->
+                if (payload.trim() == "[DONE]") {
+                    completed = true
+                    return@read true
                 }
+                val event = try {
+                    NativeInferenceJsonSyntax.requireObject(payload)
+                    val tokens = JSONTokener(payload)
+                    val value = tokens.nextValue()
+                    if (value !is JSONObject || tokens.nextClean() != '\u0000') throw NativeSseSafetyException()
+                    value
+                } catch (_: Exception) { throw NativeSseSafetyException() }
+                val type = event.opt("type")
+                if (type !is String || !type.startsWith("response.") || type.length > 128) {
+                    throw NativeSseSafetyException()
+                }
+                if (type == "response.failed" || type == "response.incomplete") throw NativeSseSafetyException()
+                if (type == "response.completed") {
+                    completed = true
+                    return@read true
+                }
+                if (type != "response.output_text.delta") return@read false
+                val delta = event.opt("delta")
+                if (delta !is String || !Charsets.UTF_8.newEncoder().canEncode(delta)) throw NativeSseSafetyException()
+                if (!output.append(delta)) {
+                    throw NativeInferenceException(
+                        "$responseName exceeded the 64 KiB safety limit", suspendInference = true
+                    )
+                }
+                stopWhen?.invoke(output.snapshot()) == true
             }
-        } catch (error: NativeInferenceException) {
-            // Safety-limit and validation failures are intentional, even after a terminal marker.
-            throw error
-        } catch (error: IOException) {
-            // Completion is durable once the terminal marker or an intentional hard-negative
-            // arrives. A trailing disconnect (including one caused by cancel()) cannot erase it.
-            if (!completed && !intentionallyStopped) throw error
+            if (completed) NativeInferenceJsonSyntax.requireObject(output.snapshot())
+        } catch (_: NativeSseSafetyException) {
+            throw NativeInferenceException(
+                "$responseName violated the byte, line, event or protocol safety limit",
+                suspendInference = true
+            )
+        } finally {
+            // Terminal, early-negative, malformed, limit, deadline and cancellation paths
+            // all end the HTTP operation. Never read indefinitely after a terminal marker.
+            call.cancel()
+            responseBody.close()
         }
         return StreamText(output.snapshot(), completed)
     }
@@ -204,11 +216,18 @@ internal class NativeInferenceTransport(
         .url(endpoint)
         .addHeader("Authorization", "Bearer $apiKey")
         .addHeader("Content-Type", "application/json")
-        .post(body)
+        .post(NonReplayableAiBody(body))
         .build()
 
-    private inline fun <T> withTrackedCall(request: Request, block: (Call) -> T): T {
+    private inline fun <T> withTrackedCall(request: Request, identity: AiRequestIdentity, block: (Call) -> T): T {
+        if (closed) throw IOException("Detection engine is closed")
+        try {
+            budgetGate(identity)
+        } catch (_: AiUsageLimitException) {
+            throw NativeInferenceException("AI usage limit reached.", suspendInference = true)
+        }
         val call = okHttpClient.newCall(request)
+        call.timeout().timeout(sseLimits.deadlineMs, TimeUnit.MILLISECONDS)
         synchronized(activeCallsLock) {
             if (closed) throw IOException("Detection engine is closed")
             activeCalls.add(call)
@@ -306,6 +325,10 @@ internal class NativeInferenceTransport(
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
 
         private fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
+            .retryOnConnectionFailure(false)
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .callTimeout(35, TimeUnit.SECONDS)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)

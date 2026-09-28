@@ -164,6 +164,11 @@ python3 "$RELEASE_ASSET_VERIFIER" \
   --static static --www "$WWW_ROOT" --docs docs --packaged "$PACKAGED_ASSETS_ROOT"
 same_json "$SOURCE_CAPACITOR_CONFIG" "$PACKAGED_CAPACITOR_CONFIG" \
   "packaged Capacitor runtime config"
+# NEW-002: Gradle needs git-ignored Capacitor/Cordova inputs (plugin module, plugin registry,
+# Cordova config and WebView cordova*.js). Require exactly what the locked CLI generates, so a
+# clean checkout fails here with instructions and a stale tree cannot reach the build.
+python3 tools/verify-android-generated-inputs.py || \
+  fail "generated Android inputs are missing or stale; run (cd android-app && npm ci && npx cap sync android) and review"
 
 echo "2/7 linting and building signed release bundle and APK"
 rm -f "$AAB_PATH" "$APK_PATH"
@@ -226,9 +231,20 @@ if [ "$actual_permissions" != "$expected_permissions" ]; then
 fi
 
 echo "4/7 validating AAB and APK signatures"
+# NEW-001: AGP writes META-INF/MANIFEST.MF after the signature files, so JarFile and
+# JarInputStream disagree about which entries are signed. Reorder the metadata without
+# changing any entry, prove the order, then require a reader-consistent signature.
+# (jarsigner -strict is not used as the gate: a self-signed Play upload key always
+# returns a chain-validation code, and strict mode does not flag this inconsistency.)
+python3 tools/normalize-aab-signature-order.py "$AAB_PATH" || fail "AAB JAR metadata could not be normalized"
+python3 tools/normalize-aab-signature-order.py --check "$AAB_PATH" || fail "AAB JAR metadata order is not conventional"
 signature_report=$(jarsigner -verify "$AAB_PATH" 2>&1 || true)
 if ! grep -Fq 'jar verified.' <<<"$signature_report" || grep -Fqi 'jar is unsigned' <<<"$signature_report"; then
   fail "AAB is not signed with a verifiable JAR signature"
+fi
+if grep -Eqi 'internal inconsistencies|not signed in JarInputStream|Manifest is missing when reading via JarInputStream' <<<"$signature_report"; then
+  printf '%s\n' "$signature_report" >&2
+  fail "AAB JAR signature differs between JarFile and JarInputStream readers"
 fi
 certificate_report=$(jarsigner -verify -verbose -certs "$AAB_PATH" 2>&1 || true)
 if grep -Fqi 'CN=Android Debug' <<<"$certificate_report"; then

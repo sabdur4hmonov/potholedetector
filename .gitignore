@@ -26,3 +26,23 @@ eval/.rad-data/
 eval/.rad-cache/
 eval/rad-data/
 eval/rad-results/
+
+# Python bytecode caches (test runs)
+__pycache__/
+*.pyc
+
+# Local IDE/editor state
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# Signing material and local secrets, in any directory
+*.jks
+*.keystore
+*.p12
+*.pfx
+keystore.properties
+local.properties
+.env.local
+.env.*.local

@@ -12,6 +12,8 @@ import androidx.camera.view.PreviewView;
 import dev.aiengg.potholereporter.drive.DriveForegroundService;
 import dev.aiengg.potholereporter.drive.NativeDashcamPreviewListener;
 import dev.aiengg.potholereporter.plugin.DriveModePlugin;
+import dev.aiengg.potholereporter.security.NativeCredentialPlugin;
+import dev.aiengg.potholereporter.media.ManagedMediaPlugin;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -29,6 +31,8 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(DriveModePlugin.class);
+        registerPlugin(NativeCredentialPlugin.class);
+        registerPlugin(ManagedMediaPlugin.class);
         super.onCreate(savedInstanceState);
         createDrivePreview();
     }

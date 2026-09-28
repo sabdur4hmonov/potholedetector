@@ -17,6 +17,7 @@ def ui_state(page):
           settingsVisible: !document.getElementById("settings").classList.contains("hidden"),
           backHidden: document.getElementById("setBack").classList.contains("hidden"),
           key: localStorage.getItem("openai_key"),
+          configured: window.CredentialBroker && window.CredentialBroker.hasOpenAi(),
           setup: localStorage.getItem("initial_setup_complete"),
           required: initialSettingsRequired,
           active: initialSettingsActive,
@@ -72,15 +73,15 @@ with sync_playwright() as playwright:
     if not blank["alerts"] or "key" not in blank["alerts"][0].lower():
         failures.append(f"blank key did not explain the requirement: {blank}")
 
-    # Saving a key completes onboarding and persists that decision across a reload.
+    # Saving a key completes onboarding, but the browser key is memory-only.
     page.locator("#setKey").fill("test-key-never-sent")
     page.locator("#setSave").click()
     page.locator("#home").wait_for(state="visible", timeout=30_000)
     saved = ui_state(page)
     if saved["settingsVisible"] or not saved["homeVisible"]:
         failures.append(f"valid Save did not open Home: {saved}")
-    if saved["key"] != "test-key-never-sent" or saved["setup"] != "1":
-        failures.append(f"valid Save did not persist onboarding: {saved}")
+    if saved["key"] is not None or not saved["configured"] or saved["setup"] != "1":
+        failures.append(f"valid Save persisted plaintext or missed onboarding: {saved}")
     if saved["required"] or saved["active"]:
         failures.append(f"valid Save left first-run guards active: {saved}")
 
@@ -90,6 +91,8 @@ with sync_playwright() as playwright:
     reloaded = ui_state(page)
     if reloaded["settingsVisible"] or not reloaded["homeVisible"]:
         failures.append(f"completed onboarding was shown again after reload: {reloaded}")
+    if reloaded["key"] is not None or reloaded["configured"]:
+        failures.append(f"browser credential survived a reload: {reloaded}")
     context.close()
 
     # Existing users predate the completion marker. A saved legacy setting must migrate
@@ -110,8 +113,8 @@ with sync_playwright() as playwright:
         failures.append(f"legacy install was blocked by first-run Settings: {migrated}")
     if migrated["setup"] != "1" or migrated["required"] or migrated["active"]:
         failures.append(f"legacy install was not migrated to the completion marker: {migrated}")
-    if migrated["key"] != "legacy-key-never-sent":
-        failures.append(f"legacy migration altered the saved key: {migrated}")
+    if migrated["key"] is not None or not migrated["configured"]:
+        failures.append(f"legacy plaintext was not moved into page memory: {migrated}")
     context.close()
 
     browser.close()

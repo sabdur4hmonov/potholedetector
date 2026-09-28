@@ -20,18 +20,10 @@ class NativeFrameSourceConfigTest {
     }
 
     @Test
-    fun `dashcam needs a trimmed absolute rtsp endpoint`() {
-        val config = NativeFrameSourceConfig.create(
-            "dashcam",
-            "  rtsp://dash-user:dash-password@192.168.1.1:554/live?channel=1  "
-        ).getOrThrow()
-
-        assertEquals(NativeFrameSourceKind.DASHCAM, config.kind)
-        assertEquals(
-            "rtsp://dash-user:dash-password@192.168.1.1:554/live?channel=1",
-            config.rtspUrl
-        )
-        assertFalse(config.kind.requiresCameraPermission)
+    fun `saved plaintext dashcam fails closed without changing the phone default`() {
+        val result = NativeFrameSourceConfig.create("dashcam", "rtsp://camera.example:554/live")
+        assertTrue(result.isFailure)
+        assertEquals(NativeRtspTransportPolicy.PLAINTEXT_REJECTED, result.exceptionOrNull()?.message)
     }
 
     @Test
@@ -123,12 +115,10 @@ class NativeFrameSourceConfigTest {
     }
 
     @Test
-    fun `valid IPv6 dashcam endpoint may use the highest legal RTSP port`() {
-        val config = NativeFrameSourceConfig.create(
-            "dashcam",
-            "rtsp://[2001:db8::7]:65535/live"
-        ).getOrThrow()
-        assertEquals(NativeFrameSourceKind.DASHCAM, config.kind)
+    fun `valid secure IPv6 endpoint is rejected because verified transport is unavailable`() {
+        val result = NativeFrameSourceConfig.create("dashcam", "rtsps://[2001:db8::7]:65535/live")
+        assertTrue(result.isFailure)
+        assertEquals(NativeRtspTransportPolicy.SECURE_UNAVAILABLE, result.exceptionOrNull()?.message)
     }
 
     @Test

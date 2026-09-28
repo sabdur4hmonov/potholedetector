@@ -4,6 +4,7 @@ import android.content.Context
 import dev.aiengg.potholereporter.db.RepairTargetEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import dev.aiengg.potholereporter.security.NativeAiUsageBudget
 
 /**
  * Coordinates one inference attempt. Detection rules, request encoding, transport, evidence
@@ -17,7 +18,8 @@ class NativeInferenceEngine(
     private val language: String = "en",
     private val debug: Boolean = false
 ) {
-    private val transport = NativeInferenceTransport(apiKey, model, detail, debug)
+    private val transport = NativeInferenceTransport(apiKey, model, detail, debug,
+        budgetGate = { NativeAiUsageBudget.reserve(context, it) })
     private val evidenceStore = NativeInferenceEvidenceStore(context)
     private val appContext = context.applicationContext
 

@@ -1,7 +1,6 @@
 package dev.aiengg.potholereporter.drive
 
 import android.graphics.Bitmap
-import java.net.URI
 
 /** The frame producer selected for one Drive session. */
 enum class NativeFrameSourceKind(
@@ -44,36 +43,11 @@ data class NativeFrameSourceConfig(
                 if (kind == NativeFrameSourceKind.PHONE_CAMERA) {
                     NativeFrameSourceConfig(kind)
                 } else {
-                    NativeFrameSourceConfig(kind, validatedRtspUrl(rtspValue))
+                    NativeFrameSourceConfig(
+                        kind, NativeRtspTransportPolicy.requireProductionEndpoint(rtspValue)
+                    )
                 }
             }
-
-        private fun validatedRtspUrl(value: String?): String {
-            val candidate = value?.trim().orEmpty()
-            require(candidate.isNotEmpty()) { "A dashcam RTSP URL is required" }
-            require(candidate.none { it.isWhitespace() || it.isISOControl() || it == '\\' }) {
-                "The dashcam RTSP URL is invalid"
-            }
-            // URI's stock parse error includes the entire input string. A dashcam URL can
-            // contain credentials, so never allow that error to bubble through the bridge
-            // or service status. The caller receives a stable, actionable public message.
-            val uri = try {
-                URI(candidate)
-            } catch (_: Exception) {
-                throw IllegalArgumentException("The dashcam RTSP URL is invalid")
-            }
-            require(uri.scheme.equals("rtsp", ignoreCase = true) && !uri.host.isNullOrBlank()) {
-                "The dashcam URL must start with rtsp:// and include a host"
-            }
-            require(uri.port == -1 || uri.port in 1..65535) {
-                "The dashcam RTSP port must be between 1 and 65535"
-            }
-            require(uri.fragment == null) { "The dashcam RTSP URL must not contain a fragment" }
-            // Parsing plus the scheme/host checks gives Media3 one absolute network
-            // endpoint while retaining
-            // credentials, port, path and query options used by real dashboard cameras.
-            return candidate
-        }
     }
 }
 

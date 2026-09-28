@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-5lxY2XJ/MANLZ07inQSx1Ps56OIN40T7URgVxgtRj/g='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-alMgFglTmLTaMAlOyaPUSj9LtMAekaj5T3g0uYO4LOg='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org https://kgis.ksrsac.in https://tgrac.telangana.gov.in https://coding-parrot.github.io/pothole-reporter/; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -177,8 +178,9 @@
         <option value="mr">मराठी</option>
         <option value="bn">বাংলা</option>
       </select>
-      <label id="keyLabel">OpenAI API key (stored only on this device)</label>
-      <input type="password" id="setKey" placeholder="sk-...">
+      <label id="keyLabel">OpenAI API key</label>
+      <input type="password" id="setKey" autocomplete="off" spellcheck="false" placeholder="sk-...">
+      <div class="meta" id="credentialStorageNote"></div>
       <label id="nameLabel">Your name (used in complaint emails)</label>
       <input type="text" id="setName" placeholder="Username for emails">
       <label id="modelLabel">Photo model</label>
@@ -195,13 +197,13 @@
       <label id="captureSourceLabel" for="setCaptureSource">Drive video source</label>
       <select id="setCaptureSource">
         <option id="phoneCameraOption" value="phone_camera">Phone camera</option>
-        <option id="dashcamOption" value="dashcam">Dashcam</option>
+        <option id="dashcamOption" value="dashcam" disabled>Dashcam (unavailable)</option>
       </select>
       <div class="meta" id="captureSourceNote">The selected source is used the next time Drive starts.</div>
       <div id="dashcamSettings" class="hidden">
         <label id="dashcamRtspLabel" for="setDashcamRtspUrl">Dashcam RTSP URL</label>
-        <input type="password" id="setDashcamRtspUrl" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="dashcamRtspNote" placeholder="rtsp://192.168.1.1:554/live">
-        <div class="meta" id="dashcamRtspNote" aria-live="polite">Connect this phone to the dashcam's Wi-Fi. Drive uses this phone's GPS, but not its camera or audio. H.264 RTSP over TCP is supported. Local RTSP is normally unencrypted, so use only a trusted dashcam Wi-Fi. The address and any credentials are obscured here and saved only on this device.</div>
+        <input type="password" id="setDashcamRtspUrl" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="dashcamRtspNote" placeholder="Secure dashcam transport unavailable" disabled>
+        <div class="meta" id="dashcamRtspNote" aria-live="polite">Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.</div>
       </div>
       <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;color:#f2f2f4">
         <input type="checkbox" id="setDebug" style="width:18px;height:18px;accent-color:var(--accent)">
@@ -272,11 +274,10 @@ const INITIAL_SETUP_KEY = "initial_setup_complete";
 const PHONE_CAPTURE_SOURCE = "phone_camera";
 const DASHCAM_CAPTURE_SOURCE = "dashcam";
 const CAPTURE_SOURCE_KEY = "drive_capture_source";
-const DASHCAM_RTSP_URL_KEY = "dashcam_rtsp_url";
 const LEGACY_SETTINGS_KEYS = [
-  "openai_key", "sender_name", "detection_model", "image_detail", "debug_mode",
+  "sender_name", "detection_model", "image_detail", "debug_mode",
   "keep_frames", "record_video", "drive_limit_minutes", "app_lang", "data_notice_version",
-  CAPTURE_SOURCE_KEY, DASHCAM_RTSP_URL_KEY,
+  CAPTURE_SOURCE_KEY,
 ];
 const normaliseDriveCaptureSource = (value) => value === DASHCAM_CAPTURE_SOURCE
   ? DASHCAM_CAPTURE_SOURCE : PHONE_CAPTURE_SOURCE;
@@ -284,43 +285,24 @@ const savedDriveCaptureSource = () => normaliseDriveCaptureSource(
   localStorage.getItem(CAPTURE_SOURCE_KEY)
 );
 function validateDashcamRtspUrl(rawValue) {
-  const value = String(rawValue || "").trim();
-  if (!value || /[\s\\\u0000-\u001f\u007f#]/u.test(value)) return null;
-  // Chrome/WebView's WHATWG URL parser does not consistently recognise RTSP, so parse
-  // only the small absolute-address grammar this feature accepts. Credentials remain
-  // opaque and are never placed in a status message.
-  const match = value.match(/^rtsp:\/\/([^/?#]+)(?:[/?][^#]*)?$/i);
-  if (!match) return null;
-  const authority = match[1];
-  const hostPort = authority.slice(authority.lastIndexOf("@") + 1);
-  if (!hostPort) return null;
-  if (hostPort.startsWith("[")) {
-    const ipv6 = hostPort.match(/^\[([0-9a-f:.%_-]+)\](?::([0-9]{1,5}))?$/i);
-    if (!ipv6 || !ipv6[1]) return null;
-    if (ipv6[2] && (Number(ipv6[2]) < 1 || Number(ipv6[2]) > 65535)) return null;
-  } else {
-    const parsedHost = hostPort.match(/^([a-z0-9._-]+)(?::([0-9]{1,5}))?$/i);
-    if (!parsedHost || !parsedHost[1] || parsedHost[1].startsWith(".") ||
-        parsedHost[1].endsWith(".") || (parsedHost[2] &&
-          (Number(parsedHost[2]) < 1 || Number(parsedHost[2]) > 65535))) {
-      return null;
-    }
-  }
-  return value;
+  // No production dashcam transport is supported by this build. Native code also
+  // enforces the transport boundary independently of every WebView operation.
+  return null;
 }
 function savedDriveCaptureConfig() {
   const captureSource = savedDriveCaptureSource();
   return {
     captureSource,
-    dashcamRtspUrl: captureSource === DASHCAM_CAPTURE_SOURCE
-      ? String(localStorage.getItem(DASHCAM_RTSP_URL_KEY) || "").trim() : "",
+    dashcamRtspConfigured: captureSource === DASHCAM_CAPTURE_SOURCE &&
+      window.CredentialBroker.hasDashcamRtsp(),
   };
 }
 function needsInitialSettings() {
   if (localStorage.getItem(INITIAL_SETUP_KEY) === "1") return false;
   // Existing installs already saved at least one of these values. Migrate them silently
   // so an update never turns the new-install screen into an upgrade roadblock.
-  if (LEGACY_SETTINGS_KEYS.some((key) => localStorage.getItem(key) !== null)) {
+  if (window.CredentialBroker.hadLegacyCredential() ||
+      LEGACY_SETTINGS_KEYS.some((key) => localStorage.getItem(key) !== null)) {
     localStorage.setItem(INITIAL_SETUP_KEY, "1");
     return false;
   }
@@ -345,7 +327,9 @@ const I18N = {
     no_reports: "No reports yet.",
     banner_setup: "Add an OpenAI API key to use Photo and Drive.",
     settings_title: "Settings",
-    key_label: "OpenAI API key (saved here; sent to OpenAI as the credential)",
+    key_label: "OpenAI API key (sent to OpenAI as the credential)",
+    credential_storage_native: "Android encrypts retained credentials with a non-exportable Keystore key. Saved credentials are never shown here; leave a field blank to keep its current value.",
+    credential_storage_browser: "This browser keeps the API key only in memory until this page closes or reloads. It is not saved in browser storage.",
     name_label: "Your name (used in complaint emails)",
     name_placeholder: "Username for emails",
     model_label: "Photo model",
@@ -355,11 +339,11 @@ const I18N = {
     phone_camera_option: "Phone camera",
     dashcam_option: "Dashcam",
     capture_source_note: "The selected source is used the next time Drive starts.",
-    dashcam_capture_source_note: "The selected source is used the next time Drive starts. Dashcam video is analysed live. Because RTSP does not expose the sensor capture time, uncalibrated dashcam detections save evidence but do not auto-route an authority, tender, or repair check. Optional local recording is available only with Phone camera.",
+    dashcam_capture_source_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
     dashcam_rtsp_label: "Dashcam RTSP URL",
-    dashcam_rtsp_note: "Connect this phone to the dashcam's Wi-Fi. Drive uses this phone's GPS, but not its camera or audio. H.264 RTSP over TCP is supported. Local RTSP is normally unencrypted, so use only a trusted dashcam Wi-Fi. The address and any credentials are obscured here and saved only on this device.",
-    dashcam_rtsp_invalid: "Enter a complete rtsp:// address, for example rtsp://192.168.1.1:554/live.",
-    dashcam_native_only: "Dashcam input is available in the Android app. Select Phone camera in this browser.",
+    dashcam_rtsp_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
+    dashcam_rtsp_invalid: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
+    dashcam_native_only: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
     debug_label: "Debug mode: keep the drive video after analysing it",
     settings_note: "Pothole photos and video-derived frames are sent to OpenAI for detection and can contain number plates or faces. Exact location is sent to OpenStreetMap/Nominatim; Karnataka points use Karnataka GIS and Hyderabad points use Telangana GIS. A verified state pack or 2° National Highway tile is downloaded from GitHub Pages and cached here; that request reveals the state or approximate tile and ordinary connection metadata, not exact coordinates. Your API key is sent only to OpenAI. The app never submits automatically.",
     independent_note: "Independent, unofficial app. It is not affiliated with or endorsed by any government body. Routing is best-effort and must be reviewed before sending.",
@@ -367,7 +351,7 @@ const I18N = {
     privacy_permission: "The app asks for Precise Location and, only when Phone camera is selected, Camera.",
     privacy_source: "Drive Mode uses no audio. It uses either this phone's camera or the dashcam RTSP stream you configure, plus this phone's location, in the background—even while Maps or a call is on screen.",
     privacy_body: "If you continue, the app will ask for Precise Location and, only when Phone camera is selected, Camera. While Drive Mode runs, precise location is collected to tag and route road damage even when this app is not visible or in use, including while Maps or a call is on screen. Pothole photos—or sampled complete frames from the selected Drive video source—are sent with your API key to OpenAI for detection. On a precise later live-drive revisit, the saved earlier damage photo and current views may be sent together for repair verification. Exact coordinates are sent to OpenStreetMap/Nominatim; Karnataka reports query Karnataka GIS and Hyderabad reports query Telangana GIS. The required state routing pack is downloaded from GitHub Pages. Processing can occur outside India.",
-    privacy_local: "Drive Mode uses no audio. It uses either this phone's camera or the dashcam RTSP stream you configure, plus this phone's location, in the background—even when this app is not visible and Maps or a call is on screen. A visible persistent foreground-service notification always shows this use; pause or stop it from the app or notification. The RTSP address and any credentials stay in app storage on this device without extra app-level encryption; local RTSP itself is normally unencrypted, so use only a trusted dashcam Wi-Fi. Selected complete frames are stored before analysis; the whole dashcam stream is not uploaded. Optional silent local video recording is off by default and is available only for Phone camera. Video and saved frames share a 4 GB cap; report and repair evidence has a separate 512 MB cap. Both stop writing before free storage falls below 500 MB. Drive stops after the selected active-time battery limit and fully stops after 15 minutes continuously paused. Reports, photos, repair evidence, footage, sampled frames, location tracks, settings, verified state packs and highway tiles remain on this device until deleted. Physical road condition is tracked separately from official complaint status.",
+    privacy_local: "Drive Mode uses no audio. It uses either this phone's camera or the dashcam RTSP stream you configure, plus this phone's location, in the background—even when this app is not visible and Maps or a call is on screen. A visible persistent foreground-service notification always shows this use; pause or stop it from the app or notification. On Android, the RTSP address, credentials, and OpenAI key are encrypted with a non-exportable Android Keystore key and are never returned to the WebView; local RTSP itself is normally unencrypted, so use only a trusted dashcam Wi-Fi. A browser keeps its OpenAI key in memory only until the page closes or reloads. Selected complete frames are stored before analysis; the whole dashcam stream is not uploaded. Optional silent local video recording is off by default and is available only for Phone camera. Video and saved frames share a 4 GB cap; report and repair evidence has a separate 512 MB cap. Both stop writing before free storage falls below 500 MB. Drive stops after the selected active-time battery limit and fully stops after 15 minutes continuously paused. Reports, photos, repair evidence, footage, sampled frames, location tracks, settings, verified state packs and highway tiles remain on this device until deleted. Physical road condition is tracked separately from official complaint status.",
     privacy_government: "This independent app is not a government service and never submits automatically. GitHub Pages receives your IP address, time, user agent and the requested state-pack or 2° highway-tile path, which reveals a state or approximate tile but not exact coordinates, photos or report content. Location may be sent to a government GIS for jurisdiction checks as disclosed above. Complaint text and photos reach a complaint service only when you deliberately open or complete a handoff. Review the destination and content.",
     privacy_link: "Privacy policy", sources_link: "Data sources and limits",
     privacy_accept: "Continue", privacy_decline: "Not now",
@@ -565,11 +549,11 @@ const I18N = {
     phone_camera_option: "ಫೋನ್ ಕ್ಯಾಮೆರಾ",
     dashcam_option: "ಡ್ಯಾಶ್‌ಕ್ಯಾಮ್",
     capture_source_note: "ಆಯ್ದ ಮೂಲವನ್ನು ಮುಂದಿನ ಡ್ರೈವ್ ಆರಂಭವಾದಾಗ ಬಳಸಲಾಗುತ್ತದೆ.",
-    dashcam_capture_source_note: "ಆಯ್ದ ಮೂಲವನ್ನು ಮುಂದಿನ ಡ್ರೈವ್‌ನಲ್ಲಿ ಬಳಸಲಾಗುತ್ತದೆ. ಡ್ಯಾಶ್‌ಕ್ಯಾಮ್ ವಿಡಿಯೋವನ್ನು ಲೈವ್ ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತದೆ. RTSP ಸೆನ್ಸರ್ ಸೆರೆಹಿಡಿದ ಸಮಯವನ್ನು ನೀಡದ ಕಾರಣ, ಕ್ಯಾಲಿಬ್ರೇಟ್ ಮಾಡದ ಡ್ಯಾಶ್‌ಕ್ಯಾಮ್ ಪತ್ತೆಗಳು ಸಾಕ್ಷಿಯನ್ನು ಉಳಿಸುತ್ತವೆ; ಪ್ರಾಧಿಕಾರ, ಟೆಂಡರ್ ಅಥವಾ ದುರಸ್ತಿ ಪರಿಶೀಲನೆಗೆ ಸ್ವಯಂ ಮಾರ್ಗಗೊಳಿಸುವುದಿಲ್ಲ. ಐಚ್ಛಿಕ ಸ್ಥಳೀಯ ರೆಕಾರ್ಡಿಂಗ್ ಫೋನ್ ಕ್ಯಾಮೆರಾದಲ್ಲಿ ಮಾತ್ರ ಲಭ್ಯ.",
+    dashcam_capture_source_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
     dashcam_rtsp_label: "ಡ್ಯಾಶ್‌ಕ್ಯಾಮ್ RTSP URL",
-    dashcam_rtsp_note: "ಈ ಫೋನ್ ಅನ್ನು ಡ್ಯಾಶ್‌ಕ್ಯಾಮ್ Wi-Fi ಗೆ ಸಂಪರ್ಕಿಸಿ. ಡ್ರೈವ್ ಈ ಫೋನ್‌ನ GPS ಬಳಸುತ್ತದೆ, ಆದರೆ ಕ್ಯಾಮೆರಾ ಅಥವಾ ಆಡಿಯೋ ಬಳಸುವುದಿಲ್ಲ. TCP ಮೂಲಕ H.264 RTSP ಮಾತ್ರ ಬೆಂಬಲಿತವಾಗಿದೆ. ಸ್ಥಳೀಯ RTSP ಸಾಮಾನ್ಯವಾಗಿ ಎನ್‌ಕ್ರಿಪ್ಟ್ ಆಗಿರುವುದಿಲ್ಲ; ವಿಶ್ವಾಸಾರ್ಹ ಡ್ಯಾಶ್‌ಕ್ಯಾಮ್ Wi-Fi ಮಾತ್ರ ಬಳಸಿ. ರುಜುವಾತುಗಳಿರುವ ವಿಳಾಸವನ್ನು ಇಲ್ಲಿ ಮರೆಮಾಡಿ ಈ ಸಾಧನದಲ್ಲಿ ಮಾತ್ರ ಉಳಿಸಲಾಗುತ್ತದೆ.",
-    dashcam_rtsp_invalid: "ಪೂರ್ಣ rtsp:// ವಿಳಾಸ ನಮೂದಿಸಿ, ಉದಾಹರಣೆಗೆ rtsp://192.168.1.1:554/live.",
-    dashcam_native_only: "ಡ್ಯಾಶ್‌ಕ್ಯಾಮ್ ಇನ್‌ಪುಟ್ Android ಆ್ಯಪ್‌ನಲ್ಲಿ ಲಭ್ಯವಿದೆ. ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಫೋನ್ ಕ್ಯಾಮೆರಾ ಆಯ್ಕೆಮಾಡಿ.",
+    dashcam_rtsp_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
+    dashcam_rtsp_invalid: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
+    dashcam_native_only: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
     debug_label: "ಡೀಬಗ್ ಮೋಡ್: ವಿಶ್ಲೇಷಣೆಯ ನಂತರವೂ ಡ್ರೈವ್ ವಿಡಿಯೋ ಉಳಿಸಿ",
     settings_note: "ಗುಂಡಿಯ ಫೋಟೋಗಳು ಮತ್ತು ವಿಡಿಯೋ ಫ್ರೇಮ್‌ಗಳನ್ನು ಪತ್ತೆಗಾಗಿ OpenAI ಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ; ಅವುಗಳಲ್ಲಿ ವಾಹನ ಸಂಖ್ಯೆ ಅಥವಾ ಮುಖಗಳು ಇರಬಹುದು. ನಿಖರ ಸ್ಥಳವನ್ನು OpenStreetMap/Nominatim ಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ; ಕರ್ನಾಟಕದ ಸ್ಥಳಗಳಿಗೆ Karnataka GIS ಮತ್ತು ಹೈದರಾಬಾದ್ ಸ್ಥಳಗಳಿಗೆ Telangana GIS ಬಳಸಲಾಗುತ್ತದೆ. ಪರಿಶೀಲಿತ ರಾಜ್ಯ ಪ್ಯಾಕ್ ಅಥವಾ 2° ರಾಷ್ಟ್ರೀಯ ಹೆದ್ದಾರಿ ಟೈಲ್ GitHub Pages ನಿಂದ ಡೌನ್‌ಲೋಡ್ ಆಗಿ ಸಾಧನದಲ್ಲಿ ಉಳಿಯುತ್ತದೆ; ಆ ವಿನಂತಿ ರಾಜ್ಯ ಅಥವಾ ಅಂದಾಜು ಟೈಲ್ ಮತ್ತು ಸಾಮಾನ್ಯ ಸಂಪರ್ಕ ಮಾಹಿತಿಯನ್ನು ತೋರಿಸುತ್ತದೆ, ನಿಖರ ಸ್ಥಳವನ್ನಲ್ಲ. API ಕೀ OpenAI ಗೆ ಮಾತ್ರ ಹೋಗುತ್ತದೆ. ಆ್ಯಪ್ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ದೂರು ಸಲ್ಲಿಸುವುದಿಲ್ಲ.",
     independent_note: "ಇದು ಸ್ವತಂತ್ರ, ಅನಧಿಕೃತ ಆ್ಯಪ್. ಯಾವುದೇ ಸರ್ಕಾರಿ ಸಂಸ್ಥೆಯೊಂದಿಗೆ ಸಂಬಂಧ ಅಥವಾ ಅನುಮೋದನೆ ಇಲ್ಲ. ಕಚೇರಿ ಸೂಚನೆ ಅತ್ಯುತ್ತಮ ಪ್ರಯತ್ನ ಮಾತ್ರ; ಕಳುಹಿಸುವ ಮೊದಲು ಪರಿಶೀಲಿಸಿ.",
@@ -768,11 +752,11 @@ const I18N = {
     phone_camera_option: "फोन कॅमेरा",
     dashcam_option: "डॅशकॅम",
     capture_source_note: "निवडलेला स्रोत पुढील ड्राइव्ह सुरू झाल्यावर वापरला जाईल.",
-    dashcam_capture_source_note: "निवडलेला स्रोत पुढील ड्राइव्हमध्ये वापरला जाईल. डॅशकॅम व्हिडिओचे थेट विश्लेषण होते. RTSP सेन्सरची प्रत्यक्ष कॅप्चर वेळ देत नसल्यामुळे, कॅलिब्रेशन नसलेल्या डॅशकॅम तपासणीचा पुरावा जतन होतो; संस्था, टेंडर किंवा दुरुस्ती तपासणीचे स्वयंचलित routing होत नाही. ऐच्छिक स्थानिक रेकॉर्डिंग फक्त फोन कॅमेरासाठी उपलब्ध आहे.",
+    dashcam_capture_source_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
     dashcam_rtsp_label: "डॅशकॅम RTSP URL",
-    dashcam_rtsp_note: "हा फोन डॅशकॅमच्या Wi-Fi ला जोडा. Drive या फोनचा GPS वापरते, पण कॅमेरा किंवा ऑडिओ वापरत नाही. फक्त TCP वर H.264 RTSP समर्थित आहे. स्थानिक RTSP सहसा एन्क्रिप्ट केलेले नसते; फक्त विश्वासार्ह डॅशकॅम Wi-Fi वापरा. क्रेडेन्शियल्ससह पत्ता येथे लपवला जातो आणि फक्त या डिव्हाइसवर जतन होतो.",
-    dashcam_rtsp_invalid: "पूर्ण rtsp:// पत्ता द्या, उदाहरणार्थ rtsp://192.168.1.1:554/live.",
-    dashcam_native_only: "डॅशकॅम इनपुट Android अॅपमध्ये उपलब्ध आहे. या ब्राउझरमध्ये फोन कॅमेरा निवडा.",
+    dashcam_rtsp_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
+    dashcam_rtsp_invalid: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
+    dashcam_native_only: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
     debug_label: "डीबग मोड: विश्लेषणानंतरही ड्राइव्हचा व्हिडिओ जतन करा",
     settings_note: "खड्ड्यांचे फोटो आणि व्हिडिओतील फ्रेम्स तपासणीसाठी OpenAI कडे पाठवल्या जातात; त्यात वाहन क्रमांक किंवा चेहरे असू शकतात. अचूक स्थान OpenStreetMap/Nominatim कडे पाठवले जाते; कर्नाटकासाठी Karnataka GIS आणि हैदराबादसाठी Telangana GIS वापरले जाते. पडताळलेला राज्य pack किंवा 2° राष्ट्रीय महामार्ग tile GitHub Pages वरून डाउनलोड होऊन या साधनावर जतन होतो; त्या विनंतीत राज्य किंवा अंदाजे tile व सामान्य कनेक्शन माहिती दिसते, अचूक स्थान नाही. API की फक्त OpenAI कडे जाते. अॅप तक्रार आपोआप सादर करत नाही.",
     independent_note: "हे स्वतंत्र, अनधिकृत अॅप आहे. कोणत्याही सरकारी संस्थेशी संलग्न नाही किंवा तिची मान्यता नाही. सुचवलेले कार्यालय पाठवण्यापूर्वी तपासा.",
@@ -962,11 +946,11 @@ const I18N = {
     phone_camera_option: "ফোন ক্যামেরা",
     dashcam_option: "ড্যাশক্যাম",
     capture_source_note: "পরবর্তী Drive শুরু হলে নির্বাচিত উৎসটি ব্যবহার করা হবে।",
-    dashcam_capture_source_note: "পরবর্তী Drive-এ নির্বাচিত উৎসটি ব্যবহার করা হবে। ড্যাশক্যাম ভিডিও সরাসরি বিশ্লেষণ করা হয়। RTSP সেন্সরের প্রকৃত capture time দেয় না, তাই calibration না-করা dashcam detection প্রমাণ সংরক্ষণ করে; authority, tender বা repair check স্বয়ংক্রিয়ভাবে route করে না। ঐচ্ছিক স্থানীয় recording শুধু ফোন ক্যামেরায় পাওয়া যায়।",
+    dashcam_capture_source_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
     dashcam_rtsp_label: "ড্যাশক্যাম RTSP URL",
-    dashcam_rtsp_note: "ফোনটিকে ড্যাশক্যামের Wi-Fi-তে যুক্ত করুন। Drive এই ফোনের GPS ব্যবহার করে, কিন্তু ক্যামেরা বা অডিও ব্যবহার করে না। শুধু TCP-এর মাধ্যমে H.264 RTSP সমর্থিত। স্থানীয় RTSP সাধারণত এনক্রিপ্ট করা থাকে না; শুধু বিশ্বস্ত ড্যাশক্যাম Wi-Fi ব্যবহার করুন। পরিচয়পত্র-সহ ঠিকানাটি এখানে আড়াল করা থাকে এবং শুধু এই ডিভাইসেই সংরক্ষিত হয়।",
-    dashcam_rtsp_invalid: "একটি পূর্ণ rtsp:// ঠিকানা লিখুন, যেমন rtsp://192.168.1.1:554/live।",
-    dashcam_native_only: "ড্যাশক্যাম ইনপুট Android অ্যাপে পাওয়া যায়। এই ব্রাউজারে ফোন ক্যামেরা বেছে নিন।",
+    dashcam_rtsp_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
+    dashcam_rtsp_invalid: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
+    dashcam_native_only: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
     debug_label: "ডিবাগ মোড: বিশ্লেষণের পরেও ড্রাইভের ভিডিও রাখুন",
     settings_note: "রাস্তার গর্তের ছবি ও ভিডিওর ফ্রেম শনাক্তকরণের জন্য OpenAI-তে পাঠানো হয়; তাতে নম্বরপ্লেট বা মুখ থাকতে পারে। সঠিক অবস্থান OpenStreetMap/Nominatim-এ পাঠানো হয়; কর্ণাটকের জন্য Karnataka GIS এবং হায়দরাবাদের জন্য Telangana GIS ব্যবহার করা হয়। যাচাই-করা রাজ্য pack বা 2° জাতীয় সড়ক tile GitHub Pages থেকে ডাউনলোড হয়ে ডিভাইসে থাকে; অনুরোধটি রাজ্য বা আনুমানিক tile ও সাধারণ সংযোগের তথ্য প্রকাশ করে, সঠিক অবস্থান নয়। API key কেবল OpenAI-তে যায়। অ্যাপ নিজে থেকে অভিযোগ জমা দেয় না।",
     independent_note: "এটি একটি স্বাধীন, বেসরকারি অ্যাপ। কোনও সরকারি সংস্থার সঙ্গে এর সম্পর্ক নেই এবং কোনও সরকারি সংস্থা এটি অনুমোদন করেনি। প্রাপক নির্বাচন সর্বোত্তম প্রচেষ্টার ভিত্তিতে; পাঠানোর আগে যাচাই করুন।",
@@ -1141,7 +1125,7 @@ const I18N = {
   },
 };
 const savedLang = localStorage.getItem("app_lang");
-const LANG = savedLang === "kn" || savedLang === "mr" || savedLang === "bn" ? savedLang : "en";
+let LANG = savedLang === "kn" || savedLang === "mr" || savedLang === "bn" ? savedLang : "en";
 document.documentElement.lang = LANG;
 const t = (k, p) => {
   let s = (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
@@ -1197,6 +1181,10 @@ function show(screen) {
   if (drive && drive.native && drive.stopping && !drive.captureStopped &&
       screen !== "drive") return false;
   if (nativeFinishLocked && screen === "settings") return false;
+  if (screen !== "settings") {
+    $("setKey").value = "";
+    $("setDashcamRtspUrl").value = "";
+  }
   if (screen !== "drive" &&
       (nativePreviewAttached || document.documentElement.classList.contains("native-preview-active"))) {
     stopNativePreview();
@@ -1261,7 +1249,8 @@ function setDashcamRtspFeedback(message = "", invalid = false) {
 function updateCaptureSourceSettings() {
   const dashcam = $("setCaptureSource").value === DASHCAM_CAPTURE_SOURCE;
   $("dashcamSettings").classList.toggle("hidden", !dashcam);
-  $("setDashcamRtspUrl").disabled = !dashcam;
+  $("dashcamOption").disabled = true;
+  $("setDashcamRtspUrl").disabled = true;
   $("setRecord").disabled = dashcam;
   $("recordSetting").style.opacity = dashcam ? ".6" : "";
   const nativeOnly = dashcam && !nativeDrivePlugin();
@@ -1289,6 +1278,8 @@ function applyLang() {
   $("reportsTitle").textContent = t("your_reports");
   $("settingsTitle").textContent = t("settings_title");
   $("keyLabel").textContent = t("key_label");
+  $("credentialStorageNote").textContent = window.CredentialBroker.isNative()
+    ? t("credential_storage_native") : t("credential_storage_browser");
   $("nameLabel").textContent = t("name_label");
   $("setName").placeholder = t("name_placeholder");
   $("modelLabel").textContent = t("model_label");
@@ -2360,11 +2351,13 @@ async function shareEvidence(r) {
     const evidence = await api(`/api/reports/${r.id}/evidence`);
     const P = window.Capacitor && Capacitor.Plugins;
     if (P && P.Filesystem && P.Share) {
+      await window.withManagedMediaOperation("share", async () => {
       try { await P.Filesystem.mkdir({ path: SHARE_CACHE_DIR, directory: "CACHE", recursive: true }); } catch (_) {}
       const wide = await P.Filesystem.writeFile({ path: `${SHARE_CACHE_DIR}/${evidence.name}`, data: evidence.base64, directory: "CACHE" });
       const files = [wide.uri];
       await P.Share.share({ title: evidence.name, text: evidence.text, files,
                             dialogTitle: t("share_evidence_btn") });
+      });
     } else {
       const bin = atob(evidence.base64), arr = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
@@ -2443,6 +2436,7 @@ let nativeRepairSyncPromise = null;
 let nativeDataSyncEpoch = 0;
 let nativeRepairSyncEpoch = 0;
 let nativeWipeInProgress = false;
+window.isManagedMediaWipeInProgress = () => nativeWipeInProgress;
 let nativeDriveControlEpoch = 0;
 let lastNativeSyncAt = 0;
 let lastNativeSyncResult = { reports: 0, repairs: 0, drives: 0 };
@@ -3464,27 +3458,25 @@ async function startDriveAdmitted() {
   if (nativeKeyframeReplay && !nativeKeyframeReplay.interactive) {
     nativeKeyframeReplay.cancelled = true;
   }
-  if (!(localStorage.getItem("openai_key") || "").trim()) {
+  try {
+    await window.CredentialBroker.ready();
+  } catch (error) {
+    alert(error.message || "Secure credential storage is unavailable.");
+    openSettings(true, false);
+    return;
+  }
+  if (!window.CredentialBroker.hasOpenAi()) {
     openSettings(true, false);
     return;
   }
   const captureConfig = savedDriveCaptureConfig();
   const nativePlugin = nativeDrivePlugin();
   if (captureConfig.captureSource === DASHCAM_CAPTURE_SOURCE) {
-    const validRtspUrl = validateDashcamRtspUrl(captureConfig.dashcamRtspUrl);
-    if (!validRtspUrl) {
-      openSettings(false, false);
-      setDashcamRtspFeedback(t("dashcam_rtsp_invalid"), true);
-      $("setDashcamRtspUrl").focus();
-      return;
-    }
-    captureConfig.dashcamRtspUrl = validRtspUrl;
-    if (!nativePlugin) {
-      openSettings(false, false);
-      setDashcamRtspFeedback(t("dashcam_native_only"), true);
-      $("setCaptureSource").focus();
-      return;
-    }
+    // Keep old saved selections intact, but never reconnect or silently switch source.
+    openSettings(false, false);
+    setDashcamRtspFeedback(t("dashcam_rtsp_invalid"), true);
+    $("setCaptureSource").focus();
+    return;
   }
   const backgroundSyncCancelled = nativePlugin
     ? cancelNativeBackgroundSyncsForDriveStart(nativePlugin)
@@ -3533,7 +3525,6 @@ async function startDriveAdmitted() {
     try {
       const status = await nativePlugin.startDrive({
         startRequestId: ctx.startRequestId,
-        apiKey: localStorage.getItem("openai_key") || "",
         model: NATIVE_DRIVE_DETECTION_MODEL,
         detail: NATIVE_DRIVE_DETECTION_DETAIL,
         language: LANG,
@@ -3542,8 +3533,6 @@ async function startDriveAdmitted() {
           localStorage.getItem("record_video") === "1",
         maxDurationMinutes: driveLimitMinutes(),
         captureSource: captureConfig.captureSource,
-        dashcamRtspUrl: captureConfig.captureSource === DASHCAM_CAPTURE_SOURCE
-          ? captureConfig.dashcamRtspUrl : "",
       });
       if (nativeWipeInProgress) {
         drive = null;
@@ -4274,7 +4263,14 @@ $("captureBtn").onclick = async () => {
   try {
     if (nativeInitialRestorePending) await nativeInitialRestorePromise.catch(() => {});
     if (drive || driveStarting || nativeFinishLocked || nativeWipeLocked) return;
-    if (!(localStorage.getItem("openai_key") || "").trim()) {
+    try {
+      await window.CredentialBroker.ready();
+    } catch (error) {
+      alert(error.message || "Secure credential storage is unavailable.");
+      openSettings(true, false);
+      return;
+    }
+    if (!window.CredentialBroker.hasOpenAi()) {
       openSettings(true, false);
       return;
     }
@@ -4295,6 +4291,7 @@ async function beginPotholeCapture() {
   if (camera && camera.getPhoto) {
     const positionSampler = startCapturePositionSampler();
     try {
+      await window.withManagedMediaOperation("camera", async () => {
       const shot = await camera.getPhoto({
         quality: 95,
         allowEditing: false,
@@ -4320,6 +4317,7 @@ async function beginPotholeCapture() {
       });
       const position = await positionSampler.positionAt(capturedAtMs);
       await handleFile(file, { captureSource: "manual_camera", capturedAtMs, position });
+      });
       return;
     } catch (e) {
       const cancelled = e && (e.code === "OS-PLUG-CAMR-0006"
@@ -4730,7 +4728,7 @@ function nativeAutomaticReplayAllowed() {
     document.visibilityState === "visible" && !nativeWipeInProgress &&
     !nativeCaptureFinalizingSessionId && !drive && !driveStarting &&
     navigator.onLine !== false &&
-    Boolean((localStorage.getItem("openai_key") || "").trim());
+    window.CredentialBroker.hasOpenAi();
 }
 
 function nativeReplayNeedsIdleRetry(error) {
@@ -5631,9 +5629,11 @@ async function shareZip(zip) {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
     return;
   }
+  await window.withManagedMediaOperation("share", async () => {
   try { await P.Filesystem.mkdir({ path: SHARE_CACHE_DIR, directory: "CACHE", recursive: true }); } catch (_) {}
   const w = await P.Filesystem.writeFile({ path: `${SHARE_CACHE_DIR}/${zip.name}`, data: zip.base64, directory: "CACHE" });
   await P.Share.share({ title: zip.name, files: [w.uri] });
+  });
 }
 $("fileInput").onchange = (e) => {
   handleFile(e.target.files[0], { captureSource: "manual_import" });
@@ -5690,18 +5690,22 @@ window.handleAppBack = () => {
   return false;
 };
 
-// Settings: OpenAI key and sender name. Stored on-device only.
+// Settings show configured status, never a retained credential's plaintext.
 window.openSettings = (showWelcome = false, requireCompletion = false) => {
   if (nativeFinishLocked || nativeWipeLocked) return false;
   initialSettingsActive = requireCompletion || initialSettingsRequired;
-  $("setKey").value = localStorage.getItem("openai_key") || "";
+  $("setKey").value = "";
+  $("setKey").placeholder = window.CredentialBroker.hasOpenAi()
+    ? (window.CredentialBroker.isNative() ? "Stored securely — leave blank to keep"
+      : "Configured for this page — leave blank to keep") : "sk-...";
   $("setName").value = localStorage.getItem("sender_name") || "";
   $("setModel").value = ["gpt-5-mini", "gpt-5.6"].includes(localStorage.getItem("detection_model"))
     ? localStorage.getItem("detection_model") : "gpt-5-mini";
   $("setDetail").value = ["high", "original"].includes(localStorage.getItem("image_detail"))
     ? localStorage.getItem("image_detail") : "high";
   $("setCaptureSource").value = savedDriveCaptureSource();
-  $("setDashcamRtspUrl").value = localStorage.getItem(DASHCAM_RTSP_URL_KEY) || "";
+  $("setDashcamRtspUrl").value = "";
+  $("setDashcamRtspUrl").placeholder = "Secure dashcam transport unavailable";
   updateCaptureSourceSettings();
   $("setDebug").checked = localStorage.getItem("debug_mode") === "1";
   $("setKeepFrames").checked = localStorage.getItem("keep_frames") === "1";
@@ -5712,6 +5716,13 @@ window.openSettings = (showWelcome = false, requireCompletion = false) => {
   $("setBack").classList.toggle("hidden", initialSettingsActive);
   $("setSave").textContent = initialSettingsActive ? t("privacy_accept") : t("save");
   show("settings");
+  window.CredentialBroker.ready().then(() => {
+    if ($("settings").classList.contains("hidden")) return;
+    $("setKey").placeholder = window.CredentialBroker.hasOpenAi()
+      ? (window.CredentialBroker.isNative() ? "Stored securely — leave blank to keep"
+        : "Configured for this page — leave blank to keep") : "sk-...";
+    $("setDashcamRtspUrl").placeholder = "Secure dashcam transport unavailable";
+  }).catch(() => {});
   return true;
 };
 $("gearBtn").onclick = () => {
@@ -5729,7 +5740,13 @@ $("setSave").onclick = async () => {
   const saveButton = $("setSave");
   if (saveButton.disabled) return;
   const trimmedKey = $("setKey").value.trim();
-  if (initialSettingsActive && !trimmedKey) {
+  try {
+    await window.CredentialBroker.ready();
+  } catch (error) {
+    alert(error.message || "Secure credential storage is unavailable.");
+    return;
+  }
+  if (initialSettingsActive && !trimmedKey && !window.CredentialBroker.hasOpenAi()) {
     alert(t("key_required"));
     $("setKey").focus();
     return;
@@ -5738,15 +5755,8 @@ $("setSave").onclick = async () => {
   const selectedDetail = $("setDetail").value === "original" && selectedModel === "gpt-5.6"
     ? "original" : "high";
   const selectedCaptureSource = normaliseDriveCaptureSource($("setCaptureSource").value);
-  const dashcamRtspUrl = selectedCaptureSource === DASHCAM_CAPTURE_SOURCE
-    ? validateDashcamRtspUrl($("setDashcamRtspUrl").value) : "";
-  if (selectedCaptureSource === DASHCAM_CAPTURE_SOURCE && !dashcamRtspUrl) {
+  if (selectedCaptureSource === DASHCAM_CAPTURE_SOURCE) {
     setDashcamRtspFeedback(t("dashcam_rtsp_invalid"), true);
-    $("setDashcamRtspUrl").focus();
-    return;
-  }
-  if (selectedCaptureSource === DASHCAM_CAPTURE_SOURCE && !nativeDrivePlugin()) {
-    setDashcamRtspFeedback(t("dashcam_native_only"), true);
     $("setCaptureSource").focus();
     return;
   }
@@ -5756,6 +5766,11 @@ $("setSave").onclick = async () => {
     ? Number($("setDriveLimit").value) : 30;
   const newLang = $("setLang").value;
   try {
+    await window.CredentialBroker.storeCredentials({
+      openAiKey: trimmedKey || undefined,
+    });
+    $("setKey").value = "";
+    $("setDashcamRtspUrl").value = "";
     const plugin = nativeDrivePlugin();
     if (plugin && drive && drive.native && !drive.stopping) {
       const current = await plugin.getStatus();
@@ -5764,14 +5779,10 @@ $("setSave").onclick = async () => {
         updateNativeDriveHud(updated);
       }
     }
-    localStorage.setItem("openai_key", trimmedKey);
     localStorage.setItem("sender_name", $("setName").value.trim());
     localStorage.setItem("detection_model", selectedModel);
     localStorage.setItem("image_detail", selectedDetail);
     localStorage.setItem(CAPTURE_SOURCE_KEY, selectedCaptureSource);
-    if (selectedCaptureSource === DASHCAM_CAPTURE_SOURCE) {
-      localStorage.setItem(DASHCAM_RTSP_URL_KEY, dashcamRtspUrl);
-    }
     localStorage.setItem("debug_mode", $("setDebug").checked ? "1" : "0");
     localStorage.setItem("keep_frames", $("setKeepFrames").checked ? "1" : "0");
     localStorage.setItem("record_video", recordVideo ? "1" : "0");
@@ -5780,7 +5791,11 @@ $("setSave").onclick = async () => {
     localStorage.setItem(INITIAL_SETUP_KEY, "1");
     initialSettingsRequired = false;
     initialSettingsActive = false;
-    if (newLang !== LANG) { location.reload(); return; }
+    if (newLang !== LANG) {
+      LANG = newLang;
+      document.documentElement.lang = LANG;
+      applyLang();
+    }
     await loadHealth();
     await loadReports();
     show("home");
@@ -5848,13 +5863,17 @@ async function deleteAllAppData() {
       if (!result || result.cleared !== true) {
         throw new Error("Android could not verify that its private app data was deleted.");
       }
-      if (!filesystem || typeof filesystem.rmdir !== "function" ||
-          typeof filesystem.readdir !== "function") {
-        throw new Error("Android file cleanup is unavailable; exported debug frames were not verified.");
-      }
+      await window.CredentialBroker.refresh();
+    } else {
+      await window.CredentialBroker.clear();
     }
-    await removeManagedDirectory(filesystem, FRAME_DIR, "DOCUMENTS");
-    await removeManagedDirectory(filesystem, SHARE_CACHE_DIR, "CACHE");
+    $("setKey").value = "";
+    $("setDashcamRtspUrl").value = "";
+    // Android's authoritative native wipe covers both directories and URI grants.
+    if (!nativePlugin) {
+      await removeManagedDirectory(filesystem, FRAME_DIR, "DOCUMENTS");
+      await removeManagedDirectory(filesystem, SHARE_CACHE_DIR, "CACHE");
+    }
     await clearManagedBrowserCaches();
     const cleared = await api("/api/reports", { method: "DELETE" });
     if (!cleared || cleared.ok !== true) {

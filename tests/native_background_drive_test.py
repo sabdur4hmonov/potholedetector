@@ -3,6 +3,7 @@ import pathlib
 import sys
 
 from playwright.sync_api import sync_playwright
+from browser_test_utils import SECURE_CREDENTIALS_MOCK
 
 APP = "http://localhost:8765/"
 
@@ -119,7 +120,7 @@ with sync_playwright() as playwright:
         launch_options["executable_path"] = str(system_chrome)
     browser = playwright.chromium.launch(**launch_options)
     context = browser.new_context(viewport={"width": 390, "height": 844})
-    context.add_init_script(INIT)
+    context.add_init_script(INIT + SECURE_CREDENTIALS_MOCK)
     page = context.new_page()
     page.route("**/nominatim.openstreetmap.org/reverse**", lambda route: route.abort())
     page.goto(APP)

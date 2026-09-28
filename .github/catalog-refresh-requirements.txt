@@ -1,0 +1,11 @@
+# Workflow-only lock: CPython 3.12 / Ubuntu 24.04 x86_64 wheels from PyPI.
+# Playwright 1.58.0 selects Chromium headless shell 145.0.7632.6, revision 1208.
+# Install with --require-hashes --only-binary=:all:; no source builds.
+playwright==1.58.0 \
+    --hash=sha256:c95568ba1eda83812598c1dc9be60b4406dffd60b149bc1536180ad108723d6b
+pyee==13.0.1 \
+    --hash=sha256:af2f8fede4171ef667dfded53f96e2ed0d6e6bd7ee3bb46437f77e3b57689228
+greenlet==3.3.1 \
+    --hash=sha256:14194f5f4305800ff329cbf02c5fcc88f01886cadd29941b807668a45f0d2336
+typing_extensions==4.15.0 \
+    --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548

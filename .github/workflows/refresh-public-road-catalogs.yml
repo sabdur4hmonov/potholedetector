@@ -2,47 +2,45 @@ name: Refresh public road catalogs
 
 on:
   schedule:
-    # Monday and Thursday at 02:17 UTC (07:47 IST).
+    # Monday and Thursday at 02:17 UTC.
     - cron: "17 2 * * 1,4"
   workflow_dispatch:
+  pull_request:
 
 concurrency:
-  group: public-road-catalog-refresh
+  group: public-road-catalog-${{ github.event.pull_request.number || 'refresh' }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  pull-requests: write
+# Unspecified permissions are denied; each job grants only what it needs.
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  LC_ALL: C.UTF-8
+  PYTHONDONTWRITEBYTECODE: "1"
+  TZ: UTC
 
 jobs:
-  refresh:
-    name: Refresh, validate, and open a PR
-    runs-on: ubuntu-latest
-    timeout-minutes: 180
-    env:
-      LC_ALL: C.UTF-8
-      PYTHONDONTWRITEBYTECODE: "1"
-      TZ: UTC
-
+  preflight:
+    name: Read-only pull request preflight
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
-      - name: Check out main
+      - name: Check out the PR merge commit without credentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: main
-          fetch-depth: 0
-          fetch-tags: true
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
-          python-version: "3.12"
-
-      - name: Install browser for the public Gujarat tender table
-        run: |
-          set -euo pipefail
-          python3 -m pip install "playwright>=1.40,<2"
-          python3 -m playwright install --with-deps chromium
+          python-version: "3.12.12"
 
       - name: Run offline parser and schema preflight
         run: |
@@ -63,6 +61,64 @@ jobs:
           python3 tests/pmgsy_road_agreement_puller_test.py
           python3 tests/pmgsy_road_agreement_pack_builder_test.py
           python3 tests/catalog_pack_pruner_test.py
+
+          python3 tests/sec007_workflow_security_test.py
+
+  refresh:
+    name: Read-only refresh and validation
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.transfer.outputs.changed }}
+    steps:
+      - name: Check out the workflow commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          # Pruning must preserve packs referenced by historical release tags.
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12.12"
+
+      - name: Run offline parser and schema preflight
+        run: |
+          set -euo pipefail
+          python3 tests/tender_source_registry_test.py
+          python3 tests/tender_scope_test.py
+          python3 tests/national_highway_contracts_test.py
+          python3 tests/gepnic_tender_crawler_test.py
+          python3 tests/gepnic_road_notice_pack_builder_test.py
+          python3 tests/bihar_road_tender_puller_test.py
+          python3 tests/chhattisgarh_chips_road_tender_puller_test.py
+          python3 tests/gujarat_nprocure_road_tender_puller_test.py
+          python3 tests/lakshadweep_road_tender_puller_test.py
+          python3 tests/telangana_road_tender_puller_test.py
+          python3 tests/andhra_pradesh_road_tender_source_test.py
+          python3 tests/kppp_road_award_puller_test.py
+          python3 tests/emarg_road_contract_puller_test.py
+          python3 tests/pmgsy_road_agreement_puller_test.py
+          python3 tests/pmgsy_road_agreement_pack_builder_test.py
+          python3 tests/catalog_pack_pruner_test.py
+
+          python3 tests/sec007_workflow_security_test.py
+
+      - name: Install locked browser tooling for the public Gujarat tender table
+        run: |
+          set -euo pipefail
+          python3 -m pip install --require-hashes --only-binary=:all: \
+            -r .github/catalog-refresh-requirements.txt
+          # The wheel pins Chromium headless shell revision 1208. Runner image
+          # supplies OS libraries; do not run a mutable apt install as root.
+          python3 -m playwright install --only-shell chromium
+          python3 -c 'from playwright.sync_api import sync_playwright; p = sync_playwright().start(); b = p.chromium.launch(headless=True); b.close(); p.stop()'
 
       - name: Refresh official source snapshots
         run: |
@@ -140,100 +196,83 @@ jobs:
           python3 tests/gepnic_road_notice_pack_builder_test.py
           python3 tests/pmgsy_road_agreement_pack_builder_test.py
 
-      - name: Enforce catalog-only changes
-        id: changes
-        shell: bash
+      - name: Enforce catalog-only changes and record transfer provenance
+        id: transfer
         run: |
           set -euo pipefail
-          mapfile -t catalog_changed_paths < <(
-            {
-              git diff --name-only
-              git ls-files --others --exclude-standard
-            } | sort -u
-          )
+          python3 .github/scripts/catalog-transfer.py capture "$RUNNER_TEMP/catalog-transfer"
 
-          for catalog_path in "${catalog_changed_paths[@]}"; do
-            case "$catalog_path" in
-              data/tenders-national-highways.json|\
-              data/gepnic-road-notices/*|\
-              data/custom-road-tenders/*|\
-              data/pmgsy-road-agreements/*|\
-              docs/packs/v1/contracts/*|\
-              docs/packs/v1/road-notices/*|\
-              docs/packs/v1/road-agreements/*|\
-              static/contract-manifest-v1.36.json|\
-              docs/contract-manifest-v1.36.json|\
-              android-app/www/contract-manifest-v1.36.json|\
-              static/road-notice-manifest-v1.36.json|\
-              docs/road-notice-manifest-v1.36.json|\
-              android-app/www/road-notice-manifest-v1.36.json|\
-              static/road-agreement-manifest-v1.36.json|\
-              docs/road-agreement-manifest-v1.36.json|\
-              android-app/www/road-agreement-manifest-v1.36.json)
-                ;;
-              *)
-                echo "Refusing to publish non-catalog change: $catalog_path" >&2
-                exit 1
-                ;;
-            esac
-          done
+      - name: Upload validated catalog data from this run
+        if: steps.transfer.outputs.changed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: public-road-catalog-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/catalog-transfer/
+          if-no-files-found: error
+          retention-days: 7
 
-          if ((${#catalog_changed_paths[@]} == 0)); then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Official catalogs are already current."
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            printf 'Catalog files changed:\n'
-            printf '  %s\n' "${catalog_changed_paths[@]}"
-          fi
+  publish:
+    name: Publish catalog data for review on a fresh runner
+    needs: refresh
+    if: ${{ needs.refresh.result == 'success' && needs.refresh.outputs.changed == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out the workflow commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
 
-      - name: Commit to a unique automation branch
-        if: steps.changes.outputs.changed == 'true'
-        env:
-          CATALOG_BRANCH: automation/public-road-catalogs-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12.12"
+
+      - name: Download only this run's catalog transfer
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: public-road-catalog-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/catalog-transfer/
+
+      - name: Validate and stage data without executing artifact content
         run: |
           set -euo pipefail
-          git switch -c "$CATALOG_BRANCH"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python3 .github/scripts/catalog-transfer.py apply "$RUNNER_TEMP/catalog-transfer"
 
-          git add -- \
-            data/tenders-national-highways.json \
-            data/gepnic-road-notices \
-            data/custom-road-tenders \
-            data/pmgsy-road-agreements \
-            docs/packs/v1/contracts \
-            docs/packs/v1/road-notices \
-            docs/packs/v1/road-agreements \
-            static/contract-manifest-v1.36.json \
-            docs/contract-manifest-v1.36.json \
-            android-app/www/contract-manifest-v1.36.json \
-            static/road-notice-manifest-v1.36.json \
-            docs/road-notice-manifest-v1.36.json \
-            android-app/www/road-notice-manifest-v1.36.json \
-            static/road-agreement-manifest-v1.36.json \
-            docs/road-agreement-manifest-v1.36.json \
-            android-app/www/road-agreement-manifest-v1.36.json
-
-          git diff --quiet
-          test -z "$(git ls-files --others --exclude-standard)"
-          git diff --cached --check
-          git commit -m "Refresh public road catalogs"
-          git push --set-upstream origin "$CATALOG_BRANCH"
-
-      - name: Open review PR
-        if: steps.changes.outputs.changed == 'true'
+      - name: Commit, push the automation branch, and open a review PR
         env:
-          CATALOG_BRANCH: automation/public-road-catalogs-${{ github.run_id }}-${{ github.run_attempt }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # GitHub supplies numeric run identifiers, not dispatch/PR shell inputs.
+          [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+$ ]]
+          catalog_branch="automation/public-road-catalogs-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git -c core.hooksPath=/dev/null switch -c "$catalog_branch"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -c core.hooksPath=/dev/null diff --cached --check
+          git -c core.hooksPath=/dev/null commit -m "Refresh public road catalogs"
+          # Keep the token out of remotes and persistent Git configuration.
+          # The HTTP authorization header exists only in this process environment.
+          catalog_auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+          echo "::add-mask::$catalog_auth"
+          GIT_CONFIG_COUNT=1 \
+          GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" \
+          GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $catalog_auth" \
+            git -c core.hooksPath=/dev/null push --set-upstream origin "$catalog_branch"
+          unset catalog_auth
           gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
             --base main \
-            --head "$CATALOG_BRANCH" \
+            --head "$catalog_branch" \
             --title "Refresh public road catalogs" \
             --body "Automated refresh from the official NHAI/MoRTH, NHIDCL, State/UT procurement, and PMGSY public feeds.
 
-          The workflow rebuilt and schema-checked the content-addressed highway-contract, road-notice, and road-agreement packs. Review the source receipts, record-count changes, and manifest diffs before merging.
+          The read-only refresh job rebuilt and schema-checked the content-addressed highway-contract, road-notice, and road-agreement packs. The publication job verified catalog-only paths, file hashes, and provenance for source commit $GITHUB_SHA in run $GITHUB_RUN_ID attempt $GITHUB_RUN_ATTEMPT. Review the source receipts, record-count changes, and manifest diffs before merging.
 
           This automation never pushes to or merges main."

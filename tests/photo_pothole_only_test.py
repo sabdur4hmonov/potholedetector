@@ -5,6 +5,7 @@ import pathlib
 import sys
 
 from playwright.sync_api import sync_playwright
+from browser_test_utils import SECURE_CREDENTIALS_MOCK
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -71,7 +72,7 @@ with sync_playwright() as playwright:
     # camera failure must stop there; silently opening the WebView file picker would turn a
     # cancellation/error into a second, confusing capture UI.
     context = browser.new_context(viewport={"width": 390, "height": 844})
-    context.add_init_script(INIT_NATIVE_CAMERA_FAILURE)
+    context.add_init_script(INIT_NATIVE_CAMERA_FAILURE + SECURE_CREDENTIALS_MOCK)
     page = context.new_page()
     page.goto(APP)
     page.wait_for_load_state("networkidle")

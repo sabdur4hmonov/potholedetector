@@ -15,6 +15,7 @@ NATIVE_MOCK = r"""
 (() => {
   const probe = window.__captureSourceProbe = {
     listeners: {}, permissionArgs: [], startArgs: [], attach: 0,
+    secure: {openAiKey: "", dashcamRtspUrl: ""},
     status: {
       isRunning: false, isStarting: false, isPaused: false, isStopping: false,
       captureStopped: false, sessionId: null, startRequestId: null,
@@ -64,10 +65,34 @@ NATIVE_MOCK = r"""
     abortRepairTargetSync: async () => ({aborted: true}),
   };
   const App = {addListener: async () => {}};
+  const secureStatus = () => ({
+    openAiConfigured: !!probe.secure.openAiKey,
+    dashcamRtspConfigured: !!probe.secure.dashcamRtspUrl,
+  });
+  const SecureCredentials = {
+    getStatus: async () => secureStatus(),
+    migrateLegacyCredentials: async (options = {}) => {
+      if (!probe.secure.openAiKey && options.openAiKey) probe.secure.openAiKey = options.openAiKey;
+      if (!probe.secure.dashcamRtspUrl && options.dashcamRtspUrl) {
+        probe.secure.dashcamRtspUrl = options.dashcamRtspUrl;
+      }
+      return secureStatus();
+    },
+    storeCredentials: async (options = {}) => {
+      if (options.openAiKey) probe.secure.openAiKey = options.openAiKey;
+      if (options.dashcamRtspUrl) probe.secure.dashcamRtspUrl = options.dashcamRtspUrl;
+      return secureStatus();
+    },
+    clearCredentials: async () => {
+      probe.secure = {openAiKey: "", dashcamRtspUrl: ""};
+      return secureStatus();
+    },
+  };
   Object.defineProperty(window, "Capacitor", {configurable: true, value: {
     isNativePlatform: () => true,
-    registerPlugin: (name) => name === "DriveMode" ? DriveMode : {},
-    Plugins: {DriveMode, App},
+    registerPlugin: (name) => name === "DriveMode" ? DriveMode
+      : name === "SecureCredentials" ? SecureCredentials : {},
+    Plugins: {DriveMode, SecureCredentials, App},
   }});
 })();
 """
@@ -99,146 +124,42 @@ with sync_playwright() as playwright:
         launch_options["executable_path"] = str(system_chrome)
     browser = playwright.chromium.launch(**launch_options)
 
-    # Dashcam stays opt-in, validates before persistence, and passes only the trimmed
-    # secret URL across the native bridge. The URL never appears in visible status copy.
-    dashcam_context = make_context(
-        browser,
-        """localStorage.setItem('openai_key', 'test-key-never-sent');
-        localStorage.setItem('initial_setup_complete', '1');""",
-    )
+    # The current Media3 client cannot provide verified secure RTSP. Even a
+    # programmatic selection or an existing retained endpoint must fail closed.
+    dashcam_context = make_context(browser, """
+        localStorage.setItem('openai_key', 'test-key-never-sent');
+        localStorage.setItem('initial_setup_complete', '1');
+        localStorage.setItem('drive_capture_source', 'dashcam');
+        localStorage.setItem('dashcam_rtsp_url', 'rtsp://camera.example/live');
+    """)
     page = dashcam_context.new_page()
     wait_ready(page)
-    page.locator("#gearBtn").click()
-    initial = page.evaluate(
-        """() => ({
-          source: document.querySelector('#setCaptureSource').value,
-          dashcamVisible: !document.querySelector('#dashcamSettings').classList.contains('hidden'),
-          disabled: document.querySelector('#setDashcamRtspUrl').disabled,
-          type: document.querySelector('#setDashcamRtspUrl').type,
-          autocomplete: document.querySelector('#setDashcamRtspUrl').autocomplete,
-        })"""
-    )
-    if initial != {
-        "source": "phone_camera", "dashcamVisible": False, "disabled": True,
-        "type": "password", "autocomplete": "off",
-    }:
-        failures.append(f"default Settings did not keep Dashcam opt-in and secret: {initial}")
-
-    page.locator("#setCaptureSource").select_option("dashcam")
-    conditional = page.evaluate(
-        """() => ({
-          visible: !document.querySelector('#dashcamSettings').classList.contains('hidden'),
-          enabled: !document.querySelector('#setDashcamRtspUrl').disabled,
-          note: document.querySelector('#dashcamRtspNote').textContent,
-        })"""
-    )
-    if not conditional["visible"] or not conditional["enabled"]:
-        failures.append(f"Dashcam selection did not reveal its only URL field: {conditional}")
-    if "not its camera or audio" not in conditional["note"]:
-        failures.append(f"Dashcam Settings did not disclose silent capture: {conditional}")
-
-    validation = page.evaluate(
-        """() => ({
-          good: !!validateDashcamRtspUrl('rtsp://user:pass@192.168.1.1:554/live?channel=1'),
-          http: validateDashcamRtspUrl('https://192.168.1.1/live'),
-          relative: validateDashcamRtspUrl('/live'),
-          blank: validateDashcamRtspUrl('   '),
-          whitespace: validateDashcamRtspUrl('rtsp://192.168.1.1/live stream'),
-          fragment: validateDashcamRtspUrl('rtsp://192.168.1.1/live#secret'),
-          zeroPort: validateDashcamRtspUrl('rtsp://192.168.1.1:00000/live'),
-          largePort: validateDashcamRtspUrl('rtsp://192.168.1.1:65536/live'),
-          backslash: validateDashcamRtspUrl(String.raw`rtsp://192.168.1.1\\live`),
-          ipv6: !!validateDashcamRtspUrl('rtsp://[fe80::1]:554/live'),
-        })"""
-    )
-    if validation != {
-        "good": True, "http": None, "relative": None, "blank": None,
-        "whitespace": None, "fragment": None, "zeroPort": None,
-        "largePort": None, "backslash": None, "ipv6": True,
-    }:
-        failures.append(f"RTSP validation accepted an unsafe or unsupported address: {validation}")
-
-    page.locator("#setDashcamRtspUrl").fill("https://192.168.1.1/live")
-    page.locator("#setSave").click()
-    page.wait_for_function("document.querySelector('#setDashcamRtspUrl').getAttribute('aria-invalid') === 'true'")
-    rejected = page.evaluate(
-        """() => ({
-          settingsVisible: !document.querySelector('#settings').classList.contains('hidden'),
-          sourceSaved: localStorage.getItem(CAPTURE_SOURCE_KEY),
-          message: document.querySelector('#dashcamRtspNote').textContent,
-        })"""
-    )
-    if not rejected["settingsVisible"] or rejected["sourceSaved"] is not None:
-        failures.append(f"invalid Dashcam URL was persisted or dismissed Settings: {rejected}")
-    if "rtsp://" not in rejected["message"]:
-        failures.append(f"invalid Dashcam URL did not get actionable inline feedback: {rejected}")
-
-    secret_rtsp = "rtsp://dash-user:dash-pass@192.168.1.1:554/live?channel=1"
-    page.locator("#setDashcamRtspUrl").fill(f"  {secret_rtsp}  ")
-    page.locator("#setSave").click()
-    page.locator("#home").wait_for(state="visible", timeout=30_000)
-    saved = page.evaluate(
-        """() => ({
-          source: localStorage.getItem(CAPTURE_SOURCE_KEY),
-          urlTrimmed: localStorage.getItem(DASHCAM_RTSP_URL_KEY) ===
-            'rtsp://dash-user:dash-pass@192.168.1.1:554/live?channel=1',
-        })"""
-    )
-    if saved != {"source": "dashcam", "urlTrimmed": True}:
-        failures.append(f"valid Dashcam Settings were not saved atomically: {saved}")
-
     page.locator("#driveBtn").click()
-    page.locator("#nativeDrivePanel").wait_for(state="visible")
-    page.wait_for_function("__captureSourceProbe.startArgs.length === 1 && __captureSourceProbe.attach > 0")
-    started = page.evaluate(
-        """() => {
-          const permission = __captureSourceProbe.permissionArgs[0] || {};
-          const start = __captureSourceProbe.startArgs[0] || {};
-          return {
-            permissionSource: permission.captureSource,
-            startSource: start.captureSource,
-            urlExact: start.dashcamRtspUrl ===
-              'rtsp://dash-user:dash-pass@192.168.1.1:554/live?channel=1',
-            badge: document.querySelector('#nativeCameraBadge').textContent,
-            previewLabel: document.querySelector('#nativePreviewSlot').getAttribute('aria-label'),
-            placeholderHidden: document.querySelector('#nativeSourceMessage').classList.contains('hidden'),
-            recordControlHidden: document.querySelector('#nativeRecordBtn').classList.contains('hidden'),
-            tip: document.querySelector('#driveTip').textContent,
-            secretVisible: document.body.innerText.includes('dash-user:dash-pass'),
-          };
-        }"""
-    )
-    if started["permissionSource"] != "dashcam" or started["startSource"] != "dashcam" or not started["urlExact"]:
-        failures.append(f"Dashcam native start contract was incomplete: {started}")
-    if "DASHCAM ACTIVE" not in started["badge"] or started["previewLabel"] != "Live dashcam preview":
-        failures.append(f"Dashcam active state was not explicit in the preview: {started}")
-    if (not started["placeholderHidden"] or not started["recordControlHidden"]
-            or "Wi-Fi" not in started["tip"] or started["secretVisible"]):
-        failures.append(f"Dashcam preview copy hid video or exposed the saved URL: {started}")
-
-    page.evaluate(
-        """__captureSourceProbe.emitStatus({
-          sourceActive: false, cameraActive: false, sourceState: 'reconnecting',
-          sourceIssue: 'Could not open rtsp://dash-user:dash-pass@192.168.1.1/live. Reconnecting safely.',
-          status: 'Reconnecting to dashcam',
-        })"""
-    )
-    reconnecting = page.evaluate(
-        """() => ({
-          badge: document.querySelector('#nativeCameraBadge').textContent,
-          status: document.querySelector('#nativeDriveStatus').textContent,
-          preview: document.querySelector('#nativeSourceMessage').textContent,
-          previewVisible: !document.querySelector('#nativeSourceMessage').classList.contains('hidden'),
-          secretVisible: document.body.innerText.includes('dash-user:dash-pass'),
-        })"""
-    )
-    if "DASHCAM INTERRUPTED" not in reconnecting["badge"]:
-        failures.append(f"Dashcam reconnecting badge was ambiguous: {reconnecting}")
-    if (not reconnecting["previewVisible"] or "Reconnecting safely" not in reconnecting["status"]
-            or "saved RTSP address" not in reconnecting["preview"]):
-        failures.append(f"Dashcam reconnecting reason was not visible: {reconnecting}")
-    if reconnecting["secretVisible"]:
-        failures.append("Dashcam credentials appeared in Drive status or preview copy")
+    page.locator("#settings").wait_for(state="visible")
+    state = page.evaluate("""() => ({
+        source: localStorage.getItem(CAPTURE_SOURCE_KEY),
+        blocked: document.querySelector('#dashcamOption').disabled,
+        fieldBlocked: document.querySelector('#setDashcamRtspUrl').disabled,
+        noStart: __captureSourceProbe.startArgs.length === 0,
+        noPermissions: __captureSourceProbe.permissionArgs.length === 0,
+        safeMessage: document.querySelector('#dashcamRtspNote').textContent.includes('verified secure RTSP'),
+        noPlaintext: localStorage.getItem('dashcam_rtsp_url') === null,
+    })""")
+    if state != dict(source="dashcam", blocked=True, fieldBlocked=True,
+                     noStart=True, noPermissions=True, safeMessage=True, noPlaintext=True):
+        failures.append("saved insecure dashcam did not fail closed")
+    validation = page.evaluate("""() => [
+        'rtsp://camera.example/live', 'rtsps://camera.example/live',
+        'rtsps:///live', 'https://camera.example/live', ''
+    ].every(value => validateDashcamRtspUrl(value) === null)""")
+    if not validation:
+        failures.append("unsupported dashcam endpoint accepted in WebView")
+    # A disabled option is not the security boundary: exercise the handler directly.
+    page.evaluate("document.querySelector('#setCaptureSource').value = 'dashcam'")
+    page.locator("#setSave").click()
+    page.wait_for_timeout(100)
+    if page.evaluate("document.querySelector('#settings').classList.contains('hidden')"):
+        failures.append("programmatic dashcam selection bypassed settings rejection")
     dashcam_context.close()
 
     # Existing installs and the browser/native phone path remain phone-camera-first.
@@ -261,7 +182,8 @@ with sync_playwright() as playwright:
           return {
             permissionSource: permission.captureSource,
             startSource: start.captureSource,
-            dashcamUrlEmpty: start.dashcamRtspUrl === '',
+            noCredentialArgs: !Object.hasOwn(start, 'dashcamRtspUrl') &&
+              !Object.hasOwn(start, 'apiKey'),
             badge: document.querySelector('#nativeCameraBadge').textContent,
             previewLabel: document.querySelector('#nativePreviewSlot').getAttribute('aria-label'),
             placeholderHidden: document.querySelector('#nativeSourceMessage').classList.contains('hidden'),
@@ -272,7 +194,7 @@ with sync_playwright() as playwright:
     )
     expected_phone = {
         "permissionSource": "phone_camera", "startSource": "phone_camera",
-        "dashcamUrlEmpty": True, "badge": "● CAMERA ACTIVE · SAVING FRAMES",
+        "noCredentialArgs": True, "badge": "● CAMERA ACTIVE · SAVING FRAMES",
         "previewLabel": "Live phone camera preview", "placeholderHidden": True,
         "recordControlHidden": False,
         "staleSecretVisible": False,

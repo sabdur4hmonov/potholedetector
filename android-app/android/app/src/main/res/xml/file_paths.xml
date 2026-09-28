@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- SEC-014: each alias exposes only the directory an in-app grant actually uses.
+         Alias names are unchanged so AndroidAppMediaCleanup prefix revocation still matches. -->
+    <!-- DriveModePlugin.shareFootage: recorded clips under files/footage/<session>/. -->
     <files-path name="drive_footage" path="footage/" />
-    <external-files-path name="my_images" path="." />
-    <cache-path name="my_cache_images" path="." />
+    <!-- Camera.getPhoto and WebView file-input capture write to getExternalFilesDir(Pictures). -->
+    <external-files-path name="my_images" path="Pictures/" />
+    <!-- Share evidence/dataset copies written by the web app to CACHE/pothole-reporter-shares. -->
+    <cache-path name="my_cache_images" path="pothole-reporter-shares/" />
     <!-- capacitor-email-composer materialises base64 evidence here before sharing it. -->
     <external-cache-path name="email_composer_attachments" path="email_composer/" />
 </paths>

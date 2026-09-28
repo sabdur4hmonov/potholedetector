@@ -3,18 +3,181 @@
 (() => {
   const NATIVE = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
 
-  // Browser-only development shortcut. A URL fragment never reaches HTTP access logs;
-  // remove it immediately after seeding the local key. This never runs in the APK.
-  if (!NATIVE) {
-    const k = new URLSearchParams(location.hash.replace(/^#/, "")).get("key");
-    if (k) {
-      localStorage.setItem("openai_key", k);
+  // Hold a native writer lease through the final camera import/composer callback.
+  // Browser handoffs create no plugin-owned files and need no native lease.
+  window.withManagedMediaOperation = async (kind, action) => {
+    if (!NATIVE) return action();
+    const wipeActive = () => !!(window.isManagedMediaWipeInProgress && window.isManagedMediaWipeInProgress());
+    if (wipeActive()) throw new Error("App data deletion is in progress; retry afterwards.");
+    const plugin = Capacitor.registerPlugin ? Capacitor.registerPlugin("ManagedMedia")
+      : Capacitor.Plugins && Capacitor.Plugins.ManagedMedia;
+    if (!plugin || !plugin.beginOperation || !plugin.endOperation) {
+      throw new Error("Native media cleanup is unavailable; reopen the updated app.");
+    }
+    const lease = await plugin.beginOperation({ kind });
+    if (!lease || typeof lease.token !== "string") throw new Error("Native media operation was not admitted.");
+    try {
+      if (wipeActive()) throw new Error("App data deletion is in progress; retry afterwards.");
+      return await action();
+    }
+    finally {
+      const result = await plugin.endOperation({ token: lease.token });
+      if (!result || result.cleaned !== true) throw new Error("Temporary media cleanup incomplete; use Delete All Data to retry.");
+    }
+  };
+
+  // Native credentials live behind Android Keystore-backed authenticated encryption.
+  // The bridge exposes status, replacement, deletion, and one fixed OpenAI operation;
+  // it never returns plaintext. Browser credentials are deliberately memory-only.
+  const CredentialBroker = (() => {
+    let browserOpenAiKey = "";
+    let openAiConfigured = false;
+    let dashcamRtspConfigured = false;
+    let initializationError = null;
+    const nativePlugin = (() => {
+      if (!NATIVE) return null;
+      try {
+        return Capacitor.registerPlugin ? Capacitor.registerPlugin("SecureCredentials")
+          : (Capacitor.Plugins && Capacitor.Plugins.SecureCredentials);
+      } catch (_) { return null; }
+    })();
+    const takeLegacy = (name) => {
+      const value = String(localStorage.getItem(name) || "").trim();
+      // Remove the persistent plaintext before any asynchronous bridge work. If Android
+      // rejects migration, the user must enter it again instead of leaving it exposed.
+      localStorage.removeItem(name);
+      return value;
+    };
+    let legacyOpenAiKey = takeLegacy("openai_key");
+    let legacyDashcamRtspUrl = takeLegacy("dashcam_rtsp_url");
+    const hadLegacyCredential = !!(legacyOpenAiKey || legacyDashcamRtspUrl);
+
+    // SEC-016: credentials are accepted only through explicit Settings entry, never from a
+    // link. A legacy `#key=` fragment is discarded unread and removed from the address bar.
+    if (!NATIVE && new URLSearchParams(location.hash.replace(/^#/, "")).has("key")) {
       history.replaceState(null, "", location.pathname + location.search);
     }
-  }
+
+    const applyStatus = (status) => {
+      openAiConfigured = !!(status && status.openAiConfigured);
+      dashcamRtspConfigured = !!(status && status.dashcamRtspConfigured);
+      return { openAiConfigured, dashcamRtspConfigured };
+    };
+    const readyPromise = (async () => {
+      if (NATIVE) {
+        if (!nativePlugin) throw new Error("Secure credential storage is unavailable.");
+        const migration = {};
+        if (legacyOpenAiKey) migration.openAiKey = legacyOpenAiKey;
+        if (legacyDashcamRtspUrl) migration.dashcamRtspUrl = legacyDashcamRtspUrl;
+        let status;
+        if (Object.keys(migration).length) {
+          try {
+            status = await nativePlugin.migrateLegacyCredentials(migration);
+          } catch (_) {
+            // Invalid legacy values stay deleted. A working native store must still
+            // allow Settings to save a replacement rather than locking out recovery.
+            status = await nativePlugin.getStatus();
+          }
+        } else {
+          status = await nativePlugin.getStatus();
+        }
+        applyStatus(status);
+      } else {
+        browserOpenAiKey = legacyOpenAiKey;
+        openAiConfigured = !!browserOpenAiKey;
+        dashcamRtspConfigured = false;
+      }
+      legacyOpenAiKey = "";
+      legacyDashcamRtspUrl = "";
+    })().catch(() => {
+      legacyOpenAiKey = "";
+      legacyDashcamRtspUrl = "";
+      initializationError = new Error("Secure credential storage is unavailable. Open Settings and save the credential again.");
+    });
+
+    const ready = async () => {
+      await readyPromise;
+      if (initializationError) throw initializationError;
+    };
+    const responseLike = (result) => {
+      const text = String(result && result.body || "");
+      return {
+        status: Number(result && result.status || 0),
+        ok: !!(result && result.ok),
+        body: null,
+        text: async () => text,
+        json: async () => JSON.parse(text),
+      };
+    };
+    const request = async (body, stream) => {
+      await ready();
+      if (!openAiConfigured) {
+        throw new Error("OpenAI API key missing. Tap the gear icon and paste it.");
+      }
+      const bounded = boundedAiRequest(body, stream);
+      if (NATIVE) {
+        try {
+          return responseLike(await nativePlugin.openAiRequest({
+            body: JSON.stringify(bounded), stream: !!stream,
+          }));
+        } catch (error) {
+          if (error && error.code === "AI_USAGE_LIMIT") throw aiUsageLimitError();
+          throw error;
+        }
+      }
+      // A browser-owned ledger can be reset by the same JS that owns the credential.
+      // Fail closed instead of offering a paid path without authoritative accounting.
+      const error = new Error("AI inference is available only in the Android app.");
+      error.fatal = true; error.aiUsageLimit = true;
+      throw error;
+    };
+    const storeCredentials = async ({ openAiKey, dashcamRtspUrl } = {}) => {
+      await ready();
+      if (NATIVE) {
+        const update = {};
+        if (openAiKey) update.openAiKey = openAiKey;
+        if (dashcamRtspUrl) update.dashcamRtspUrl = dashcamRtspUrl;
+        if (!Object.keys(update).length) return { openAiConfigured, dashcamRtspConfigured };
+        return applyStatus(await nativePlugin.storeCredentials(update));
+      }
+      if (openAiKey) browserOpenAiKey = String(openAiKey).trim();
+      openAiConfigured = !!browserOpenAiKey;
+      dashcamRtspConfigured = false;
+      return { openAiConfigured, dashcamRtspConfigured };
+    };
+    const refresh = async () => {
+      await ready();
+      if (NATIVE) return applyStatus(await nativePlugin.getStatus());
+      return { openAiConfigured, dashcamRtspConfigured };
+    };
+    const clear = async () => {
+      await ready();
+      browserOpenAiKey = "";
+      if (NATIVE) return applyStatus(await nativePlugin.clearCredentials());
+      openAiConfigured = false;
+      dashcamRtspConfigured = false;
+      return { openAiConfigured, dashcamRtspConfigured };
+    };
+    const prewarm = async () => {
+      await ready();
+      if (NATIVE || !browserOpenAiKey) return;
+      try {
+        await fetch("https://api.openai.com/v1/models?limit=1", {
+          headers: { "Authorization": `Bearer ${browserOpenAiKey}` },
+        });
+      } catch (_) {}
+    };
+    return Object.freeze({
+      ready, request, storeCredentials, refresh, clear, prewarm,
+      hasOpenAi: () => openAiConfigured,
+      hasDashcamRtsp: () => dashcamRtspConfigured,
+      hadLegacyCredential: () => hadLegacyCredential,
+      isNative: () => NATIVE,
+    });
+  })();
+  window.CredentialBroker = CredentialBroker;
 
   const S = {
-    get key() { return (localStorage.getItem("openai_key") || "").trim(); },
     get name() { return (localStorage.getItem("sender_name") || "").trim() || "A concerned citizen"; },
     get debug() { return localStorage.getItem("debug_mode") === "1"; },
     get model() { return normaliseModel(localStorage.getItem("detection_model")); },
@@ -545,14 +708,29 @@ This is a strict before/after verification, not ordinary pothole detection:
   };
 
   // ---------- OpenAI ----------
-  const OAI_URL = "https://api.openai.com/v1/responses";
-  const authHeaders = () => ({ "Content-Type": "application/json", "Authorization": `Bearer ${S.key}` });
+  // SEC-006: finite request ceilings; native code independently validates/clamps them.
+  function aiUsageLimitError() {
+    const error = new Error("AI usage limit reached.");
+    error.fatal = true; error.aiUsageLimit = true;
+    return error;
+  }
+
+  function boundedAiRequest(body, stream) {
+    if (!body || !ALLOWED_MODELS.has(body.model)) throw aiUsageLimitError();
+    const name = body.text && body.text.format && body.text.format.name || "general";
+    const ceiling = name === "pothole_binary_assessment" ? 1536
+      : (name === "road_repair_assessment" || name === "road_repair_verification") ? 768
+      : (name === "tender_match" || name === "general") ? 512 : 0;
+    const requested = body.max_output_tokens === undefined ? ceiling : body.max_output_tokens;
+    if (!ceiling || !Number.isSafeInteger(requested) || requested <= 0 || requested > 2147483647) throw aiUsageLimitError();
+    return { ...body, stream: !!stream, max_output_tokens: Math.min(requested, ceiling) };
+  }
 
   // Detection is a classification job, not an essay: left at its default the model
   // spends 200+ hidden reasoning tokens per photo before answering, which measured
   // as roughly 3.5 of the 6.5 seconds a verdict used to take.
   const withSpeedDefaults = (body) => ({
-    ...body,
+    ...boundedAiRequest(body, body && body.stream),
     // Detection inputs can contain precise road imagery and addresses. Do not retain
     // response application state beyond the request; provider abuse-monitoring rules
     // remain governed by OpenAI's published policy and are disclosed in our policy.
@@ -597,6 +775,7 @@ This is a strict before/after verification, not ordinary pothole detection:
       // Nobody watching a demo should be shown that.
       throw new Error("Could not reach OpenAI. Check the connection and try again.");
     }
+    res.__cancel = () => ctl && ctl.abort();
     res.__disarm = disarm;
     res.__rearm = rearm;
     return res;
@@ -629,16 +808,21 @@ This is a strict before/after verification, not ordinary pothole detection:
   }
 
   async function oai(body) {
-    if (!S.key) throw new Error("OpenAI API key missing. Tap the gear icon and paste it.");
-    const res = await fetchWithTimeout(OAI_URL, {
-      method: "POST", headers: authHeaders(), body: JSON.stringify(withSpeedDefaults(body)),
+    return withInferenceResponse(body, false, async (res, context) => {
+      const buffer = new Uint8Array(context.limits.responseBytes);
+      let size = 0;
+      await readInferenceChunks(res, context, bytes => { buffer.set(bytes, size); size += bytes.byteLength; return false; });
+      context.checkActive();
+      let data;
+      try { data = parseInferenceJson(new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(0, size))); }
+      catch (_) { throw inferenceSafetyError(); }
+      if (!data || !Array.isArray(data.output)) throw inferenceSafetyError();
+      const msg = data.output.find(o => o && o.type === "message");
+      const text = msg && Array.isArray(msg.content) && msg.content.find(c => c && c.type === "output_text");
+      if (!text || typeof text.text !== "string" || !text.text) throw inferenceSafetyError();
+      inferenceUtf8Size(text.text, INFERENCE_SSE_LIMITS.responseBytes);
+      return parseInferenceJson(text.text);
     });
-    if (!res.ok) throw await statusError(res);
-    const data = await readJson(res);
-    const msg = (data.output || []).find((o) => o.type === "message");
-    const text = msg && msg.content && msg.content.find((c) => c.type === "output_text");
-    if (!text || !text.text) throw new Error("Empty model response.");
-    return JSON.parse(text.text);
   }
 
   // Structured outputs stream in schema order. The same hard binary gate is used for
@@ -918,73 +1102,244 @@ This is a strict before/after verification, not ordinary pothole detection:
     return !!a && decisionFor(a, driveMode, driveMode ? 2 : null) !== "accept";
   };
 
-  function drainSSE(chunk, state, onEarly, stopWhenRejected) {
-    state.buf += chunk;
-    let i;
-    while ((i = state.buf.indexOf("\n")) >= 0) {
-      const line = state.buf.slice(0, i).trim();
-      state.buf = state.buf.slice(i + 1);
-      if (!line.startsWith("data:")) continue;
-      const payload = line.slice(5).trim();
-      if (!payload) continue;
-      if (payload === "[DONE]") {
-        state.transportCompleted = true;
-        continue;
-      }
-      let ev;
-      try { ev = JSON.parse(payload); } catch (e) { continue; }
-      if (ev.type === "response.completed") state.transportCompleted = true;
-      if (ev.type === "response.output_text.delta" && typeof ev.delta === "string") {
-        state.text += ev.delta;
-        if (!state.early && onEarly) {
-          const v = peekVerdict(state.text);
-          if (v) { state.early = true; try { onEarly(v); } catch (e) {} }
-        }
-        if (stopWhenRejected && !state.stop && peekReject(state.text, true)) state.stop = true;
+  // SEC-005: byte-first inference framing; limits are native/browser equivalents.
+  const INFERENCE_SSE_LIMITS = Object.freeze({ responseBytes: 64 * 1024,
+    lineBytes: 32 * 1024, eventBytes: 48 * 1024, events: 512, deadlineMs: 35000 });
+
+  function inferenceSafetyError() {
+    const error = new Error("Inference response violated its safety budget or protocol.");
+    error.inferenceSafety = true;
+    error.fatal = true; // Do not retry hostile framing through the unstreamed fallback.
+    return error;
+  }
+
+  function inferenceUtf8Size(text, limit, rejectReplacement = false) {
+    if (typeof text !== "string" || text.length > limit) throw inferenceSafetyError();
+    let size = 0;
+    for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i);
+      if (rejectReplacement && c === 0xfffd) throw inferenceSafetyError();
+      let bytes = c < 0x80 ? 1 : c < 0x800 ? 2 : 3;
+      if (c >= 0xd800 && c <= 0xdbff) {
+        const next = text.charCodeAt(++i);
+        if (!(next >= 0xdc00 && next <= 0xdfff)) throw inferenceSafetyError();
+        bytes = 4;
+      } else if (c >= 0xdc00 && c <= 0xdfff) throw inferenceSafetyError();
+      if (bytes > limit - size) throw inferenceSafetyError();
+      size += bytes;
+    }
+    return size;
+  }
+
+  function validateInferenceLimits(limits) {
+    for (const key of Object.keys(INFERENCE_SSE_LIMITS)) {
+      if (!Number.isSafeInteger(limits[key]) || limits[key] <= 0 ||
+          limits[key] > INFERENCE_SSE_LIMITS[key]) throw inferenceSafetyError();
+    }
+  }
+
+  function createInferenceSseState(limits = INFERENCE_SSE_LIMITS) {
+    validateInferenceLimits(limits);
+    return { limits, line: new Uint8Array(limits.lineBytes), event: new Uint8Array(limits.eventBytes),
+      lineSize: 0, eventSize: 0, hasData: false, events: 0, bytes: 0, skipLf: false,
+      text: "", textBytes: 0, early: false, stop: false, transportCompleted: false };
+  }
+
+  function parseInferenceJson(text) {
+    let depth = 0, quoted = false, escaped = false;
+    for (const char of text) {
+      if (quoted) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === '"') quoted = false;
+      } else if (char === '"') quoted = true;
+      else if (char === "{" || char === "[") { if (++depth > 32) throw inferenceSafetyError(); }
+      else if (char === "}" || char === "]") depth--;
+    }
+    try { return JSON.parse(text); } catch (_) { throw inferenceSafetyError(); }
+  }
+
+  function dispatchInferenceEvent(state, onEarly, stopWhenRejected) {
+    if (!state.hasData) return;
+    if (state.events >= state.limits.events) throw inferenceSafetyError();
+    state.events++;
+    let payload;
+    try { payload = new TextDecoder("utf-8", { fatal: true }).decode(state.event.subarray(0, state.eventSize)); }
+    catch (_) { throw inferenceSafetyError(); }
+    state.hasData = false; state.eventSize = 0;
+    if (payload.trim() === "[DONE]") { state.transportCompleted = true; return; }
+    let ev;
+    ev = parseInferenceJson(payload);
+    if (!ev || Array.isArray(ev) || typeof ev.type !== "string" ||
+        !ev.type.startsWith("response.") || ev.type.length > 128 ||
+        ev.type === "response.failed" || ev.type === "response.incomplete") throw inferenceSafetyError();
+    if (ev.type === "response.completed") { state.transportCompleted = true; return; }
+    if (ev.type !== "response.output_text.delta") return;
+    if (typeof ev.delta !== "string") throw inferenceSafetyError();
+    const deltaBytes = inferenceUtf8Size(ev.delta, INFERENCE_SSE_LIMITS.responseBytes - state.textBytes);
+    state.textBytes += deltaBytes;
+    state.text += ev.delta;
+    if (!state.early && onEarly) {
+      const value = peekVerdict(state.text);
+      if (value) { state.early = true; try { onEarly(value); } catch (_) {} }
+    }
+    if (stopWhenRejected && peekReject(state.text, true)) state.stop = true;
+  }
+
+  function finishInferenceLine(state, onEarly, stopWhenRejected) {
+    if (!state.lineSize) { dispatchInferenceEvent(state, onEarly, stopWhenRejected); return; }
+    let line;
+    try { line = new TextDecoder("utf-8", { fatal: true }).decode(state.line.subarray(0, state.lineSize)); }
+    catch (_) { throw inferenceSafetyError(); }
+    state.lineSize = 0;
+    if (line.startsWith(":")) return;
+    const colon = line.indexOf(":");
+    if (colon < 0) throw inferenceSafetyError();
+    const field = line.slice(0, colon);
+    const value = line.slice(colon + 1 + (line[colon + 1] === " " ? 1 : 0));
+    if (field === "data") {
+      const data = new TextEncoder().encode(value); // The raw line is already bounded.
+      const separator = state.hasData ? 1 : 0;
+      if (separator > state.limits.eventBytes - state.eventSize ||
+          data.byteLength > state.limits.eventBytes - state.eventSize - separator) throw inferenceSafetyError();
+      if (state.hasData) state.event[state.eventSize++] = 10;
+      state.event.set(data, state.eventSize); state.eventSize += data.byteLength; state.hasData = true;
+    } else if (field === "event") { if (!value) throw inferenceSafetyError(); }
+    else if (field === "id") { if (value.includes("\u0000")) throw inferenceSafetyError(); }
+    else if (field === "retry") { if (!/^[0-9]+$/.test(value)) throw inferenceSafetyError(); }
+    else throw inferenceSafetyError();
+  }
+
+  function drainSSE(chunk, state, onEarly, stopWhenRejected, checkActive = () => {}) {
+    if (!(chunk instanceof Uint8Array) || chunk.byteLength > state.limits.responseBytes - state.bytes) throw inferenceSafetyError();
+    state.bytes += chunk.byteLength;
+    for (const byte of chunk) {
+      checkActive();
+      if (state.transportCompleted || state.stop) return;
+      if (byte === 13) { finishInferenceLine(state, onEarly, stopWhenRejected); state.skipLf = true; }
+      else if (byte === 10) { if (!state.skipLf) finishInferenceLine(state, onEarly, stopWhenRejected); state.skipLf = false; }
+      else {
+        state.skipLf = false;
+        if (state.lineSize >= state.limits.lineBytes) throw inferenceSafetyError();
+        state.line[state.lineSize++] = byte;
       }
     }
   }
 
-  async function oaiStream(body, onEarly, stopWhenRejected) {
-    if (!S.key) throw new Error("OpenAI API key missing. Tap the gear icon and paste it.");
-    const res = await fetchWithTimeout(OAI_URL, {
-      method: "POST", headers: authHeaders(),
-      body: JSON.stringify(withSpeedDefaults({ ...body, stream: true })),
-    });
-    if (!res.ok) throw await statusError(res);
-
-    const state = { buf: "", text: "", early: false, stop: false,
-                    transportCompleted: false };
+  async function readInferenceChunks(res, context, consume) {
+    const rawLength = res.headers && res.headers.get("content-length");
+    let declared = null;
+    if (rawLength !== null && rawLength !== undefined) {
+      if (!/^[0-9]+$/.test(rawLength)) throw inferenceSafetyError();
+      declared = Number(rawLength);
+      if (!Number.isSafeInteger(declared) || declared < 0 || declared > context.limits.responseBytes) throw inferenceSafetyError();
+    }
+    const encoding = res.headers && res.headers.get("content-encoding");
+    const identity = !encoding || encoding.toLowerCase() === "identity";
+    let total = 0;
+    const accept = chunk => {
+      context.checkActive();
+      if (!(chunk instanceof Uint8Array) || chunk.byteLength > context.limits.responseBytes - total ||
+          (identity && declared !== null && chunk.byteLength > declared - total)) throw inferenceSafetyError();
+      total += chunk.byteLength;
+      return consume(chunk);
+    };
     if (res.body && typeof res.body.getReader === "function") {
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      for (;;) {
-        const { done, value } = await reader.read();
+      context.reader = res.body.getReader();
+      while (true) {
+        context.checkActive();
+        const { done, value } = await Promise.race([context.reader.read(), context.cancelled]);
+        context.checkActive();
         if (done) break;
-        // A chunk that carries data proves the response is alive, so the watchdog resets.
-        // A response that goes silent mid-body is aborted rather than hanging the drive.
-        if (res.__rearm) res.__rearm();
-        drainSSE(dec.decode(value, { stream: true }), state, onEarly, stopWhenRejected);
-        if (state.stop) { try { await reader.cancel(); } catch (e) {} break; }
+        if (accept(value)) return;
       }
+      if (identity && declared !== null && total !== declared) throw inferenceSafetyError();
     } else {
-      // Buffered transports (the native HTTP bridge) hand back the whole SSE body at once,
-      // so there is nothing left to stop early: the tokens were already generated.
-      try { drainSSE(await res.text(), state, onEarly, stopWhenRejected); }
-      finally { if (res.__disarm) res.__disarm(); }
+      // SEC-001's native gateway has already bounded this string to 1 MiB/35 s.
+      // Browser bodies without streaming support fail closed; no unbounded .text().
+      if (!NATIVE) throw inferenceSafetyError();
+      const text = await Promise.race([res.text(), context.cancelled]);
+      context.checkActive();
+      inferenceUtf8Size(text, context.limits.responseBytes, true);
+      const bytes = new TextEncoder().encode(text); // At most 64 KiB, checked before encoding.
+      for (let i = 0; i < bytes.length; i += 4096) {
+        if (accept(bytes.subarray(i, Math.min(i + 4096, bytes.length)))) return;
+      }
     }
-    if (res.__disarm) res.__disarm();
-    // Flush an unterminated last SSE line before deciding whether the stream itself
-    // completed. A parseable JSON delta is not proof that the HTTP body was complete.
-    drainSSE("\n", state, onEarly, stopWhenRejected);
-    if (state.stop) return rejectedVerdict(state.text);
-    if (!state.transportCompleted) {
-      const incomplete = new Error("Detection stream ended before OpenAI confirmed completion.");
-      incomplete.incompleteStream = true;
-      throw incomplete;
+  }
+
+  async function withInferenceResponse(body, stream, consume, signal = null, limits = INFERENCE_SSE_LIMITS) {
+    validateInferenceLimits(limits);
+    const controller = new AbortController();
+    let response = null, timedOut = false, timer = null;
+    const cancel = () => controller.abort();
+    let rejectCancelled;
+    const cancelled = new Promise((_, reject) => { rejectCancelled = reject; });
+    cancelled.catch(() => {});
+    const started = performance.now();
+    const context = { limits, reader: null, cancelled,
+      checkActive: () => {
+        if (!controller.signal.aborted && performance.now() - started >= limits.deadlineMs) {
+          timedOut = true; controller.abort();
+        }
+        if (controller.signal.aborted) {
+          const error = new Error(timedOut ? "Inference response deadline exceeded." : "Inference response cancelled.");
+          if (timedOut) error.timeout = true; else error.name = "AbortError";
+          throw error;
+        }
+      } };
+    const abort = () => {
+      try { context.checkActive(); } catch (error) { rejectCancelled(error); }
+      if (response && response.__cancel) response.__cancel();
+      if (context.reader) { try { Promise.resolve(context.reader.cancel()).catch(() => {}); } catch (_) {} }
+    };
+    controller.signal.addEventListener("abort", abort, { once: true });
+    if (signal) { signal.addEventListener("abort", cancel, { once: true }); if (signal.aborted) controller.abort(); }
+    try {
+      context.checkActive();
+      timer = setTimeout(() => { timedOut = true; controller.abort(); }, limits.deadlineMs);
+      const pending = CredentialBroker.request(withSpeedDefaults({ ...body, stream }), stream);
+      pending.then(res => {
+        if (controller.signal.aborted) {
+          if (res.__cancel) res.__cancel();
+          if (res.__disarm) res.__disarm();
+          try { Promise.resolve(res.body && res.body.cancel()).catch(() => {}); } catch (_) {}
+        }
+      }, () => {});
+      response = await Promise.race([pending, cancelled]);
+      context.checkActive();
+      if (!response.ok) throw await statusError(response);
+      const result = await Promise.race([consume(response, context), cancelled]);
+      context.checkActive();
+      return result;
+    } finally {
+      clearTimeout(timer);
+      if (signal) signal.removeEventListener("abort", cancel);
+      if (response && response.__disarm) response.__disarm();
+      controller.abort();
+      if (context.reader) { try { context.reader.releaseLock(); } catch (_) {} context.reader = null; }
+      else if (response && response.body) { try { Promise.resolve(response.body.cancel()).catch(() => {}); } catch (_) {} }
     }
-    if (!state.text) throw new Error("Empty model response.");
-    return JSON.parse(state.text);
+  }
+
+  async function oaiStream(body, onEarly, stopWhenRejected, signal = null, limits = INFERENCE_SSE_LIMITS) {
+    return withInferenceResponse(body, true, async (res, context) => {
+      const state = createInferenceSseState(limits);
+      try {
+        await readInferenceChunks(res, context, bytes => {
+          drainSSE(bytes, state, onEarly, stopWhenRejected, context.checkActive);
+          return state.stop || state.transportCompleted;
+        });
+        context.checkActive();
+        if (state.stop) return rejectedVerdict(state.text);
+        if (!state.transportCompleted) {
+          const error = new Error("Detection stream ended before OpenAI confirmed completion.");
+          error.incompleteStream = true; throw error;
+        }
+        if (!state.text) throw inferenceSafetyError();
+        return parseInferenceJson(state.text);
+      } finally { state.line = null; state.event = null; state.text = ""; }
+    }, signal, limits);
   }
 
   // Reconstructed from the closed fields that arrived before Drive Mode cancelled the
@@ -1039,6 +1394,7 @@ This is a strict before/after verification, not ordinary pothole detection:
     content.push({ type: "input_text", text: `${prompt}\n\nThe ${images.length} supplied image(s) are ordered exactly as labelled by the capture pipeline.` });
     return {
       model: selectedModel,
+      max_output_tokens: schema === REPAIR_SCHEMA ? 768 : 1536,
       input: [{ role: "user", content }],
       text: fmt(formatName, schema),
     };
@@ -1051,6 +1407,7 @@ This is a strict before/after verification, not ordinary pothole detection:
       ? buildDetectionRequest(imageInputs, prompt, model, detail, name, schema)
       : {
           model,
+          max_output_tokens: 512,
           input: [{ role: "user", content: [
             { type: "input_image", image_url: Array.isArray(imageInputs) ? imageInputs[0] : imageInputs },
             { type: "input_text", text: prompt },
@@ -1088,11 +1445,10 @@ This is a strict before/after verification, not ordinary pothole detection:
   // One warm TLS connection ahead of the first real call. Costs no tokens.
   let warmedAt = 0;
   async function prewarm() {
-    if (!S.key || Date.now() - warmedAt < 60000) return;
+    await CredentialBroker.ready();
+    if (!CredentialBroker.hasOpenAi() || Date.now() - warmedAt < 60000) return;
     warmedAt = Date.now();
-    try {
-      await fetch("https://api.openai.com/v1/models?limit=1", { headers: authHeaders() });
-    } catch (e) {}
+    await CredentialBroker.prewarm();
   }
 
   // ---------- location ----------
@@ -1786,7 +2142,139 @@ This is a strict before/after verification, not ordinary pothole detection:
       }],
     )),
   });
-  const STATE_PACK_MAX_BYTES = 16 * 1024 * 1024;
+  // SEC-004: one bounded download path for every pack and its manifest.
+  const PACK_DOWNLOAD_LIMITS = Object.freeze({
+    state: 16 * 1024 * 1024,
+    catalog: 8 * 1024 * 1024,
+    manifest: 128 * 1024,
+    highwayManifest: 512 * 1024,
+  });
+
+  function packDownloadError() { return new Error("Pack download failed validation."); }
+
+  function declaredPackLength(response, maxBytes) {
+    const raw = response.headers.get("content-length");
+    if (raw === null) return null;
+    // Duplicate/comma-separated, signed, fractional and unsafe-integer values fail closed.
+    if (!/^[0-9]+$/.test(raw)) throw packDownloadError();
+    const length = Number(raw);
+    if (!Number.isSafeInteger(length) || length < 0 || length > maxBytes) throw packDownloadError();
+    return length;
+  }
+
+  function fetchStreamingPackResponse(url, signal) {
+    const options = { method: "GET", cache: "no-store", credentials: "omit",
+      referrerPolicy: "no-referrer", signal };
+    if (!NATIVE) return fetch(url, options);
+    // Use the pinned Android GET InputStream proxy explicitly. Never use the
+    // CapacitorHttp.request path, which buffers data before constructing Response.
+    if (typeof window.CapacitorWebFetch !== "function" ||
+        !Capacitor.getServerUrl) throw packDownloadError();
+    const origin = new URL(Capacitor.getServerUrl());
+    if (origin.origin !== location.origin) throw packDownloadError();
+    const target = new URL(url, location.href);
+    let endpoint = target.href;
+    if (target.origin !== origin.origin) {
+      origin.pathname = "/_capacitor_http_interceptor_";
+      origin.search = "";
+      origin.hash = "";
+      origin.searchParams.set("u", target.href);
+      endpoint = origin.href;
+    }
+    return window.CapacitorWebFetch.call(window, endpoint, options);
+  }
+
+  async function readBoundedPackBody(response, { maxBytes, expectedBytes = null, signal }) {
+    let reader = null, buffer = null, complete = false;
+    let abortRead;
+    const cancelled = new Promise((_, reject) => { abortRead = () => reject(packDownloadError()); });
+    // The cancellation promise may reject before the first read race is installed.
+    cancelled.catch(() => {});
+    const stopReader = () => {
+      abortRead();
+      if (reader) { try { Promise.resolve(reader.cancel()).catch(() => {}); } catch (_) {} }
+    };
+    try {
+      if (!response.ok || signal.aborted) throw packDownloadError();
+      const declared = declaredPackLength(response, maxBytes);
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType && !/json/i.test(contentType)) throw packDownloadError();
+      const encoding = (response.headers.get("content-encoding") || "identity").toLowerCase().trim();
+      if (!["identity", "gzip", "br", "deflate"].includes(encoding)) throw packDownloadError();
+      // Fetch exposes decoded bytes. Encoded Content-Length is not decoded length.
+      const identity = encoding === "identity";
+      if (identity && expectedBytes !== null && declared !== null && declared !== expectedBytes) {
+        throw packDownloadError();
+      }
+      if (!response.body || typeof response.body.getReader !== "function") throw packDownloadError();
+      reader = response.body.getReader();
+      signal.addEventListener("abort", stopReader, { once: true });
+      if (signal.aborted) throw packDownloadError();
+      const limit = expectedBytes === null ? maxBytes : expectedBytes;
+      buffer = new Uint8Array(limit); // One fixed, prevalidated allocation; no chunk list.
+      let total = 0;
+      while (true) {
+        const { done, value } = await Promise.race([reader.read(), cancelled]);
+        if (signal.aborted) throw packDownloadError();
+        if (done) break;
+        if (!(value instanceof Uint8Array) || value.byteLength > limit - total ||
+            (identity && declared !== null && value.byteLength > declared - total)) {
+          throw packDownloadError();
+        }
+        buffer.set(value, total);
+        total += value.byteLength;
+      }
+      if ((expectedBytes !== null && total !== expectedBytes) ||
+          (identity && declared !== null && total !== declared)) throw packDownloadError();
+      complete = true;
+      return total === buffer.byteLength ? buffer.buffer : buffer.buffer.slice(0, total);
+    } finally {
+      signal.removeEventListener("abort", stopReader);
+      buffer = null;
+      if (!complete) {
+        try { Promise.resolve(reader ? reader.cancel() : response.body && response.body.cancel()).catch(() => {}); } catch (_) {}
+      }
+      if (reader) { try { reader.releaseLock(); } catch (_) {} }
+    }
+  }
+
+  async function downloadPackResource(url, { maxBytes, expectedBytes = null,
+      expectedSha256 = null, timeoutMs, signal = null, validate }) {
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    let timer = null, bytes = null;
+    try {
+      if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || maxBytes > PACK_DOWNLOAD_LIMITS.state ||
+          (expectedBytes !== null && (!Number.isSafeInteger(expectedBytes) || expectedBytes <= 0 || expectedBytes > maxBytes)) ||
+          (expectedBytes !== null && !/^[0-9a-f]{64}$/.test(String(expectedSha256 || ""))) ||
+          !Number.isFinite(timeoutMs) || timeoutMs <= 0 || typeof validate !== "function") {
+        throw packDownloadError();
+      }
+      if (signal) {
+        signal.addEventListener("abort", cancel, { once: true });
+        if (signal.aborted) controller.abort();
+      }
+      if (controller.signal.aborted) throw packDownloadError();
+      timer = setTimeout(cancel, timeoutMs);
+      const response = await fetchStreamingPackResponse(url, controller.signal);
+      bytes = await readBoundedPackBody(response, { maxBytes, expectedBytes, signal: controller.signal });
+      if (controller.signal.aborted) throw packDownloadError();
+      // Existing exact SHA-256 and resource-specific schema checks run before callers
+      // receive bytes or can install/cache a pack. No partial storage is written here.
+      const pack = await validate(bytes, controller.signal);
+      if (controller.signal.aborted) throw packDownloadError();
+      return { pack, bytes };
+    } catch (_) {
+      controller.abort();
+      bytes = null;
+      return null;
+    } finally {
+      clearTimeout(timer);
+      if (signal) signal.removeEventListener("abort", cancel);
+    }
+  }
+
+  const STATE_PACK_MAX_BYTES = PACK_DOWNLOAD_LIMITS.state;
   const STATE_PACK_FETCH_TIMEOUT_MS = 30000;
   // Contract context is optional and must never make an accepted report feel stuck.
   // The required routing packs retain their longer timeout; these catalogs get a short
@@ -1863,11 +2351,11 @@ This is a strict before/after verification, not ordinary pothole detection:
     if (_statePackManifestPromise) return _statePackManifestPromise;
     _statePackManifestPromise = (async () => {
       try {
-        const response = await fetch("pack-manifest-v1.35.json", { cache: "no-store" });
-        if (!response.ok) return null;
-        const text = await response.text();
-        if (!text || text.length > 128 * 1024) return null;
-        _statePackManifest = validateStatePackManifest(JSON.parse(text));
+        const downloaded = await downloadPackResource("pack-manifest-v1.35.json", {
+          maxBytes: PACK_DOWNLOAD_LIMITS.manifest, timeoutMs: STATE_PACK_FETCH_TIMEOUT_MS,
+          validate: (bytes) => validateStatePackManifest(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes))),
+        });
+        if (downloaded) _statePackManifest = downloaded.pack;
       } catch (e) { /* a malformed bundled manifest disables routing; it never guesses */ }
       return _statePackManifest;
     })();
@@ -2407,7 +2895,7 @@ This is a strict before/after verification, not ordinary pothole detection:
       && sameSet([...usedAuthorities], expectedAuthorityIds);
   }
 
-  async function validateRoutingPack(resource, pack) {
+  async function validateRoutingPack(resource, pack, signal = null) {
     validatePackEnvelope(resource, pack, "routing");
     if (!Array.isArray(pack.authorities) || pack.authorities.length > 1000) {
       throw new Error("Routing pack authority list is invalid.");
@@ -2581,6 +3069,7 @@ This is a strict before/after verification, not ordinary pothole detection:
       throw new Error("Unsupported routing pack.");
     }
     // Install contacts only after every byte, identity and resource-specific check passed.
+    if (signal && signal.aborted) throw packDownloadError();
     installRoutingAuthorities(pack);
     return pack;
   }
@@ -2609,7 +3098,7 @@ This is a strict before/after verification, not ordinary pothole detection:
     return pack;
   }
 
-  async function validateDecodedStatePack(resource, bytes) {
+  async function validateDecodedStatePack(resource, bytes, signal = null) {
     if (!(bytes instanceof ArrayBuffer) || bytes.byteLength !== resource.bytes) {
       throw new Error("State-pack byte length does not match its signed manifest.");
     }
@@ -2621,7 +3110,7 @@ This is a strict before/after verification, not ordinary pothole detection:
     const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     const pack = JSON.parse(text);
     return resource.kind === "routing"
-      ? validateRoutingPack(resource, pack) : validateTenderPack(resource, pack);
+      ? validateRoutingPack(resource, pack, signal) : validateTenderPack(resource, pack);
   }
 
   const statePackCacheKey = (resource) =>
@@ -2730,24 +3219,11 @@ This is a strict before/after verification, not ordinary pothole detection:
   }
 
   async function fetchStatePack(resource) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), STATE_PACK_FETCH_TIMEOUT_MS);
-    try {
-      const response = await fetch(resolvePackUrl(resource), {
-        cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer",
-        signal: controller.signal,
-      });
-      if (!response.ok) return null;
-      const contentType = response.headers.get("content-type") || "";
-      // Content-Length can describe gzip/br transfer bytes while arrayBuffer() contains
-      // decoded bytes. The post-read exact length and SHA below are the authoritative
-      // checks, so a CDN compression choice cannot disable every production pack.
-      if (contentType && !/json/i.test(contentType)) return null;
-      const bytes = await response.arrayBuffer();
-      const pack = await validateDecodedStatePack(resource, bytes);
-      return { pack, bytes };
-    } catch (e) { return null; }
-    finally { clearTimeout(timer); }
+    return downloadPackResource(resolvePackUrl(resource), {
+      maxBytes: STATE_PACK_MAX_BYTES, expectedBytes: resource.bytes, expectedSha256: resource.sha256,
+      timeoutMs: STATE_PACK_FETCH_TIMEOUT_MS,
+      validate: (bytes, signal) => validateDecodedStatePack(resource, bytes, signal),
+    });
   }
 
   async function loadStatePack(packId) {
@@ -2827,26 +3303,18 @@ This is a strict before/after verification, not ordinary pothole detection:
   }
 
   async function fetchOptionalCatalogManifest(filename, validate) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), OPTIONAL_CATALOG_TIMEOUT_MS);
-    try {
-      const response = await fetch(filename, {
-        cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer",
-        signal: controller.signal,
-      });
-      if (!response.ok) return null;
-      const text = await response.text();
-      if (!text || text.length > 128 * 1024) return null;
-      return validate(JSON.parse(text));
-    } catch (e) { return null; }
-    finally { clearTimeout(timer); }
+    const downloaded = await downloadPackResource(filename, {
+      maxBytes: PACK_DOWNLOAD_LIMITS.manifest, timeoutMs: OPTIONAL_CATALOG_TIMEOUT_MS,
+      validate: (bytes) => validate(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes))),
+    });
+    return downloaded ? downloaded.pack : null;
   }
 
   // Contract data has a separate, append-only catalog. Keeping it out of the v1.35
   // routing catalog preserves the immutable Play closed-test bundle while allowing the
   // web app and a later Android release to fetch only the nearby State/UT highway pack.
   const CONTRACT_MANIFEST_FILE = "contract-manifest-v1.36.json";
-  const CONTRACT_PACK_MAX_BYTES = 8 * 1024 * 1024;
+  const CONTRACT_PACK_MAX_BYTES = PACK_DOWNLOAD_LIMITS.catalog;
   let _contractPackManifest = null, _contractPackManifestPromise = null;
   const _contractPackMemory = new Map(), _contractPackPromises = new Map();
 
@@ -2980,20 +3448,11 @@ This is a strict before/after verification, not ordinary pothole detection:
   }
 
   async function fetchContractPack(resource) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), OPTIONAL_CATALOG_TIMEOUT_MS);
-    try {
-      const response = await fetch(resolvePackUrl(resource), {
-        cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer",
-        signal: controller.signal,
-      });
-      if (!response.ok) return null;
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType && !/json/i.test(contentType)) return null;
-      const bytes = await response.arrayBuffer();
-      return { pack: await validateDecodedContractPack(resource, bytes), bytes };
-    } catch (e) { return null; }
-    finally { clearTimeout(timer); }
+    return downloadPackResource(resolvePackUrl(resource), {
+      maxBytes: CONTRACT_PACK_MAX_BYTES, expectedBytes: resource.bytes, expectedSha256: resource.sha256,
+      timeoutMs: OPTIONAL_CATALOG_TIMEOUT_MS,
+      validate: (bytes, signal) => validateDecodedContractPack(resource, bytes),
+    });
   }
 
   async function loadHighwayContractPack(stateCode) {
@@ -3067,7 +3526,7 @@ This is a strict before/after verification, not ordinary pothole detection:
   // separate catalog and schema so a notice can never acquire contractor, segment or
   // warranty fields merely by passing through the National Highway contract loader.
   const ROAD_NOTICE_MANIFEST_FILE = "road-notice-manifest-v1.36.json";
-  const ROAD_NOTICE_PACK_MAX_BYTES = 8 * 1024 * 1024;
+  const ROAD_NOTICE_PACK_MAX_BYTES = PACK_DOWNLOAD_LIMITS.catalog;
   let _roadNoticeManifest = null, _roadNoticeManifestPromise = null;
   const _roadNoticePackMemory = new Map(), _roadNoticePackPromises = new Map();
 
@@ -3235,20 +3694,11 @@ This is a strict before/after verification, not ordinary pothole detection:
   }
 
   async function fetchRoadNoticePack(resource) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), OPTIONAL_CATALOG_TIMEOUT_MS);
-    try {
-      const response = await fetch(resolvePackUrl(resource), {
-        cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer",
-        signal: controller.signal,
-      });
-      if (!response.ok) return null;
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType && !/json/i.test(contentType)) return null;
-      const bytes = await response.arrayBuffer();
-      return { pack: await validateDecodedRoadNoticePack(resource, bytes), bytes };
-    } catch (e) { return null; }
-    finally { clearTimeout(timer); }
+    return downloadPackResource(resolvePackUrl(resource), {
+      maxBytes: ROAD_NOTICE_PACK_MAX_BYTES, expectedBytes: resource.bytes, expectedSha256: resource.sha256,
+      timeoutMs: OPTIONAL_CATALOG_TIMEOUT_MS,
+      validate: (bytes, signal) => validateDecodedRoadNoticePack(resource, bytes),
+    });
   }
 
   async function loadRoadNoticePack(stateCode) {
@@ -3324,7 +3774,7 @@ This is a strict before/after verification, not ordinary pothole detection:
   // notice, but it still supplies no road geometry, named contractor, completion /
   // maintenance dates or DLP. A separate schema keeps those absences enforceable.
   const ROAD_AGREEMENT_MANIFEST_FILE = "road-agreement-manifest-v1.36.json";
-  const ROAD_AGREEMENT_PACK_MAX_BYTES = 8 * 1024 * 1024;
+  const ROAD_AGREEMENT_PACK_MAX_BYTES = PACK_DOWNLOAD_LIMITS.catalog;
   let _roadAgreementManifest = null, _roadAgreementManifestPromise = null;
   const _roadAgreementPackMemory = new Map(), _roadAgreementPackPromises = new Map();
 
@@ -3559,20 +4009,11 @@ This is a strict before/after verification, not ordinary pothole detection:
   }
 
   async function fetchRoadAgreementPack(resource) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), OPTIONAL_CATALOG_TIMEOUT_MS);
-    try {
-      const response = await fetch(resolvePackUrl(resource), {
-        cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer",
-        signal: controller.signal,
-      });
-      if (!response.ok) return null;
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType && !/json/i.test(contentType)) return null;
-      const bytes = await response.arrayBuffer();
-      return { pack: await validateDecodedRoadAgreementPack(resource, bytes), bytes };
-    } catch (e) { return null; }
-    finally { clearTimeout(timer); }
+    return downloadPackResource(resolvePackUrl(resource), {
+      maxBytes: ROAD_AGREEMENT_PACK_MAX_BYTES, expectedBytes: resource.bytes, expectedSha256: resource.sha256,
+      timeoutMs: OPTIONAL_CATALOG_TIMEOUT_MS,
+      validate: (bytes, signal) => validateDecodedRoadAgreementPack(resource, bytes),
+    });
   }
 
   async function loadRoadAgreementPack(stateCode) {
@@ -3676,8 +4117,8 @@ This is a strict before/after verification, not ordinary pothole detection:
   // after a report has a location, checked against its pinned SHA-256, and cached in the
   // same bounded store as state packs. Geometry says that a point is on a mapped NH/NE
   // carriageway; it deliberately does not pretend to identify the maintaining agency.
-  const HIGHWAY_MANIFEST_MAX_BYTES = 512 * 1024;
-  const HIGHWAY_TILE_MAX_BYTES = 8 * 1024 * 1024;
+  const HIGHWAY_MANIFEST_MAX_BYTES = PACK_DOWNLOAD_LIMITS.highwayManifest;
+  const HIGHWAY_TILE_MAX_BYTES = PACK_DOWNLOAD_LIMITS.catalog;
   const HIGHWAY_FETCH_TIMEOUT_MS = 30000;
   const HIGHWAY_REF_RE = /^N[HE]-[0-9]{1,4}[A-Z]{0,3}(?: \/ N[HE]-[0-9]{1,4}[A-Z]{0,3})*$/;
   let _highwayManifest = null, _highwayManifestPromise = null;
@@ -3777,11 +4218,11 @@ This is a strict before/after verification, not ordinary pothole detection:
     if (_highwayManifestPromise) return _highwayManifestPromise;
     _highwayManifestPromise = (async () => {
       try {
-        const response = await fetch("highway-manifest.json", { cache: "no-store" });
-        if (!response.ok) return null;
-        const text = await response.text();
-        if (!text || text.length > HIGHWAY_MANIFEST_MAX_BYTES) return null;
-        _highwayManifest = validateHighwayManifest(JSON.parse(text));
+        const downloaded = await downloadPackResource("highway-manifest.json", {
+          maxBytes: HIGHWAY_MANIFEST_MAX_BYTES, timeoutMs: HIGHWAY_FETCH_TIMEOUT_MS,
+          validate: (bytes) => validateHighwayManifest(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes))),
+        });
+        if (downloaded) _highwayManifest = downloaded.pack;
       } catch (e) { /* missing or malformed highway data fails closed at routing time */ }
       return _highwayManifest;
     })();
@@ -3831,20 +4272,11 @@ This is a strict before/after verification, not ordinary pothole detection:
   }
 
   async function fetchHighwayTile(resource) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), HIGHWAY_FETCH_TIMEOUT_MS);
-    try {
-      const response = await fetch(resolvePackUrl(resource), {
-        cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer",
-        signal: controller.signal,
-      });
-      if (!response.ok) return null;
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType && !/json/i.test(contentType)) return null;
-      const bytes = await response.arrayBuffer();
-      return { pack: await validateHighwayTile(resource, bytes), bytes };
-    } catch (e) { return null; }
-    finally { clearTimeout(timer); }
+    return downloadPackResource(resolvePackUrl(resource), {
+      maxBytes: HIGHWAY_TILE_MAX_BYTES, expectedBytes: resource.bytes, expectedSha256: resource.sha256,
+      timeoutMs: HIGHWAY_FETCH_TIMEOUT_MS,
+      validate: (bytes, signal) => validateHighwayTile(resource, bytes),
+    });
   }
 
   async function loadHighwayTile(identifier) {
@@ -6241,7 +6673,8 @@ This is a strict before/after verification, not ordinary pothole detection:
   }
 
   async function matchTender(address, lgd) {
-    if (!address || !S.key || !lgd) return null;
+    await CredentialBroker.ready();
+    if (!address || !CredentialBroker.hasOpenAi() || !lgd) return null;
     // The pool is limited to this indexed body, plus legacy BBMP rows for Bengaluru's
     // five successor corporations. That blocks cross-city records, but proves neither
     // road ownership nor that a tender became an awarded contract.
@@ -6278,10 +6711,11 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
       // real contractor in a complaint, so this call keeps room to think.
       m = await oai({
         model: DEFAULT_MODEL, input: prompt,
+        max_output_tokens: 512,
         reasoning: { effort: "medium" },
         text: fmt("tender_match", TENDER_SCHEMA),
       });
-    } catch (e) { return null; }
+    } catch (e) { if (e && e.aiUsageLimit) throw e; return null; }
     if (!m || m.match_index === null || m.match_index < 0
         || m.match_index >= candidates.length || m.confidence < 0.6) return null;
     // The model may veto the lexical leader, but it may not promote a weaker row. Require
@@ -8031,6 +8465,233 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
     }));
   }
 
+  // SEC-010: bound encoded bytes and inspect raster headers before any pixel decode.
+  const IMAGE_DECODE_POLICY = Object.freeze({
+    maxEncodedBytes: 32 * 1024 * 1024,
+    maxDimension: 12000,
+    maxPixels: 64_000_000,
+    maxPreparedDimension: 4000,
+    maxHeaderBytes: 1024 * 1024,
+    maxExifBytes: 64 * 1024,
+    maxChunks: 4096,
+  });
+  function imageDecodeError() {
+    return new Error("Photo is malformed or exceeds the supported image limits (32 MiB, 12000 pixels per side, 64 megapixels). Use JPEG, PNG, WebP, GIF or BMP.");
+  }
+  function checkPhotoEncodedSize(value) {
+    if (value instanceof Blob && value.size > IMAGE_DECODE_POLICY.maxEncodedBytes) throw imageDecodeError();
+    if (typeof value !== "string" || !/^data:image\//i.test(value)) return;
+    const comma = value.indexOf(",");
+    if (comma < 0 || comma > 64) throw imageDecodeError();
+    const encodedLength = value.length - comma - 1;
+    const base64 = /;base64$/i.test(value.slice(0, comma));
+    const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
+    const byteLimit = base64 ? Math.floor(encodedLength / 4) * 3 - padding : encodedLength;
+    if (byteLimit > IMAGE_DECODE_POLICY.maxEncodedBytes) throw imageDecodeError();
+  }
+  function checkedImageDimensions(width, height, maxDimension = IMAGE_DECODE_POLICY.maxDimension,
+      maxPixels = IMAGE_DECODE_POLICY.maxPixels) {
+    if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height)
+        || width < 1 || height < 1 || width > maxDimension || height > maxDimension
+        || width > Math.floor(maxPixels / height)) throw imageDecodeError();
+    return { width, height };
+  }
+  function imageExifOrientation(bytes) {
+    let start = 0;
+    if (bytes[0] === 0x45 && bytes[1] === 0x78 && bytes[2] === 0x69 && bytes[3] === 0x66) {
+      if (bytes[4] !== 0 || bytes[5] !== 0) throw imageDecodeError();
+      start = 6;
+    }
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const little = bytes[start] === 0x49 && bytes[start + 1] === 0x49;
+    if (!little && !(bytes[start] === 0x4d && bytes[start + 1] === 0x4d)) throw imageDecodeError();
+    const u16 = offset => { if (offset < start || offset + 2 > bytes.length) throw imageDecodeError(); return view.getUint16(offset, little); };
+    const u32 = offset => { if (offset < start || offset + 4 > bytes.length) throw imageDecodeError(); return view.getUint32(offset, little); };
+    if (u16(start + 2) !== 42) throw imageDecodeError();
+    const ifd = start + u32(start + 4);
+    const count = u16(ifd);
+    if (count > IMAGE_DECODE_POLICY.maxChunks || ifd + 2 + count * 12 + 4 > bytes.length) throw imageDecodeError();
+    for (let i = 0; i < count; i++) {
+      const entry = ifd + 2 + i * 12;
+      if (u16(entry) !== 0x112) continue;
+      if (u16(entry + 2) !== 3 || u32(entry + 4) !== 1) throw imageDecodeError();
+      const orientation = u16(entry + 8);
+      if (orientation < 1 || orientation > 8) throw imageDecodeError();
+      return orientation;
+    }
+    return 1;
+  }
+  function inspectImageHeader(bytes, totalBytes) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const text = (start, length) => String.fromCharCode(...bytes.subarray(start, start + length));
+    let width, height, type, orientation = 1;
+    if (bytes.length >= 33 && text(0, 8) === "\x89PNG\r\n\x1a\n") {
+      if (view.getUint32(8) !== 13 || text(12, 4) !== "IHDR") throw imageDecodeError();
+      width = view.getUint32(16); height = view.getUint32(20); type = "image/png";
+    } else if (bytes.length >= 30 && text(0, 4) === "RIFF" && text(8, 4) === "WEBP") {
+      if (view.getUint32(4, true) + 8 !== totalBytes) throw imageDecodeError();
+      const tag = text(12, 4);
+      const u24 = p => bytes[p] + bytes[p + 1] * 256 + bytes[p + 2] * 65536;
+      if (tag === "VP8X" && view.getUint32(16, true) === 10) {
+        width = u24(24) + 1; height = u24(27) + 1;
+      } else if (tag === "VP8 " && bytes[23] === 0x9d && bytes[24] === 1 && bytes[25] === 0x2a) {
+        width = view.getUint16(26, true) & 0x3fff; height = view.getUint16(28, true) & 0x3fff;
+      } else if (tag === "VP8L" && bytes[20] === 0x2f) {
+        const bits = view.getUint32(21, true);
+        width = (bits & 0x3fff) + 1; height = ((bits >>> 14) & 0x3fff) + 1;
+      } else throw imageDecodeError();
+      type = "image/webp";
+    } else if (bytes.length >= 13 && ["GIF87a", "GIF89a"].includes(text(0, 6))) {
+      width = view.getUint16(6, true); height = view.getUint16(8, true); type = "image/gif";
+      let p = 13 + (bytes[10] & 0x80 ? 3 * 2 ** ((bytes[10] & 7) + 1) : 0);
+      let found = false;
+      for (let count = 0; count < IMAGE_DECODE_POLICY.maxChunks && p < bytes.length; count++) {
+        if (bytes[p] === 0x2c) {
+          if (p + 10 > bytes.length) throw imageDecodeError();
+          const left = view.getUint16(p + 1, true), top = view.getUint16(p + 3, true);
+          const frameW = view.getUint16(p + 5, true), frameH = view.getUint16(p + 7, true);
+          checkedImageDimensions(frameW, frameH);
+          if (left + frameW > width || top + frameH > height) throw imageDecodeError();
+          found = true; break;
+        }
+        if (bytes[p] !== 0x21 || p + 2 >= bytes.length) throw imageDecodeError();
+        p += 2;
+        let blocks = 0;
+        while (p < bytes.length && bytes[p]) {
+          if (++blocks > IMAGE_DECODE_POLICY.maxChunks) throw imageDecodeError();
+          p += 1 + bytes[p];
+        }
+        if (p >= bytes.length) throw imageDecodeError();
+        p++;
+      }
+      if (!found) throw imageDecodeError();
+    } else if (bytes.length >= 54 && text(0, 2) === "BM") {
+      if (view.getUint32(2, true) !== totalBytes || view.getUint32(14, true) < 40
+          || view.getUint32(10, true) >= totalBytes) throw imageDecodeError();
+      width = view.getInt32(18, true); height = Math.abs(view.getInt32(22, true)); type = "image/bmp";
+    } else if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+      let p = 2, scanned = 0, foundScan = false;
+      while (p < bytes.length && ++scanned <= IMAGE_DECODE_POLICY.maxChunks) {
+        if (bytes[p++] !== 0xff) throw imageDecodeError();
+        while (p < bytes.length && bytes[p] === 0xff) p++;
+        const marker = bytes[p++];
+        if (marker === 0xda) { foundScan = true; break; }
+        if (marker === 0xd9 || marker === undefined) throw imageDecodeError();
+        if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+        if (p + 2 > bytes.length) throw imageDecodeError();
+        const length = view.getUint16(p);
+        if (length < 2 || p + length > bytes.length) throw imageDecodeError();
+        if (marker === 0xe1 && text(p + 2, 6) === "Exif\0\0") {
+          orientation = imageExifOrientation(bytes.subarray(p + 2, p + length));
+        }
+        if ([0xc0, 0xc1, 0xc2].includes(marker)) {
+          if (length < 8 || width !== undefined) throw imageDecodeError();
+          height = view.getUint16(p + 3); width = view.getUint16(p + 5);
+        }
+        p += length;
+      }
+      if (!foundScan || width === undefined) throw imageDecodeError();
+      type = "image/jpeg";
+    } else throw imageDecodeError();
+    checkedImageDimensions(width, height);
+    return { width, height, type, orientation };
+  }
+  async function readImageBounds(blob) {
+    if (!(blob instanceof Blob) || !Number.isSafeInteger(blob.size) || blob.size < 12
+        || blob.size > IMAGE_DECODE_POLICY.maxEncodedBytes) throw imageDecodeError();
+    const header = new Uint8Array(await blob.slice(0, IMAGE_DECODE_POLICY.maxHeaderBytes).arrayBuffer());
+    const bounds = inspectImageHeader(header, blob.size);
+    const tail = new Uint8Array(await blob.slice(-12).arrayBuffer());
+    if ((bounds.type === "image/jpeg" && !(tail[tail.length - 2] === 0xff && tail[tail.length - 1] === 0xd9))
+        || (bounds.type === "image/gif" && tail[tail.length - 1] !== 0x3b)) throw imageDecodeError();
+    if (bounds.type === "image/png" || bounds.type === "image/webp") {
+      const png = bounds.type === "image/png";
+      let p = png ? 8 : 12, chunks = 0, foundExif = false, ended = false;
+      while (p < blob.size) {
+        if (++chunks > IMAGE_DECODE_POLICY.maxChunks || p + 8 > blob.size) throw imageDecodeError();
+        const bytes = p + 8 <= header.length ? header.subarray(p, p + 8)
+          : new Uint8Array(await blob.slice(p, p + 8).arrayBuffer());
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        const length = view.getUint32(png ? 0 : 4, !png);
+        const tag = String.fromCharCode(...bytes.subarray(png ? 4 : 0, png ? 8 : 4));
+        const next = p + 8 + length + (png ? 4 : length % 2);
+        if (next > blob.size || next <= p) throw imageDecodeError();
+        if (tag === (png ? "eXIf" : "EXIF")) {
+          if (foundExif || length > IMAGE_DECODE_POLICY.maxExifBytes) throw imageDecodeError();
+          const exif = p + 8 + length <= header.length ? header.subarray(p + 8, p + 8 + length)
+            : new Uint8Array(await blob.slice(p + 8, p + 8 + length).arrayBuffer());
+          bounds.orientation = imageExifOrientation(exif); foundExif = true;
+        }
+        if (png && tag === "IEND") {
+          if (length !== 0 || next !== blob.size) throw imageDecodeError();
+          ended = true;
+        }
+        p = next;
+      }
+      if (png && !ended) throw imageDecodeError();
+    }
+    if (bounds.orientation >= 5) [bounds.width, bounds.height] = [bounds.height, bounds.width];
+    return bounds;
+  }
+  async function decodeBoundedImage(blob, maxDim) {
+    if (!Number.isSafeInteger(maxDim) || maxDim < 1
+        || maxDim > IMAGE_DECODE_POLICY.maxPreparedDimension) throw imageDecodeError();
+    const bounds = await readImageBounds(blob);
+    const scale = Math.min(1, maxDim / Math.max(bounds.width, bounds.height));
+    const width = Math.max(1, Math.round(bounds.width * scale));
+    const height = Math.max(1, Math.round(bounds.height * scale));
+    let bitmap = null;
+    try {
+      bitmap = await createImageBitmap(blob, { imageOrientation: "from-image",
+        resizeWidth: width, resizeHeight: height, resizeQuality: "high" });
+      checkedImageDimensions(bitmap.width, bitmap.height, maxDim, maxDim * maxDim);
+      if (bitmap.width !== width || bitmap.height !== height) throw imageDecodeError();
+      return bitmap;
+    } catch (error) {
+      if (bitmap && bitmap.close) bitmap.close();
+      throw imageDecodeError();
+    }
+  }
+  let imagePreparationTail = Promise.resolve();
+  function reserveImagePreparation() {
+    const ready = imagePreparationTail;
+    let done;
+    imagePreparationTail = new Promise(resolve => { done = resolve; });
+    return { ready, done };
+  }
+  let manualPhotoPreparing = false;
+  function installManualPhotoBudget() {
+    // Keep the SEC-009 hash-approved inline UI unchanged: guard its global entry
+    // after it has been declared, before user capture/import events can run.
+    const original = window.handleFile;
+    if (typeof original !== "function") return;
+    window.handleFile = async function boundedManualPhoto(file, captureMeta = {}) {
+      if (!file) return;
+      if (manualPhotoPreparing) { alert("A photo is already being prepared. Please wait."); return; }
+      manualPhotoPreparing = true;
+      let preview = null;
+      try {
+        const normalized = await toDataUrl(file, IMAGE_DECODE_POLICY.maxPreparedDimension, 0.92, false, true);
+        const prepared = new File([normalized], file.name || "photo.jpg", {
+          type: "image/jpeg", lastModified: file.lastModified,
+        });
+        const pending = original(prepared, captureMeta);
+        const photo = document.getElementById("progressPhoto");
+        if (photo && photo.src.startsWith("blob:")) preview = photo.src;
+        return await pending;
+      } catch (error) {
+        alert(error.message || imageDecodeError().message);
+      } finally {
+        if (preview) {
+          const photo = document.getElementById("progressPhoto");
+          if (photo && photo.src === preview) photo.removeAttribute("src");
+          URL.revokeObjectURL(preview);
+        }
+        manualPhotoPreparing = false;
+      }
+    };
+  }
+  document.addEventListener("DOMContentLoaded", installManualPhotoBudget, { once: true });
   // Photos are stored as blobs, not base64. Measured on a device with a hundred 1024px
   // thumbnails: reading them back took 177 ms as base64 strings and 3 ms as blobs, writing
   // took 253 ms against 90 ms, and each one is 88 KB as text against 66 KB binary. Every
@@ -8041,10 +8702,12 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
   // photo accepts either, so nothing has to be migrated or rewritten.
   const dataUrlToBlob = async (u) => {
     if (!u || typeof u !== "string") return u || null;
+    checkPhotoEncodedSize(u);
     try { return await (await fetch(u)).blob(); } catch (e) { return u; }
   };
   const blobToDataUrl = async (v) => {
     if (!v) return null;
+    checkPhotoEncodedSize(v);
     if (typeof v === "string") return v;
     return await new Promise((resolve, reject) => {
       const fr = new FileReader();
@@ -8077,6 +8740,7 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
       blob = value;
     } else if (typeof value === "string"
         && /^data:image\/(?:jpeg|png|webp);base64,/i.test(value)) {
+      if (value.length > Math.ceil(REPAIR_EVIDENCE_MAX_BYTES / 3) * 4 + 64) return null;
       try {
         const response = await fetch(value);
         if (!response.ok) return null;
@@ -8098,27 +8762,17 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
       && header[10] === 0x42 && header[11] === 0x50;
     if ((type === "image/jpeg" && !jpeg) || (type === "image/png" && !png)
         || (type === "image/webp" && !webp)) return null;
-    let width = 0, height = 0;
-    if (typeof createImageBitmap === "function") {
-      let bitmap = null;
-      try {
-        bitmap = await createImageBitmap(blob);
-        width = bitmap.width; height = bitmap.height;
-      } catch (_) { return null; }
-      finally { if (bitmap && bitmap.close) bitmap.close(); }
-    } else {
-      const url = URL.createObjectURL(blob);
-      try {
-        const dimensions = await new Promise((resolve, reject) => {
-          const img = new Image();
-          img.onload = () => resolve([img.naturalWidth, img.naturalHeight]);
-          img.onerror = () => reject(new Error("Repair evidence is not a decodable image."));
-          img.src = url;
-        });
-        width = dimensions[0]; height = dimensions[1];
-      } catch (_) { return null; }
-      finally { URL.revokeObjectURL(url); }
-    }
+    let width = 0, height = 0, bitmap = null;
+    const turn = reserveImagePreparation();
+    await turn.ready;
+    try {
+      const bounds = await readImageBounds(blob);
+      checkedImageDimensions(bounds.width, bounds.height, REPAIR_EVIDENCE_MAX_DIMENSION, REPAIR_EVIDENCE_MAX_PIXELS);
+      if (bounds.width < REPAIR_EVIDENCE_MIN_DIMENSION || bounds.height < REPAIR_EVIDENCE_MIN_DIMENSION) return null;
+      bitmap = await decodeBoundedImage(blob, IMAGE_DECODE_POLICY.maxPreparedDimension);
+      width = bounds.width; height = bounds.height;
+    } catch (_) { return null; }
+    finally { try { if (bitmap && bitmap.close) bitmap.close(); } finally { turn.done(); } }
     if (!Number.isInteger(width) || !Number.isInteger(height)
         || width < REPAIR_EVIDENCE_MIN_DIMENSION || height < REPAIR_EVIDENCE_MIN_DIMENSION
         || width > REPAIR_EVIDENCE_MAX_DIMENSION || height > REPAIR_EVIDENCE_MAX_DIMENSION
@@ -8127,6 +8781,7 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
   }
   const photoToBase64 = async (v) => {
     if (!v) return null;
+    checkPhotoEncodedSize(v);
     if (typeof v === "string") return v.split(",")[1];
     return await new Promise((res) => {
       const fr = new FileReader();
@@ -8462,17 +9117,20 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
     return detectionEnhancementPlan(ctx.getImageData(0, 0, width, height).data, width, height);
   }
 
-  async function toDataUrl(blob, maxDim, quality = 0.85, boost = false) {
-    const bmp = await createImageBitmap(blob, { imageOrientation: "from-image" });
+  async function toDataUrl(blob, maxDim, quality = 0.85, boost = false, asBlob = false) {
+    const turn = reserveImagePreparation();
+    await turn.ready;
+    let bmp = null;
     let c = null;
     try {
+      bmp = await decodeBoundedImage(blob, maxDim);
       const sw = bmp.width, sh = bmp.height;
       // Match native live detection: preserve the full frame and downscale only. Upscaling
       // invents no detail and would make replay use different pixels from live inference.
       const scale = Math.min(1, maxDim / Math.max(sw, sh));
       c = document.createElement("canvas");
-      c.width = Math.round(sw * scale);
-      c.height = Math.round(sh * scale);
+      c.width = Math.max(1, Math.round(sw * scale));
+      c.height = Math.max(1, Math.round(sh * scale));
       const ctx = c.getContext("2d");
       ctx.drawImage(bmp, 0, 0, sw, sh, 0, 0, c.width, c.height);
       // Enhancement follows the pixels, not the wall clock. Fixed evening hours boosted
@@ -8485,14 +9143,19 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
         applyDetectionEnhancement(imageData.data, light);
         ctx.putImageData(imageData, 0, 0);
       }
+      if (asBlob) {
+        const encoded = await new Promise(resolve => c.toBlob(resolve, "image/jpeg", quality));
+        if (!encoded || encoded.size > IMAGE_DECODE_POLICY.maxEncodedBytes) throw imageDecodeError();
+        return encoded;
+      }
       return c.toDataURL("image/jpeg", quality);
     } finally {
       try {
-        if (bmp.close) bmp.close();
+        if (bmp && bmp.close) bmp.close();
       } finally {
         // Resetting the bitmap dimensions asks WebView to free its graphics backing
         // store immediately instead of retaining it until the canvas is collected.
-        if (c) { c.width = 0; c.height = 0; }
+        try { if (c) { c.width = 0; c.height = 0; } } finally { turn.done(); }
       }
     }
   }
@@ -9486,14 +10149,14 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
       const EmailComposer = Capacitor.registerPlugin
         ? Capacitor.registerPlugin("EmailComposer")
         : Capacitor.Plugins.EmailComposer;
-      await EmailComposer.open({
+      await window.withManagedMediaOperation("email", () => EmailComposer.open({
         to: [to],
         subject: current.email_subject || "",
         body: current.email_body || "",
         // Full capture where we kept one; the working copy is only a fallback.
         attachments: [{ type: "base64", name: `${issueFileStem(current.issue_type)}.jpg`,
                         path: attachment }],
-      });
+      }));
     } else {
       // A browser cannot attach the saved photo to a draft, but it can still open a
       // real addressed composer. Keep this a deliberate external handoff: the user
@@ -10451,7 +11114,8 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
     const method = ((opts && opts.method) || "GET").toUpperCase();
     let m;
     if (path === "/api/health") {
-      return { ai_configured: !!S.key, provider: "openai", delivery: "email_or_official_handoff", email_configured: true,
+      await CredentialBroker.ready();
+      return { ai_configured: CredentialBroker.hasOpenAi(), provider: "openai", delivery: "email_or_official_handoff", email_configured: true,
                detection_model: S.model, image_detail: S.detail, prompt_version: PROMPT_VERSION };
     }
     if (path === "/api/reports" && method === "GET") {
@@ -10814,6 +11478,8 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
                    REPAIR_SCHEMA_VERSION, clearAbsenceForRepair, repairConditionFor,
                    SCHEMA_VERSION, MAX_DETECTION_IMAGES, MAX_REPAIR_IMAGES,
                    MAX_PREPARED_FRAME_DIMENSION,
+                   IMAGE_DECODE_POLICY, checkedImageDimensions, inspectImageHeader,
+                   readImageBounds, decodeBoundedImage, toDataUrl,
                    averageLuminance,
                    detectionEnhancementPlan, applyDetectionEnhancement,
                    distMeters, roadEventMatch, sameRoadEvent, repairTargetMatch,

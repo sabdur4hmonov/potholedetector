@@ -62,6 +62,12 @@ internal class NativeRtspFrameSource(
         val generation: Long
     )
 
+    // Protect direct native construction as well as bridge/service configuration.
+    // Reject before handlers, threads, media storage, sockets or decoder resources exist.
+    init {
+        NativeRtspTransportPolicy.requireProductionEndpoint(rtspUrl)
+    }
+
     override val kind = NativeFrameSourceKind.DASHCAM
     @Volatile override var isReady = false
         private set
@@ -177,16 +183,18 @@ internal class NativeRtspFrameSource(
             return
         }
         imageReader = reader
-        val mediaSourceFactory = RtspMediaSource.Factory()
-            .setDebugLoggingEnabled(false)
-            .setTimeoutMs(CONNECT_TIMEOUT_MS)
-            // RTP-over-TCP interleaves media on the same routed socket as RTSP control.
-            // Otherwise Media3 creates separate UDP datagrams that can follow cellular.
-            .setForceUseRtpTcp(true)
-        // Bind the RTSP/RTP socket to dashcam Wi-Fi. Never bind the whole process: Maps,
-        // geocoding and OpenAI must remain free to use the phone's default/mobile network.
-        preferredWifiSocketFactory()?.let(mediaSourceFactory::setSocketFactory)
-        val mediaSource = mediaSourceFactory.createMediaSource(MediaItem.fromUri(rtspUrl))
+        val mediaSource = NativeRtspTransportPolicy.withProductionEndpoint(rtspUrl) { verifiedEndpoint ->
+            val mediaSourceFactory = RtspMediaSource.Factory()
+                .setDebugLoggingEnabled(false)
+                .setTimeoutMs(CONNECT_TIMEOUT_MS)
+                // RTP-over-TCP interleaves media on the same routed socket as RTSP control.
+                // Otherwise Media3 creates separate UDP datagrams that can follow cellular.
+                .setForceUseRtpTcp(true)
+            // Bind the RTSP/RTP socket to dashcam Wi-Fi. Never bind the whole process: Maps,
+            // geocoding and OpenAI must remain free to use the phone's default/mobile network.
+            preferredWifiSocketFactory()?.let(mediaSourceFactory::setSocketFactory)
+            mediaSourceFactory.createMediaSource(MediaItem.fromUri(verifiedEndpoint))
+        }
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMsForStreaming(
                 NativeRtspLatencyPolicy.MIN_BUFFER_MS,

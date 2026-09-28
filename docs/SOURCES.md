@@ -123,7 +123,11 @@ The geometry describes mapped NH/NE carriageways, not a legal inventory or owner
 register. It does not infer whether NHAI, NHIDCL, BRO, or a State PWD maintains a matched
 stretch. The user must verify the maintaining agency in the official service. Rebuild and
 verification logic is in `tools/build-national-highways.py`; the complete source receipt
-is `data/national-highways-source.json`.
+is `data/national-highways-source.json`. The MD5 above is the historical provenance label
+of the committed catalog, not a rebuild check: `tools/pull-national-highways.sh` accepts a
+downloaded extract only by a reviewed SHA-256 pin. That dated extract is no longer published
+and its SHA-256 was not recorded, so a rebuild first requires reviewing and pinning a new
+extract.
 
 ## Maharashtra boundaries and complaint handoffs
 

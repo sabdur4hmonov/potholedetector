@@ -12,8 +12,14 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
+import java.io.File
+import dev.aiengg.potholereporter.security.AiOutputPolicy
+import dev.aiengg.potholereporter.security.testAiBudget
 
 class NativeInferenceTransportTest {
+    @get:Rule val budgetStorage = TemporaryFolder()
     private lateinit var server: MockWebServer
 
     @Before
@@ -98,18 +104,11 @@ class NativeInferenceTransportTest {
     }
 
     @Test
-    fun terminalMarkerCannotHideAnOversizedLaterDelta() {
-        enqueueSse(
-            delta(ACCEPTED_JSON),
-            event("response.completed"),
-            delta("x".repeat(NativeSseTextAccumulator.MAX_UTF8_BYTES))
-        )
-
-        val error = assertThrows(NativeInferenceException::class.java) {
-            transport().use { it.detect(images(), "prompt", false) }
-        }
-
-        assertTrue(error.suspendInference)
+    fun terminalMarkerClosesWithoutReadingLaterDeltas() {
+        enqueueSse(delta(ACCEPTED_JSON), event("response.completed"),
+            delta("x".repeat(NativeSseTextAccumulator.MAX_UTF8_BYTES)))
+        val assessment = transport().use { it.detect(images(), "prompt", false) }
+        assertEquals("accept", assessment.decision)
     }
 
     @Test
@@ -133,7 +132,10 @@ class NativeInferenceTransportTest {
         model = "gpt-5.6",
         detail = "high",
         debug = false,
-        endpoint = server.url("/v1/responses").toString()
+        endpoint = server.url("/v1/responses").toString(),
+        // Only the loopback test endpoint is remapped; use the actual persistent budget.
+        budgetGate = { testAiBudget(File(budgetStorage.root.canonicalFile, "budget"))
+            .reserve(it.copy(endpoint = AiOutputPolicy.ENDPOINT)) }
     )
 
     private fun images() = mutableListOf("data:image/jpeg;base64,dGVzdA==")

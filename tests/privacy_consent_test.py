@@ -4,6 +4,7 @@ import os
 import sys
 
 from playwright.sync_api import sync_playwright
+from browser_test_utils import SECURE_CREDENTIALS_MOCK
 
 
 APP = os.environ.get("POTHOLE_TEST_APP", "http://localhost:8765/")
@@ -41,7 +42,7 @@ INIT_NATIVE_PROBE = r"""
 
 def open_native_page(browser):
     context = browser.new_context(viewport={"width": 390, "height": 844})
-    context.add_init_script(INIT_NATIVE_PROBE)
+    context.add_init_script(INIT_NATIVE_PROBE + SECURE_CREDENTIALS_MOCK)
     page = context.new_page()
     page.goto(APP)
     page.wait_for_load_state("networkidle")

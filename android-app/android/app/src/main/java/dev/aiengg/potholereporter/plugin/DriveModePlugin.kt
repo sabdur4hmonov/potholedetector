@@ -37,6 +37,11 @@ import dev.aiengg.potholereporter.drive.NativeReportEvidenceStorage
 import dev.aiengg.potholereporter.drive.NativeRollingBurstWindow
 import dev.aiengg.potholereporter.drive.NativeStoredImagePolicy
 import dev.aiengg.potholereporter.drive.NotificationHelper
+import dev.aiengg.potholereporter.security.NativeSecret
+import dev.aiengg.potholereporter.media.AndroidAppMediaCleanup
+import dev.aiengg.potholereporter.media.AppMediaOperations
+import dev.aiengg.potholereporter.security.NativeSecretStore
+import dev.aiengg.potholereporter.security.SecretUnavailableException
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -261,7 +266,16 @@ class DriveModePlugin : Plugin() {
 
     @PluginMethod
     fun startDrive(call: PluginCall) {
-        val apiKey = call.getString("apiKey") ?: ""
+        val secretStore = NativeSecretStore.create(context)
+        val apiKey: String
+        val dashcamRtspUrl: String?
+        try {
+            apiKey = secretStore.readForNativeUse(NativeSecret.OPENAI) ?: ""
+            dashcamRtspUrl = secretStore.readForNativeUse(NativeSecret.DASHCAM_RTSP)
+        } catch (_: SecretUnavailableException) {
+            call.reject("A stored credential is unavailable; open Settings and save it again")
+            return
+        }
         val model = call.getString("model") ?: "gpt-5.6"
         val detail = call.getString("detail") ?: "original"
         val language = call.getString("language") ?: "en"
@@ -274,7 +288,7 @@ class DriveModePlugin : Plugin() {
         )
         val sourceConfig = NativeFrameSourceConfig.create(
             call.getString("captureSource"),
-            call.getString("dashcamRtspUrl")
+            dashcamRtspUrl
         ).getOrElse { error ->
             call.reject(error.message ?: "The video source is invalid")
             return
@@ -1159,64 +1173,59 @@ class DriveModePlugin : Plugin() {
     fun clearNativeData(call: PluginCall) {
         var clearAdmitted = false
         synchronized(pendingStartLock) {
-            if (!nativeClearInProgress) {
+            if (!nativeClearInProgress && AppMediaOperations.gate.beginClear()) {
                 nativeClearInProgress = true
                 clearAdmitted = true
             }
         }
         if (!clearAdmitted) {
-            call.reject("App data deletion is already in progress")
+            call.reject("Finish the active media operation or deletion before retrying")
             return
         }
 
         fun finishClear() {
+            AppMediaOperations.gate.endClear()
             synchronized(pendingStartLock) { nativeClearInProgress = false }
         }
         val clearData = {
           driveControlScope.launch {
             var failure: Exception? = null
             try {
+                // Each independent storage class is attempted even after a partial failure.
+                try { NativeSecretStore.create(context).clearAll() }
+                catch (_: Exception) { failure = IllegalStateException("App data deletion incomplete") }
                 NativeMediaFilesystemMutation.mutex.withLock {
-                    val db = PotholeDatabase.getDatabase(context)
-                    val reportsRoot = File(context.filesDir, "reports")
-                    val managedRoots = listOf(
-                        "report photos" to reportsRoot,
-                        "Drive footage and saved frames" to File(context.filesDir, "footage"),
-                        "repair target photos" to File(context.filesDir, "repair_targets"),
-                        "shared evidence cache" to File(context.cacheDir, "pothole-reporter-shares")
-                    )
                     val footageRoot = File(context.filesDir, "footage")
                     val ledgerDeletion =
                         DriveForegroundService.externalMediaDeletionRecorderIfReconciled()
                     val footageBytesBefore = directoryBytes(footageRoot)
                     try {
-                        val failed = managedRoots.filter { (_, root) ->
-                            root.exists() && (!root.deleteRecursively() || root.exists())
-                        }.map { it.first }
-                        if (failed.isNotEmpty()) {
-                            throw IllegalStateException(
-                                "could not delete ${failed.joinToString(", ")}"
-                            )
-                        }
+                        try {
+                            if (!AndroidAppMediaCleanup(context).clearAll().cleared) {
+                                failure = IllegalStateException("App data deletion incomplete")
+                            }
+                        } catch (_: Exception) { failure = IllegalStateException("App data deletion incomplete") }
                         // The staging directory is part of repair_targets above. Do not
                         // leave an in-memory gate pointing at a generation just deleted by
                         // an explicit full-app wipe.
                         repairTargetStage = null
-                        db.withTransaction {
-                            db.footageDao().clearAll()
-                            db.driveKeyframeDao().clearAll()
-                            db.eventSightingDao().clearAll()
-                            db.repairObservationDao().clearAll()
-                            db.repairTargetDao().clearAll()
-                            db.reportDao().clearAll()
-                            db.sessionDao().clearAll()
-                        }
-                        if (!NativeDriveEndSummaryStore.clear(context)) {
-                            throw IllegalStateException("terminal Drive results remained after deletion")
-                        }
-                        if (managedRoots.any { it.second.exists() }) {
-                            throw IllegalStateException("managed media remained after deletion")
-                        }
+                        try {
+                            val db = PotholeDatabase.getDatabase(context)
+                            db.withTransaction {
+                                db.footageDao().clearAll()
+                                db.driveKeyframeDao().clearAll()
+                                db.eventSightingDao().clearAll()
+                                db.repairObservationDao().clearAll()
+                                db.repairTargetDao().clearAll()
+                                db.reportDao().clearAll()
+                                db.sessionDao().clearAll()
+                            }
+                        } catch (_: Exception) { failure = IllegalStateException("App data deletion incomplete") }
+                        try {
+                            if (!NativeDriveEndSummaryStore.clear(context)) {
+                                failure = IllegalStateException("App data deletion incomplete")
+                            }
+                        } catch (_: Exception) { failure = IllegalStateException("App data deletion incomplete") }
                         NativeMediaReconciliationEpoch.invalidate()
                     } finally {
                         val removedBytes =
@@ -1240,7 +1249,7 @@ class DriveModePlugin : Plugin() {
             if (failure == null) {
                 call.resolve(JSObject().apply { put("cleared", true) })
             } else {
-                call.reject("Failed to clear native data: ${failure?.message}")
+                call.reject("App data deletion incomplete; retry Delete All Data")
             }
           }
         }
@@ -1265,7 +1274,7 @@ class DriveModePlugin : Plugin() {
             else service.stopDriveSession("Data cleared", discardData = true) { clearData() }
         } catch (error: Exception) {
             finishClear()
-            call.reject("Failed to clear native data: ${error.message}")
+            call.reject("App data deletion incomplete; Drive could not stop safely")
         }
     }
 
