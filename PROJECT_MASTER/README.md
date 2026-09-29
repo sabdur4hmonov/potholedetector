@@ -6,6 +6,7 @@ The real source stays in its normal directories. Nothing was moved, consolidated
 
 | Start here | Purpose |
 | --- | --- |
+| [MASTER_EXECUTION_PLAN.md](MASTER_EXECUTION_PLAN.md) | Primary task registry, current active task, phase dependencies and Codex continuation protocol |
 | [PROJECT_STATUS.md](PROJECT_STATUS.md) | Current state, blockers, milestone |
 | [SECURITY_STATUS.md](SECURITY_STATUS.md) | SEC-001–SEC-016 and NEW-001/NEW-002 |
 | [SETUP_WINDOWS.md](SETUP_WINDOWS.md) | Actual Windows toolchain and setup |

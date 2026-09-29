@@ -19,3 +19,43 @@ Then resolve the recorded Windows/Gradle environment blocker once in a dedicated
 Before production, verify a newly built artifact's signing, packaged web assets and source provenance; do not assume previously published v1.38.0 APK/AAB artifacts include uncommitted changes.
 
 The next product phase must explicitly decide the paid-AI-free/manual/on-device path and whether inherited cloud/BYOK functionality is removed. No paid provider is required by the agreed final design. Use reviewed Uzbekistan authority/road/source data instead of relabeling Indian routing, then validate intended language/intake flows and a local/private pilot. Only if shared reports are chosen should the already documented backend/auth/private-media/moderation/retention recommendations become implementation work. Those features do not exist today.
+
+## Current exact next task after 2026-09-29 checkpoint
+
+Use a Windows build session in which the Gradle Java process can establish its loopback daemon connection. With the existing D: project-local toolchain/cache, resolve dependencies from the configured repositories and establish independently reviewed checksum/signature provenance before relying on an offline release cache; do not derive trusted metadata solely from unverified cached bytes. Then run the documented narrow Android debug build once, followed by the documented signed release workflow with legitimate upload signing material, and verify the produced APK/AAB including NEW-001's AAB ordering/signature gate. Device/runtime checks require a connected supported device or emulator. The current session stopped before dependency resolution with `java.io.IOException: Unable to establish loopback connection`; ADB enumerated zero devices. Do not repeat the same Gradle failure without a concrete environment change. Product implementation is not the next task.
+
+## Current exact next task after loopback diagnosis
+
+Complete NEW-002 dependency provenance for the Android build: use the verified process-local `jdk.net.unixdomain.tmpdir` setting for Gradle, ensure the required artifacts for the resolvable debug/release classpaths are actually fetched into the D: cache, and establish independently reviewed checksums/signatures or equivalent trusted verification metadata. Do not treat the successful `:app:dependencies` report or its newly downloaded cache as independent provenance. After that, run one documented narrow debug build in a separate build checkpoint; the signed release and device checks remain later work. Do not start product implementation.
+
+## Current exact next task after debug artifact-cache check
+
+In a separate build checkpoint, run the documented narrow `:app:assembleDebug` command once with the existing D: JDK/SDK/Gradle homes and process-local `jdk.net.unixdomain.tmpdir` setting. The 46 inspected debug/Kotlin/KSP configurations and 11 buildscript classpaths now resolve offline with 329 distinct external files present; capture any task-time transform/compiler failure exactly rather than retrying it blindly. Independently review Gradle dependency checksums/signatures against trusted publisher or repository evidence before treating the D: cache as provenance-verified or generating authoritative `verification-metadata.xml`; this remains NEW-002 work. Do not start the release/device checkpoint or product implementation as part of the debug build task.
+
+## Current exact next task after first actual offline debug build
+
+The single build failed at `:app:compileDebugNavigationResources` because AGP requested `com.android.tools.build:aapt2:8.13.0-13719691` through `:app:detachedConfiguration2` and no cached version was available offline. In a separate scoped task, provision this exact task-time AAPT2 artifact into the D: Gradle home from the configured repository, checking its origin/integrity without inventing provenance; then make one new offline `:app:assembleDebug` attempt with the process-local Java socket setting and capture its result. Do not repeat the unchanged failing build, run a release build, or start product implementation. Independent Gradle dependency provenance for NEW-002 remains open.
+
+## Current exact next task after AAPT2 provisioning
+
+Run one actual documented offline `:app:assembleDebug` in a separate checkpoint, using the existing D: Gradle home and process-local `jdk.net.unixdomain.tmpdir`. The formerly missing AAPT2 `8.13.0-13719691` Windows JAR and POM are now cached, match Google's published SHA-256 sidecars, and resolve offline. Capture the first new root failure if one appears; do not repeat an identical failing build or make speculative changes. If it succeeds, verify the debug APK using documented artifact checks. Keep the signed release, device verification and unresolved full-graph NEW-002 provenance for later scoped work; do not start product implementation.
+
+## Current exact next task after master execution plan creation
+
+Follow [MASTER_EXECUTION_PLAN.md](MASTER_EXECUTION_PLAN.md) §9: BUILD-DEBUG-001 is the only active task. In a separate execution checkpoint, run one actual documented offline :app:assembleDebug with the existing D: cache and process-local jdk.net.unixdomain.tmpdir after exact AAPT2 provisioning. Capture the first new root failure and take BUILD-ROOT-001 only if needed; on success take BUILD-APK-001 to verify the fresh debug APK. NEW-002 remains PARTIALLY RESOLVED and is a later release provenance gate, not a reason to skip the debug build. This planning task did not run Gradle, implement features, commit or push.
+
+## Current exact next task after BUILD-DEBUG-001
+
+BUILD-DEBUG-001 completed successfully on 2026-09-29 with one actual offline `:app:assembleDebug`. Execute **BUILD-APK-001** only: validate the fresh debug APK at `android-app/android/app/build/outputs/apk/debug/app-debug.apk` using the documented applicable checks, record its hash and results, and stop at that task boundary. The build log is `android-app/android/.gradle/codex-build-debug-001-20260929.log`; basic metadata is in [PROJECT_STATUS.md](PROJECT_STATUS.md). NEW-002 provenance, signed release, device verification and product implementation remain separate later tasks.
+
+## Current exact next task after BUILD-APK-001
+
+BUILD-APK-001 completed on 2026-09-29: the fresh debug APK passed ZIP/manifest inspection, `aapt` package metadata, `apksigner` debug v2 signing, and the existing packaged-asset verifier; its SHA-256 is recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md). Execute **NEW002-PROV-001** only, according to [MASTER_EXECUTION_PLAN.md](MASTER_EXECUTION_PLAN.md): review the complete Gradle dependency graph and establish legitimate independent provenance where possible. Keep NEW-002 PARTIALLY RESOLVED until evidence supports closure. RELEASE-001, device verification and product implementation remain later tasks.
+
+## Current exact next action after partial NEW002-PROV-001 review
+
+Continue **NEW002-PROV-001**; it is incomplete. [NEW-002 §25](SECURITY_REMEDIATION_NEW002.md) records publisher checksum matches for the distribution pin and named Google Maven files, and the remaining gaps. Obtain a reviewed checksum/signing-key basis for the remaining Google/Maven Central modules, including the Kotlin Gradle Plugin, and account for release task-time dependencies under an authorized check. Review any generated Gradle verification metadata against independent evidence before accepting it. If full independent provenance is unavailable, record a human-approved release-scope disposition; do not silently bless the D: cache. Do not start RELEASE-001, device verification or product implementation from this checkpoint.
+
+## Current exact next action after declared-release inventory
+
+Continue **NEW002-PROV-001**. The [file-level evidence](NEW002_RELEASE_FILE_PROVENANCE.tsv) and [NEW-002 §26](SECURITY_REMEDIATION_NEW002.md) identify 298 cached artifact/metadata files with no `.sha256` sidecar at either configured repository; 127 of the 145 artifact gaps have only an unreviewed `.asc` file, and 18 have neither checked mechanism. Establish authenticated signer keys and verify applicable signatures, obtain independent evidence or an explicit human release-scope disposition for the 18 remaining artifacts, and account for task-time release dependencies under an authorized check. Only then review/exercise Gradle verification metadata and reconsider RELEASE-001. Do not start release/device/product work in this checkpoint.
