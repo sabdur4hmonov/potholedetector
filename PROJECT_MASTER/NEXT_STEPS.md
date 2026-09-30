@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## Latest future-product next task — 2026-09-30 DETECT-001
+
+D0 is decided and DETECT-001 is complete at decision/acceptance-contract level; see [PRODUCT_DECISIONS.md](PRODUCT_DECISIONS.md). Exact next future-product task: **REPORT-LOCAL-001**, implement and verify manual-first private offline pothole photo reporting while retaining cloud/BYOK as optional. CORE-002 is complete. No primary on-device integration or cloud removal selected. REPORT-LOCAL-001 was not started here; browser/device offline workflow evidence remains required. Earlier D0-pending entries below are historical. NEW002-PROV-001 and release gates remain separate and unchanged.
+
 This is an ordered work queue, not authorization to execute it. This documentation task stops before SEC-008. Preserve the current remediations, full-frame invariant and normal source locations. No commit/push or paid calls are authorized.
 
 1. SEC-008 — handle the recorded xmldom build-tool dependency finding as a separately scoped task; avoid broad dependency upgrades.

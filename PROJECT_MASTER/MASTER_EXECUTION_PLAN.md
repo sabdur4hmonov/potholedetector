@@ -38,7 +38,7 @@ Here **Implemented** means source behavior exists, not that a new APK/device run
 | --- | --- | --- |
 | Phone-camera Drive and GPS association | Implemented at source; runtime unverified | Native DriveForegroundService, NativeDriveLocationProvider and NativeGpsFixHistory; device gate remains. |
 | Full-frame cloud pothole detection | Partial | NativeInferenceEngine and web analyzeImage call OpenAI; user credential/network and lifetime AI budget limit scale. Full-frame invariant remains enforced. |
-| Free/manual or on-device detection | Blocked | Manual photo flow exists, but the complete free production detection strategy/model is undecided (D0). No on-device model is shipped. |
+| Free/manual or on-device detection | D0 decided; implementation pending | Manual-first private offline photo reporting selected; cloud/BYOK retained as optional. DETECT-001 decision complete; REPORT-LOCAL-001 not started. No on-device model shipped. See PRODUCT_DECISIONS.md. |
 | Manual photo/report and reviewed handoff | Partial | Local report and external official/email/share handoff exist; India-specific routes and no automatic filing. Uzbekistan authority paths need reviewed data. |
 | Canonical physical-pothole deduplication | Implemented locally | NativeDeduplicationEngine and web roadEventMatch merge eligible observations into one report; manual photos intentionally do not auto-merge. Cross-user canonicalization is absent. |
 | Repeated sightings | Implemented locally | Native event_sightings and seenCount/drive IDs; web seen_count, sighting_drive_ids and last_seen_at. Independent cross-user confirmation is absent. |
@@ -366,7 +366,7 @@ Each phase card names its objective/why, prerequisites and dependencies, tasks, 
 ### DETECT-001
 
 - **Title:** Record and validate the free detection path decision.
-- **Phase:** 2. **Priority:** P1. **Status:** BLOCKED on D0.
+- **Phase:** 2. **Priority:** P1. **Status:** COMPLETE — decision/acceptance contract recorded 2026-09-30; implementation verification remains REPORT-LOCAL-001.
 - **Dependencies:** Human choice of manual-first or reviewed on-device detector; CORE-002; model/data licence and evaluation corpus if on-device.
 - **Repository areas:** PRODUCT_DECISIONS.md to be created, eval/, native inference contract and privacy notice. **Existing code to reuse:** NativeInferenceEngine outcome contract and full-frame evaluation tests.
 - **Implementation steps:** Record user-approved mode and acceptance targets; compare candidates on whole frames and hard negatives; specify what happens to BYOK/cloud paths and saved replay.
@@ -374,13 +374,14 @@ Each phase card names its objective/why, prerequisites and dependencies, tasks, 
 - **Acceptance criteria:** One documented implementable path with licence, quality and privacy evidence; no claim that a model exists before integration.
 - **Security/privacy constraints:** No paid/provider call without authorization; protect private images and keys.
 - **Documentation updates:** Decision record, status, roadmap and worklog.
+- **Decision/evidence:** [PRODUCT_DECISIONS.md](PRODUCT_DECISIONS.md) records the approved private offline manual-first path with optional retained cloud/BYOK and pass/fail targets. CORE-002 is complete. No model is selected, so model/data licensing, hard-negative accuracy and detector latency/memory/battery evaluation are not applicable. Existing deterministic contracts are regression evidence; actual offline workflow verification remains REPORT-LOCAL-001.
 - **Stop conditions:** Missing human direction or model licence/quality evidence.
 - **Next task:** REPORT-LOCAL-001.
 
 ### REPORT-LOCAL-001
 
 - **Title:** Implement the chosen local/free detection and private report path.
-- **Phase:** 2. **Priority:** P1. **Status:** BLOCKED on DETECT-001.
+- **Phase:** 2. **Priority:** P1. **Status:** NOT STARTED — DETECT-001 and CORE-002 dependencies satisfied; exact next future-product task, requiring separate authorization.
 - **Dependencies:** DETECT-001 and CORE-002.
 - **Repository areas:** NativeInferenceEngine, DriveForegroundService, manual Photo/web report path and evidence storage. **Existing code to reuse:** existing report factory, keyframe replay, bounded image handling and user-confirmed handoff.
 - **Implementation steps:** Integrate the chosen path behind current outcome shape; remove/disable cloud/BYOK surfaces only if D0 chose no-cloud production; retain private review and strict acceptance.

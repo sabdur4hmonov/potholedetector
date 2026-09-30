@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-09-30 — DETECT-001
+
+Recorded the human D0 decision and acceptance targets in PRODUCT_DECISIONS.md: manual-first private offline photo reporting, retained optional cloud/BYOK, no primary on-device integration at this stage. Updated registry/status/roadmap and exact next task to REPORT-LOCAL-001. Documentation only; no product implementation or security/release gate change.
+
 This summarizes existing remediation reports only. Work remains in the original uncommitted source tree; source completion is separate from device/APK deployment. Report links are in [SECURITY_STATUS.md](SECURITY_STATUS.md).
 
 | Recorded date | Task | Existing changes / recorded outcome |

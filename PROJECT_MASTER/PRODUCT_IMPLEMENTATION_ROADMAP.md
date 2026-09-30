@@ -1,5 +1,9 @@
 # Product implementation roadmap
 
+## 2026-09-30 DETECT-001 decision update
+
+D0 is resolved: manual-first private offline photo reporting is the primary path; existing cloud/BYOK remains optional, and on-device detection is not integrated as the primary path at this stage. [PRODUCT_DECISIONS.md](PRODUCT_DECISIONS.md) is authoritative for the exact choice and acceptance targets. DETECT-001 is complete at decision/contract level; REPORT-LOCAL-001 implementation and offline browser/device verification remain pending. Model-specific evaluation is not applicable to this choice. Historical D0-pending proposals below are superseded by this decision; other decisions and security/release gates are unchanged.
+
 Snapshot: 2026-09-14. This is a planning document grounded in the current uncommitted working tree. **It implements nothing.** No source, test, dependency, manifest, schema or security remediation was changed to produce it. Every "exists" claim below was checked against source. Every "proposed" item is new work that does not exist today.
 
 Paths are relative to this `PROJECT_MASTER/` directory. Line numbers are from this snapshot and will drift, so function and class names are the durable references.

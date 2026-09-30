@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-09-30 DETECT-001 decision checkpoint
+
+DETECT-001 is **COMPLETE at decision/acceptance-contract level**. The human selected manual-first private offline photo reporting, retained existing cloud/BYOK as optional, and excluded primary on-device integration at this stage. [PRODUCT_DECISIONS.md](PRODUCT_DECISIONS.md) records the exact decision, pass/fail targets and validation boundary. This documentation change does not implement an offline manual pothole flow: the current manual civic path rejects road damage. Model-specific licensing/accuracy/device performance evaluation is not applicable to this decision; actual offline workflow verification remains required for implementation. Exact next future-product task: REPORT-LOCAL-001, not started here. NEW002-PROV-001 remains separate and active; security/release gates are unchanged.
+
 The primary long-lived roadmap is [MASTER_EXECUTION_PLAN.md](MASTER_EXECUTION_PLAN.md), created 2026-09-29 as a planning-only index. It records 15 phases and 39 executable task cards. BUILD-DEBUG-001 and BUILD-APK-001 are complete; NEW002-PROV-001 is the current active task. Creating the plan did not change product/security implementation; the detailed checkpoint evidence remains below and in the worklog.
 
 Historical snapshot: 2026-09-14, base HEAD `f282454e8fb79a529894598b0af9a3d7008fd84c`, when remediation changes were uncommitted. The current Git state is recorded in the 2026-09-29 checkpoint below. Android configuration still declares app version `1.38.0`, version code `67`, and application ID `dev.aiengg.potholereporter`; this documentation does not claim a new release.
