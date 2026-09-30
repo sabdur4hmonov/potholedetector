@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "notes": "Defaults in both runners represent one accepted, moving Drive observation at the equator. Expected value is the existing match kind or null; a null starts a distinct canonical if no other prior matches.",
+  "cases": [
+    {"name":"same place on another drive", "expect":"prior_drive"},
+    {"name":"different place", "candidate":{"lat":0.001}, "expect":null},
+    {"name":"just inside eight metre radius", "candidate":{"lat":0.00007185}, "expect":"prior_drive"},
+    {"name":"just outside eight metre radius", "candidate":{"lat":0.00007205}, "expect":null},
+    {"name":"same drive adjacent burst", "candidate":{"drive_id":"drive-a","captured_at":1800000003,"source_offset_s":103,"lat":0.00009}, "sightings":[{"drive_id":"drive-a","captured_at":1800000000,"source_offset_s":100,"lat":0,"lng":0,"gps_accuracy":5,"speed_mps":8}], "expect":"same_drive"},
+    {"name":"same drive after time window", "candidate":{"drive_id":"drive-a","captured_at":1800000005,"source_offset_s":105}, "sightings":[{"drive_id":"drive-a","captured_at":1800000000,"source_offset_s":100,"lat":0,"lng":0,"gps_accuracy":5,"speed_mps":8}], "expect":null},
+    {"name":"all same drive sightings must agree", "candidate":{"drive_id":"drive-a","captured_at":1800000003,"source_offset_s":103}, "sightings":[{"drive_id":"drive-a","captured_at":1800000000,"source_offset_s":100,"lat":0,"lng":0,"gps_accuracy":5,"speed_mps":8},{"drive_id":"drive-a","captured_at":1799999990,"source_offset_s":90,"lat":0,"lng":0,"gps_accuracy":5,"speed_mps":8}], "expect":null},
+    {"name":"same drive without GPS within two seconds", "candidate":{"drive_id":"drive-a","lat":null,"lng":null,"captured_at":1800000002,"source_offset_s":102}, "sightings":[{"drive_id":"drive-a","captured_at":1800000000,"source_offset_s":100,"lat":null,"lng":null,"gps_accuracy":null,"speed_mps":8}], "expect":"same_drive"},
+    {"name":"exact source replay", "candidate":{"source_event_key":"live:drive-a:1","lat":null,"lng":null}, "prior":{"source_event_key":"live:drive-a:1"}, "expect":"same_source"},
+    {"name":"source replay through canonical key list", "candidate":{"source_event_key":"live:drive-a:2"}, "prior_keys":["live:drive-a:2"], "expect":"same_source"},
+    {"name":"manual observation stays separate", "candidate":{"capture_source":"manual"}, "expect":null},
+    {"name":"opposite direction stays separate", "candidate":{"heading":270}, "expect":null},
+    {"name":"missing heading tightens radius", "candidate":{"heading":null,"lat":0.000054}, "expect":null},
+    {"name":"different compatible damage tightens radius", "candidate":{"damage_type":"failed_patch","lat":0.000054}, "expect":null},
+    {"name":"small versus large stays separate", "candidate":{"size":"large"}, "prior":{"size":"small"}, "expect":null},
+    {"name":"poor cross drive GPS stays separate", "candidate":{"gps_accuracy":15.1}, "expect":null},
+    {"name":"last day inside history horizon", "candidate":{"captured_at":1802592000}, "expect":"prior_drive"},
+    {"name":"outside thirty day history horizon", "candidate":{"captured_at":1802592001}, "expect":null},
+    {"name":"draft does not hide behind unrouted", "prior":{"status":"unrouted"}, "expect":null},
+    {"name":"debug canonical is excluded", "prior":{"debug_capture":true}, "expect":null}
+  ]
+}

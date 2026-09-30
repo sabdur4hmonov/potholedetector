@@ -25,3 +25,7 @@ This summarizes existing remediation reports only. Work remains in the original 
 | 2026-09-29 | Exact AAPT2 task-time provision / NEW-002 | After the first offline debug build exposed missing `com.android.tools.build:aapt2:8.13.0-13719691` in an AGP detached configuration, a narrow Gradle task fetched Google's exact POM and Windows JAR into the D: cache. Both SHA-256 hashes match Google's published sidecars; the Windows classifier resolves offline. No second Android build ran. Full-graph provenance and clean release remain open; NEW-002 remains PARTIALLY RESOLVED. |
 
 Dates and outcomes are report dates, not release dates. No SEC-008–SEC-016 or NEW-001/NEW-002 fixes were made by this documentation work. SEC-012's previous KSP/KAPT applicability conclusion is recorded separately, not invented as a code change.
+
+## 2026-09-30 future product development
+
+- **FUTURE-DEDUP-001:** Extracted the existing native road-event match decision into a pure helper and added one 20-case JSON fixture consumed by native JVM and production-JS tests. Matching thresholds and canonical storage behavior were not changed; see `PROJECT_STATUS.md` and the agent worklog for validation limits. The next future product task is CORE-002 outbox acknowledgement parity.

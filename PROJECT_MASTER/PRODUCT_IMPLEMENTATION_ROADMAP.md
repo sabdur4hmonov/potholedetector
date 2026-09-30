@@ -97,10 +97,9 @@ Each feature below lists what exists, what is missing, where it belongs, the And
 - **Missing:**
   - A **confidence/importance score**. `seenCount` is stored but never turned into a score or shown as one; `openDash` counts reports, not confirmations.
   - A distinction between "seen again on the same drive" and "independently confirmed on another drive". Only `sighting_drive_ids.length` approximates this.
-  - Parity tests between the two matcher implementations.
-  - The Kotlin matcher is `private suspend` and reads the DAO, so it cannot be fixture-tested directly.
+- **Dedupe regression checkpoint:** the 2026-09-30 FUTURE-DEDUP-001 fixture covers 20 common native/web match decisions. It does not cover the outbox acknowledgement contract or implementation-specific states.
 - **Where:**
-  - Extract a pure `NativeRoadEventMatcher` object in `drive/`, following the `NativeRepairCandidateMatcher` style. `NativeDeduplicationEngine` keeps the transaction and DAO.
+  - The pure `NativeRoadEventMatcher` object is now in `drive/`; `NativeDeduplicationEngine` keeps the transaction and DAO.
   - Add a pure scoring module on each side: proposed `android/.../hazard/HazardScoringPolicy.kt` and `static/hazard-model.js`.
   - Add one shared JSON fixture.
 - **Data (Phase 1):** derive the score from existing fields; no schema change. Persist it later only if queries need it (§5).
@@ -586,8 +585,8 @@ Regression rules:
 Each is a separately authorized, source-level task. None touches SEC-* remediation files, dependencies or release configuration.
 
 1. **Record product decisions D0, D1, D2 and RS** in a new `PROJECT_MASTER/PRODUCT_DECISIONS.md`: detection path, route retention/opt-out, Uzbekistan source/legal review owner, route source. *Output:* documentation. *Unblocks:* Phases 2–6.
-2. **Extract `NativeRoadEventMatcher`** (pure) from `NativeDeduplicationEngine.matchRoadEvent`. Sightings are passed in, and the engine keeps DAO reads and the transaction. *Tests:* existing dedupe tests unchanged plus a new JVM test. *Files:* `drive/NativeDeduplicationEngine.kt`, new `hazard/NativeRoadEventMatcher.kt`.
-3. **Create the shared dedupe parity fixture** (for example `android-app/android/app/src/test/resources/road-event-match-v1.json`). Run it from a JVM test and from a Python/Node test that evaluates JS `roadEventMatch`. The JS side can reuse the vm-extraction approach of the existing `.cjs` tests.
+2. **Completed for FUTURE-DEDUP-001:** extracted pure `drive/NativeRoadEventMatcher.kt` from `NativeDeduplicationEngine.matchRoadEvent`. The engine retains DAO reads, transaction and mutex.
+3. **Completed for FUTURE-DEDUP-001:** `android-app/android/app/src/test/resources/road-event-match-v1.json` is the single 20-case match-decision fixture used by the JVM and Node tests. The existing web persistence test and native ownership contracts cover storage behavior separately. This fixture does not assert fixed-state recurrence because native reports have no matching condition field; web also recognizes `manual_*` capture sources and rejects non-finite coordinates, while native's matcher only treats literal `manual` and null coordinates specially. These differences were not changed by this task.
 4. **Specify and implement `static/hazard-model.js`**: `confidence`, `freshness`, `severity`, computed only from existing report fields, with a mirror `hazard/HazardScoringPolicy.kt` and a shared fixture. Add the `<script src>` to all four HTML copies; update CSP only if the inline block changes.
 5. **Display confidence and freshness** in the existing report detail and map markers (`drawMap`, `scatter`). Update the inline-script CSP hash in four copies. *Tests:* extend `contribution_map_test.py`; SEC-009 and pages contracts.
 6. **Implement `static/trip-stats.js`** over the existing `gps_track` format `[offset, lat, lng, accuracy, speed, heading]`: accuracy-filtered distance (consistent with `trackKm`), moving time, average moving speed, and max speed with a jump filter. Display privately per drive. *Tests:* Node unit tests with synthetic tracks; Playwright for display.

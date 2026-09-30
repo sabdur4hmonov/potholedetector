@@ -338,7 +338,7 @@ Each phase card names its objective/why, prerequisites and dependencies, tasks, 
 ### CORE-001
 
 - **Title:** Extract the native road-event matcher without behavior change.
-- **Phase:** 1. **Priority:** P1. **Status:** PLANNED.
+- **Phase:** 1. **Priority:** P1. **Status:** COMPLETE for FUTURE-DEDUP-001 (2026-09-30).
 - **Dependencies:** Phase 0 checkpoint closed, or explicit owner authorization for source-only work while release/device remains blocked.
 - **Repository areas:** drive/NativeDeduplicationEngine.kt and a small pure matcher file. **Existing code to reuse:** current matchRoadEvent, headingDifference, NativeRepairCandidateMatcher style.
 - **Implementation steps:** Move only pure match decisions; pass prior sightings as data; retain DAO reads, transaction and mutex in the engine.
@@ -352,7 +352,7 @@ Each phase card names its objective/why, prerequisites and dependencies, tasks, 
 ### CORE-002
 
 - **Title:** Add shared native/web dedupe and outbox parity fixtures.
-- **Phase:** 1. **Priority:** P1. **Status:** PLANNED.
+- **Phase:** 1. **Priority:** P1. **Status:** PARTIAL: shared matcher fixture complete under FUTURE-DEDUP-001; outbox acknowledgement parity remains.
 - **Dependencies:** CORE-001.
 - **Repository areas:** JVM test resources, tests, static/standalone.js test surface and DriveModePlugin contracts. **Existing code to reuse:** image_enhancement_parity_test.py fixture pattern, roadEventMatch and NativeAcknowledgementCommit.
 - **Implementation steps:** Create one versioned JSON corpus, run it in Kotlin and JS, and assert paged sync acknowledgement only after IndexedDB commit.
