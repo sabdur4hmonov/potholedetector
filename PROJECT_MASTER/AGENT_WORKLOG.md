@@ -426,6 +426,20 @@ finding; none exists after NEW-002.
 
 ---
 
+## 2026-09-30 — FUTURE-OBS-001 native detection lifecycle diagnostics
+
+* **Date/time:** 2026-09-30 10:26 +0500.
+* **Agent/tool:** Codex (GPT-6), Windows PowerShell, bundled Python, Node.js and existing offline Gradle/JDK/SDK toolchain.
+* **Task/status:** FUTURE-OBS-001 implemented and source/JVM validated. The separate FUTURE-DEDUP-001 changes were inspected and left untouched; that session committed them as `5257c63` while this work was under way. NEW002-PROV-001 remains separate. No device, paid inference or release activity.
+* **Files changed:** `android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeInferenceEngine.kt`, new `NativeDetectionDiagnostics.kt`, new `NativeDetectionDiagnosticsTest.kt`, new `PROJECT_MASTER/FUTURE_OBSERVABILITY.md`, `PROJECT_STATUS.md`, `NEXT_STEPS.md`, `CHANGELOG.md` and this worklog. No existing dedupe, security, signing or web file changed.
+* **Implementation/decision:** Added an optional event callback around the existing two-to-three-frame admission gate and bounded native detection attempts. Events carry only enum stages, input frame count, result category and throwable-class category. `InferenceOutcome` and thrown errors remain authoritative; callback exceptions are ignored. No candidate count is claimed because the current detector returns one binary assessment. Existing verdict rejection reasons are not duplicated in this lifecycle.
+* **Validation:** Focused offline `:app:testDebugUnitTest --tests dev.aiengg.potholereporter.drive.NativeDetectionDiagnosticsTest` passed (`BUILD SUCCESSFUL in 3m 46s`, four tests). Broader offline command with `--tests` for `NativeDetectionVerdictTest`, `NativeDetectionRetryPolicyTest`, `NativeDetectionStreamTest` and `NativeInferenceReportFactoryTest` passed (`BUILD SUCCESSFUL in 1m`, 20 tests, zero XML failures/errors). Bundled `python.exe -B` runs of `tests/native_inference_resource_contract_test.py`, `native_inference_evidence_ownership_test.py`, `native_report_evidence_quota_test.py` and `sec006_ai_budget_contract_test.py` passed (11, 4, 9 and 21 checks). The first focused Gradle invocation, before setting project-local `ANDROID_USER_HOME`, stopped in configuration at `C:\.android`; the corrected invocation passed. Kotlin daemon marker access was denied, but Gradle's fallback compiler passed. `node tests/sec006_ai_flow_test.cjs` could not start because Playwright is absent, and bundled Python `tests/stream_completion_test.py` could not start because `dotenv` is absent; these are unverified optional broader checks, not passing tests.
+* **Remaining limits:** No browser detection diagnostic path, persisted telemetry, repair/dedupe events, raw-frame trace, device/runtime result, or candidate count. Optional callback is not installed by default; developers/tests may collect it locally. See `FUTURE_OBSERVABILITY.md`.
+* **Exact next task:** CORE-002 outbox acknowledgement parity, only in a separately authorized future-product session. Do not start it here.
+* **Commit/push:** None; FUTURE-OBS-001 remains uncommitted as requested.
+
+---
+
 ## 2026-09-30 — CORE-002 outbox acknowledgement parity
 
 * **Date/time:** 2026-09-30 10:32 +0500.
@@ -437,3 +451,30 @@ finding; none exists after NEW-002.
 * **Limitations/decision:** Transaction events are simulated around production JavaScript; no browser, device, release or paid-service runtime verification was performed. A first paging-test invocation used the Windows cp1251 default and failed to decode UTF-8 source; rerunning with `PYTHONUTF8=1` passed. The other session's uncommitted observability files and documentation hunks are preserved and excluded from this commit.
 * **Exact next future product task:** Record the human D0 detection-path decision for DETECT-001, including licence, quality and privacy targets. Do not start detector implementation in this task.
 * **Commit/push:** One focused CORE-002 commit and one `origin main` push are authorized. The resulting hash and remote comparison are reported after commit; a commit cannot contain its own hash.
+
+---
+
+## 2026-09-30 — FUTURE-SCORING-001 confidence/freshness/severity foundation
+
+* **Date/time:** 2026-09-30 14:44 +0500.
+* **Agent/tool:** Codex (GPT-6), Windows PowerShell, Node.js, bundled Python and the project-local offline Gradle/JDK/SDK toolchain. The requested GPT-5.6 Sol model could not be changed in this running task.
+* **Task/status:** FUTURE-SCORING-001 implemented and validated at source/JVM level. FUTURE-DEDUP-001 and CORE-002 behavior were regression checked; their production code was not changed. The separate FUTURE-OBS-001 uncommitted work was preserved. No NEW002-PROV-001, release, device, security or backend work.
+* **Files changed for this task:** New `drive/NativeHazardScoringPolicy.kt`, `drive/NativeHazardScoringPolicyTest.kt`, `src/test/resources/hazard-scoring-v1.json`, `static/hazard-model.js` and its tracked `docs/` and `android-app/www/` mirrors, `tests/hazard_scoring_parity_test.cjs`, `PROJECT_MASTER/FUTURE_SCORING.md`; updated `PROJECT_STATUS.md`, `NEXT_STEPS.md`, `CHANGELOG.md`, `PRODUCT_IMPLEMENTATION_ROADMAP.md` and this append-only worklog. No other session's source or documentation hunks were removed.
+* **Contract/decision:** Pure categorical confidence uses distinct drive IDs, never `seen_count` alone; freshness uses explicit reference time and caller supplied boundaries; severity maps existing visual `size`. Unknown data stays unknown. Web condition state and optional native repair state yield a separate tri-state fixed value. The fixture's one-day/seven-day boundaries are test parameters only. No combined score, warning/map integration or product decay policy was selected.
+* **Validation:** `node tests/hazard_scoring_parity_test.cjs` passed 18 shared cases; focused offline `:app:testDebugUnitTest --tests dev.aiengg.potholereporter.drive.NativeHazardScoringPolicyTest` passed (`BUILD SUCCESSFUL in 7m 38s`, two tests). `node tests/road_event_match_parity_test.cjs` passed 20 cases, and `node tests/native_outbox_ack_durability_test.cjs` passed four cases. Broader offline JVM filter for `NativeRoadEventMatcherParityTest` and `NativeDuplicateReportOwnershipTest` passed (`BUILD SUCCESSFUL in 1m 36s`; XML: six tests, zero failures/errors). Bundled Python `tests/pages_assets_test.py`, `full_frame_invariant_test.py`, `native_duplicate_revisit_contract_test.py` and `native_report_evidence_recovery_test.py` passed. `git diff --check` passed. The first full-frame invocation failed only on Windows cp1251 decoding and passed after setting `PYTHONUTF8=1`; `privacy_consent_test.py` could not start because `playwright` is absent. Kotlin daemon marker-file access failed during initial compilation, but Gradle's fallback compiler and test task succeeded.
+* **Remaining limits:** No production consumer uses the helper yet. Native reports lack embedded repair condition; a caller must supply it. No road-health formula, physical severity, independent-person confidence, exposure, negative-pass evidence, chosen freshness cutoffs, browser runtime or device verification was established.
+* **Exact next task:** Record the human D0 detection-path decision for DETECT-001 in a separately authorized future-product session. A separate product decision must select freshness cutoffs and score use before warning or road-health integration. Do not start either here.
+* **Commit/push:** None; FUTURE-SCORING-001 remains uncommitted as requested.
+
+---
+
+## 2026-09-30 — Final future-development Git checkpoint
+
+* **Date/time:** 2026-09-30 14:49 +0500.
+* **Agent/tool:** Codex (GPT-6), Windows PowerShell, Node.js, bundled Python and the project-local offline Gradle/JDK/SDK toolchain.
+* **Task/status:** Checkpoint only. Started at `776390992d3c8a5c9a9f31619db2896cdcffcc85` (`main` = `origin/main`). FUTURE-OBS-001 and FUTURE-SCORING-001 were each finished by their owning chat and documented as source/JVM-complete; their previously uncommitted files are the entire intentional dirty set. No feature implementation, NEW-002, release, signing or device work was undertaken here.
+* **Files preserved:** The observability engine edit, diagnostic helper/test and `FUTURE_OBSERVABILITY.md`; the native/web scoring helpers, shared fixture, tests, three matching JS mirrors and `FUTURE_SCORING.md`; their existing status, next-steps, roadmap and changelog updates, plus this append-only worklog entry. All were inspected before staging. No unrelated or unfinished file was found.
+* **Validation:** Re-ran the focused offline JVM tests for `NativeDetectionDiagnosticsTest` and `NativeHazardScoringPolicyTest` together (`BUILD SUCCESSFUL in 1m 19s`; six tests, zero failures/errors). `node tests/hazard_scoring_parity_test.cjs` passed 18 cases, `road_event_match_parity_test.cjs` passed 20 cases, and `native_outbox_ack_durability_test.cjs` passed four cases. Bundled Python runs of `native_inference_resource_contract_test.py`, `native_inference_evidence_ownership_test.py`, `native_report_evidence_quota_test.py`, `full_frame_invariant_test.py`, `pages_assets_test.py` and `sec009_csp_contract_test.py` passed; the three scoring JS copies have identical SHA-256 hashes. `git diff --check` passed before staging; staged checks and exact scope review follow before commit.
+* **Decision/limits:** One checkpoint commit is appropriate because both tasks are complete and have non-overlapping source with shared documentation. Browser/device runtime, selected freshness cutoffs and scoring consumers remain unverified or undecided as recorded in the feature docs. The NEW-002 provenance and release gates remain separate and untouched. Git preserves source and tracked documentation, not ignored local caches or private machine configuration.
+* **Exact next task:** Obtain the human D0 detection-path decision for DETECT-001 in a separately authorized future-product task; select freshness cutoffs and score use only through a separate product decision. Do not begin either here.
+* **Commit/push:** One focused `Checkpoint future development work` commit and one non-force `origin main` push are authorized. The resulting hash and remote comparison are reported after commit because a commit cannot contain its own hash.

@@ -94,14 +94,12 @@ Each feature below lists what exists, what is missing, where it belongs, the And
 ### F2. Deduplication → confidence/importance
 
 - **Exists:** canonical event merge with `seenCount`, distinct drive IDs, sightings, replay-safe source keys, and bounded per-drive sighting envelopes (64). Cross-drive matching requires GPS accuracy ≤ 15 m, age ≤ 30 d, compatible damage/size, and heading ≤ 45°.
-- **Missing:**
-  - A **confidence/importance score**. `seenCount` is stored but never turned into a score or shown as one; `openDash` counts reports, not confirmations.
-  - A distinction between "seen again on the same drive" and "independently confirmed on another drive". Only `sighting_drive_ids.length` approximates this.
+- **FUTURE-SCORING-001 foundation:** `drive/NativeHazardScoringPolicy.kt` and `static/hazard-model.js` now derive a categorical confidence level from distinct drive IDs; one 18-case fixture tests both. `seenCount` does not add independent confidence. See [FUTURE_SCORING.md](FUTURE_SCORING.md).
+- **Missing:** a product importance formula, display integration, and evidence for community-level independent confirmation. `openDash` counts reports, not confirmations.
 - **Phase 1 regression checkpoints:** the 2026-09-30 FUTURE-DEDUP-001 fixture covers 20 common native/web match decisions. CORE-002 separately exercises production web paging and IndexedDB transaction completion with controlled commits/aborts, alongside native pager and acknowledgement JVM tests. The shared matcher fixture does not assert implementation-specific persistence states.
 - **Where:**
   - The pure `NativeRoadEventMatcher` object is now in `drive/`; `NativeDeduplicationEngine` keeps the transaction and DAO.
-  - Add a pure scoring module on each side: proposed `android/.../hazard/HazardScoringPolicy.kt` and `static/hazard-model.js`.
-  - Add one shared JSON fixture.
+  - The pure scoring modules are `drive/NativeHazardScoringPolicy.kt` and `static/hazard-model.js`; the shared fixture is `src/test/resources/hazard-scoring-v1.json`.
 - **Data (Phase 1):** derive the score from existing fields; no schema change. Persist it later only if queries need it (§5).
 - **Backend:** needed only for cross-user confirmation (F9, Phase 6).
 - **Offline:** fully local.
@@ -215,9 +213,10 @@ Each feature below lists what exists, what is missing, where it belongs, the And
   - `last_seen_at`.
   - `DEDUPE_HISTORY_S` (30 d). This is a *matching horizon*, not decay.
   - `condition_status` transitions.
-- **Missing:** a freshness state machine, and "not seen when passed" negative evidence. Today a pass without detection records nothing about the target.
-- **Where:** the same pure scoring module as F2 (`hazard-model.js` / `HazardScoringPolicy.kt`):
-  - `fresh` / `aging` / `stale` / `expired` from time since last confirmation, weighted by confidence.
+- **FUTURE-SCORING-001 foundation:** pure `fresh` / `aging` / `stale` / `unknown` categorization uses an explicit reference time and caller supplied boundaries; the 18-case fixture checks both boundary transitions. Its one-day/seven-day window is test input, not product policy.
+- **Missing:** selected product decay boundaries, `expired` behavior, and "not seen when passed" negative evidence. Today a pass without detection records nothing about the target.
+- **Where:** the same pure scoring modules as F2 (`hazard-model.js` / `NativeHazardScoringPolicy.kt`):
+  - Future decay policy may add `expired` and weighting by confidence after product thresholds are selected.
   - Negative evidence only from accurate, heading-matched, moving passes with a usable frame. Reuse the `NativeRepairCandidateMatcher` gates, because a pass without detection is weak evidence.
 - **Data:** a `negative_pass_count` and `last_negative_pass_at` per hazard, from a bounded `hazard_passes` log.
 - **Offline:** local.
@@ -285,15 +284,14 @@ Each feature below lists what exists, what is missing, where it belongs, the And
 Extend the existing layering. Do not introduce a framework or restructure the tree.
 
 ```
-android/.../drive/        (existing) capture, inference, dedupe transaction, repair transaction
-android/.../hazard/       (new, pure Kotlin) HazardScoringPolicy, NativeRoadEventMatcher (extracted)
+android/.../drive/        (existing) capture, inference, dedupe/repair transactions, pure NativeRoadEventMatcher and NativeHazardScoringPolicy
 android/.../warning/      (new) HazardLookaheadPolicy, HazardWarningThrottle, WarningNotifier
 android/.../trip/         (new, pure Kotlin, only if the service must compute stats) TripStatsPolicy
 android/.../db/           (existing) + migration 7→8 for new tables
 android/.../plugin/       (existing) + warning-target sync methods on DriveModePlugin
 
 static/standalone.js      (existing) handle() routes and IndexedDB stay here; only thin calls added
-static/hazard-model.js    (new) confidence, freshness, severity — pure, no DOM, no network
+static/hazard-model.js    (existing foundation) confidence, freshness, severity — pure, no DOM, no network
 static/road-segments.js   (new) segment pack validation and matching (generalized matchHighwayTile)
 static/trip-stats.js      (new) distance/moving time/avg/max from gps_track — pure
 static/index.html         (existing) UI wiring only; CSP hash updated in 4 copies per change
@@ -327,7 +325,7 @@ Every step must follow these rules:
 | Step | Native (Room) | Web (IndexedDB) | Notes |
 | --- | --- | --- | --- |
 | S0 (now) | v7 as described | `potholes` v6: `reports`(by_lat, by_drive, by_sighting_drive), `drives`, `footage`, `state_packs` | Canonical report row **is** the physical hazard today. |
-| S1 Hazard scoring (derived) | none | none | Score and freshness computed on read from `seen_count`, `sighting_drive_ids`, `last_seen_at`, `gps_accuracy`, `assessment`, `size`, `condition_status`. |
+| S1 Hazard scoring (derived) | none | none | Foundation computes categorical confidence from distinct drive IDs, freshness from `last_seen_at` with caller supplied boundaries, and severity from `size`; repair state is separate. No stored score, GPS/assessment weighting, or product cutoff exists yet. |
 | S2 Trip stats + retention | `sessions` + `distanceM`, `movingTimeS`, `avgMovingSpeedMps`, `maxSpeedMps`, `routeRetained` | `drives` same fields (snake_case) | Fields derived once; enables track minimization when the SEC-013 decision is made. |
 | S3 Road segments | `reports` + `roadSegmentId`, `roadSegmentPackVersion` (nullable) | `reports` same; new index `by_segment` | Nullable; unmatched stays null (fail closed). |
 | S4 Warnings | new `warning_targets` (hazard mirror: id, lat, lng, heading, confidence, freshness, kind, segmentId), `warning_events` (bounded log) | settings only | Sync uses the existing begin/append/commit target pattern. |
@@ -472,7 +470,7 @@ Phases are ordered by technical dependency. Each phase ends with its tests green
 
 1. Extract a pure `NativeRoadEventMatcher` from `NativeDeduplicationEngine.matchRoadEvent` without changing behavior.
 2. Add a shared dedupe parity fixture exercised by the JVM test and the JS `roadEventMatch`.
-3. Add `static/hazard-model.js` and `hazard/HazardScoringPolicy.kt` for confidence, freshness and severity, with a shared fixture.
+3. Completed foundation: `static/hazard-model.js` and `drive/NativeHazardScoringPolicy.kt` for categorical confidence, freshness and visual severity, with an 18-case shared fixture. Product cutoffs and UI use remain separate decisions.
 4. Show confidence and freshness on the existing report detail, and use them for marker styling in `drawMap`/`scatter`.
 5. Add `static/trip-stats.js` and show private per-drive distance, moving time, average and max speed in the existing drive history. Display only; no new persistence until D1.
 
@@ -587,7 +585,7 @@ Each is a separately authorized, source-level task. None touches SEC-* remediati
 1. **Record product decisions D0, D1, D2 and RS** in a new `PROJECT_MASTER/PRODUCT_DECISIONS.md`: detection path, route retention/opt-out, Uzbekistan source/legal review owner, route source. *Output:* documentation. *Unblocks:* Phases 2–6.
 2. **Completed for FUTURE-DEDUP-001:** extracted pure `drive/NativeRoadEventMatcher.kt` from `NativeDeduplicationEngine.matchRoadEvent`. The engine retains DAO reads, transaction and mutex.
 3. **Completed for FUTURE-DEDUP-001:** `android-app/android/app/src/test/resources/road-event-match-v1.json` is the single 20-case match-decision fixture used by the JVM and Node tests. The existing web persistence test and native ownership contracts cover storage behavior separately. This fixture does not assert fixed-state recurrence because native reports have no matching condition field; web also recognizes `manual_*` capture sources and rejects non-finite coordinates, while native's matcher only treats literal `manual` and null coordinates specially. These differences were not changed by this task.
-4. **Specify and implement `static/hazard-model.js`**: `confidence`, `freshness`, `severity`, computed only from existing report fields, with a mirror `hazard/HazardScoringPolicy.kt` and a shared fixture. Add the `<script src>` to all four HTML copies; update CSP only if the inline block changes.
+4. **Foundation completed for FUTURE-SCORING-001:** `static/hazard-model.js` and `drive/NativeHazardScoringPolicy.kt` derive categorical confidence, freshness and visual severity from existing report fields, using one 18-case shared fixture. Product freshness cutoffs and warning/map use remain unselected. Add the script to the HTML mirrors only when a production consumer is implemented; update CSP if an inline block changes.
 5. **Display confidence and freshness** in the existing report detail and map markers (`drawMap`, `scatter`). Update the inline-script CSP hash in four copies. *Tests:* extend `contribution_map_test.py`; SEC-009 and pages contracts.
 6. **Implement `static/trip-stats.js`** over the existing `gps_track` format `[offset, lat, lng, accuracy, speed, heading]`: accuracy-filtered distance (consistent with `trackKm`), moving time, average moving speed, and max speed with a jump filter. Display privately per drive. *Tests:* Node unit tests with synthetic tracks; Playwright for display.
 7. **Draft the Room 7→8 and IndexedDB 6→7 migration plan** for S2–S4 fields and tables, including `clearNativeData` and `STORED_DATA_STORES` coverage and the tests to extend. Documentation first; code after D1.

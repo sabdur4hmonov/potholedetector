@@ -92,6 +92,14 @@ The JSON-java 20250517 POM now has authenticated publisher-signature evidence, b
 
 The shared native/web road-event matcher fixture is in `android-app/android/app/src/test/resources/road-event-match-v1.json`; it covers 20 current match decisions. The exact next future product task is **CORE-002 outbox acknowledgement parity**: establish focused regression checks that a native paged report is acknowledged only after its IndexedDB commit, without altering deduplication or taking over the separate NEW002-PROV-001 stream. This task has not started.
 
+## Future product development after FUTURE-OBS-001
+
+The optional native detection diagnostic lifecycle and its tests are complete at source/JVM level; see [FUTURE_OBSERVABILITY.md](FUTURE_OBSERVABILITY.md). The next separately authorized future product task remains **CORE-002 outbox acknowledgement parity**. Browser and device runtime observability were not established by FUTURE-OBS-001.
+
 ## Future product development after CORE-002
 
 CORE-002 source/contract regression coverage is complete. The production paged web import awaits durable IndexedDB transaction completion before acknowledging native reports; aborts leave reports retryable, and a failed native acknowledgement leaves committed web records intact for replay. No production outbox change was needed. The exact next future product task is **D0: record the human detection-path choice for DETECT-001** (manual-first or a reviewed on-device detector), including its licence, quality and privacy targets. Do not start DETECT-001 implementation without that decision. NEW002-PROV-001 remains a separate security/release stream.
+
+## Future product development after FUTURE-SCORING-001
+
+The categorical native/web scoring foundation and 18 shared vectors are in place; see [FUTURE_SCORING.md](FUTURE_SCORING.md). A product owner still needs to choose freshness cutoffs and whether/how the separate categories enter warnings or road-health summaries. Until then, the explicit window in the fixture is only a test input. The roadmap's D0 detection-path decision for DETECT-001 remains separate and unstarted here. NEW002-PROV-001 is unaffected.

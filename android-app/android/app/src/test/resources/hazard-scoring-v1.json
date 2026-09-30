@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "reference_at_s": 1800000000,
+  "window": {"fresh_through_s": 86400, "stale_after_s": 604800},
+  "defaults": {
+    "decision": "accept", "is_pothole": 1, "is_reportable": 1,
+    "debug_capture": false, "drive_id": "drive-a", "sighting_drive_ids": ["drive-a"],
+    "seen_count": 1, "last_seen_at": 1800000000, "size": "medium",
+    "condition_status": "open"
+  },
+  "cases": [
+    {"id":"new_single_observation", "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"fresh","freshness_rank":2,"severity":"medium","severity_rank":2,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"second_independent_drive", "report":{"sighting_drive_ids":["drive-a","drive-b"],"seen_count":2}, "expect":{"confidence":"independent_reobservation","confidence_rank":2,"freshness":"fresh","freshness_rank":2,"severity":"medium","severity_rank":2,"independent_drive_count":2,"is_fixed":false}},
+    {"id":"same_drive_replays_do_not_corroborate", "report":{"sighting_drive_ids":["drive-a","drive-a","drive-a"],"seen_count":12}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"fresh","freshness_rank":2,"severity":"medium","severity_rank":2,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"seen_count_alone_does_not_corroborate", "report":{"seen_count":40}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"fresh","freshness_rank":2,"severity":"medium","severity_rank":2,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"fresh_window_inclusive", "report":{"last_seen_at":1799913600}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"fresh","freshness_rank":2,"severity":"medium","severity_rank":2,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"older_observation_ages", "report":{"last_seen_at":1799913599}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"aging","freshness_rank":1,"severity":"medium","severity_rank":2,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"aging_window_inclusive", "report":{"last_seen_at":1799395200}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"aging","freshness_rank":1,"severity":"medium","severity_rank":2,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"stale_observation", "report":{"last_seen_at":1799395199}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"stale","freshness_rank":0,"severity":"medium","severity_rank":2,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"missing_observation_time_unknown", "report":{"last_seen_at":null}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"unknown","freshness_rank":0,"severity":"medium","severity_rank":2,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"future_observation_time_unknown", "report":{"last_seen_at":1800000001}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"unknown","freshness_rank":0,"severity":"medium","severity_rank":2,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"small_visual_size", "report":{"size":"small"}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"fresh","freshness_rank":2,"severity":"small","severity_rank":1,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"large_visual_size", "report":{"size":"large"}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"fresh","freshness_rank":2,"severity":"large","severity_rank":3,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"missing_visual_size_unknown", "report":{"size":null}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"fresh","freshness_rank":2,"severity":"unknown","severity_rank":0,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"rejected_record_has_no_score", "report":{"decision":"reject","is_pothole":0,"is_reportable":0,"size":null}, "expect":{"confidence":"unknown","confidence_rank":0,"freshness":"unknown","freshness_rank":0,"severity":"unknown","severity_rank":0,"independent_drive_count":1,"is_fixed":false}},
+    {"id":"fixed_state_is_explicit", "report":{"condition_status":"fixed"}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"fresh","freshness_rank":2,"severity":"medium","severity_rank":2,"independent_drive_count":1,"is_fixed":true}},
+    {"id":"unknown_condition_is_not_assumed_open", "report":{"condition_status":null}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"fresh","freshness_rank":2,"severity":"medium","severity_rank":2,"independent_drive_count":1,"is_fixed":null}},
+    {"id":"manual_report_without_drive_id", "report":{"drive_id":null,"sighting_drive_ids":[]}, "expect":{"confidence":"single_observation","confidence_rank":1,"freshness":"fresh","freshness_rank":2,"severity":"medium","severity_rank":2,"independent_drive_count":0,"is_fixed":false}},
+    {"id":"debug_record_has_no_score", "report":{"debug_capture":true}, "expect":{"confidence":"unknown","confidence_rank":0,"freshness":"unknown","freshness_rank":0,"severity":"unknown","severity_rank":0,"independent_drive_count":1,"is_fixed":false}}
+  ]
+}

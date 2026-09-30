@@ -36,19 +36,10 @@ class NativeInferenceEngine(
         speedMps: Float?,
         heading: Float?,
         allowEarlyReject: Boolean,
-        onEvidenceSaved: (String) -> Unit
+        onEvidenceSaved: (String) -> Unit,
+        onDiagnostic: ((DetectionDiagnosticEvent) -> Unit)? = null
     ): InferenceOutcome = withContext(Dispatchers.IO) {
-        if (burstFrames.size !in NativeFrameBurstContract.MIN_INFERENCE_FRAMES..
-            NativeRollingBurstWindow.OUTPUT_COUNT
-        ) {
-            return@withContext InferenceOutcome(
-                analyzed = false,
-                accepted = false,
-                decision = "reject",
-                assessment = null
-            )
-        }
-
+        runObservedDetection(burstFrames.size, onDiagnostic) { progress ->
         // Capacity is reserved before a paid request and released on every exit path.
         val evidenceLease = NativeReportEvidenceStorage.reserveInferenceCapacity(appContext)
         try {
@@ -59,6 +50,7 @@ class NativeInferenceEngine(
                 imageCount = evidenceCount,
                 primaryIndex = primaryIndex
             )
+            progress.detectionEntered()
             val assessment = runBoundedDetectionAttempts {
                 // NativeInferenceTransport takes ownership of and clears each encoded list.
                 // Re-encode from the still-owned complete bitmaps only for a bounded retry.
@@ -71,8 +63,9 @@ class NativeInferenceEngine(
                     allowEarlyReject = allowEarlyReject
                 )
             }
+            progress.detectionCompleted()
             if (assessment.decision != "accept") {
-                return@withContext InferenceOutcome(
+                return@runObservedDetection InferenceOutcome(
                     analyzed = true,
                     accepted = false,
                     decision = assessment.decision,
@@ -116,6 +109,7 @@ class NativeInferenceEngine(
             )
         } finally {
             NativeReportEvidenceStorage.releaseInferenceCapacity(evidenceLease)
+        }
         }
     }
 
