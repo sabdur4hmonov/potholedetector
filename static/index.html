@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-5lxY2XJ/MANLZ07inQSx1Ps56OIN40T7URgVxgtRj/g='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-alMgFglTmLTaMAlOyaPUSj9LtMAekaj5T3g0uYO4LOg='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org https://kgis.ksrsac.in https://tgrac.telangana.gov.in https://coding-parrot.github.io/pothole-reporter/; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-hfaVajX6RNKxOqyH1JsEnujVbF5QbzE1fppnjFI2bMQ='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-alMgFglTmLTaMAlOyaPUSj9LtMAekaj5T3g0uYO4LOg='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org https://kgis.ksrsac.in https://tgrac.telangana.gov.in https://coding-parrot.github.io/pothole-reporter/; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -314,6 +314,12 @@ let initialSettingsActive = false;
 // ---------- i18n (English / Kannada / Marathi) ----------
 const I18N = {
   en: {
+    manual_confirm: "Save this photo as a private, user-reported pothole? It will not be AI verified or sent anywhere.",
+    manual_verdict: "User-reported pothole · not AI verified",
+    manual_saved: "Saved privately on this device",
+    manual_help: "Review or export your photo offline. No complaint has been submitted. Optional cloud analysis creates a separate result and keeps this report.",
+    cloud_optional: "Optional cloud analysis",
+    cloud_confirm: "Send this photo to your configured AI provider for optional analysis? This requires connectivity and uses your existing AI allowance. Your manual report will remain saved.",
     sub: "Capture it. Verify the issue. Prepare a complaint for a suggested office.",
     report_btn: "&#128247; &nbsp;Photo",
     issue_picker_title: "Report",
@@ -325,7 +331,7 @@ const I18N = {
     drive_btn: "&#128663; &nbsp;Drive",
     your_reports: "Your reports",
     no_reports: "No reports yet.",
-    banner_setup: "Add an OpenAI API key to use Photo and Drive.",
+    banner_setup: "Photo works offline without a key. An OpenAI API key is optional for cloud analysis and Drive.",
     settings_title: "Settings",
     key_label: "OpenAI API key (sent to OpenAI as the credential)",
     credential_storage_native: "Android encrypts retained credentials with a non-exportable Keystore key. Saved credentials are never shown here; leave a field blank to keep its current value.",
@@ -356,7 +362,7 @@ const I18N = {
     privacy_link: "Privacy policy", sources_link: "Data sources and limits",
     privacy_accept: "Continue", privacy_decline: "Not now",
     wipe_btn: "Delete all app data",
-    welcome_hint: "Add your OpenAI API key to use Photo and Drive. The key is saved on this device and sent to OpenAI only as the request credential.",
+    welcome_hint: "Save private Photo reports offline without a key. Add an OpenAI API key only for optional cloud analysis or Drive. The key is sent to OpenAI only as the request credential.",
     key_required: "Add an OpenAI API key to continue.",
     back: "Back", save: "Save", discard: "Discard", del: "Delete", email_btn: "Email", stop: "&#9632; Stop", working: "Working...",
     chip_draft: "Draft", chip_sent: "Marked submitted", chip_queued: "Opened in email", chip_queued_bmc: "BMC handoff opened", chip_rejected: "Pothole: NO", chip_review: "Needs review",
@@ -537,7 +543,6 @@ const I18N = {
     drive_btn: "&#128663; &nbsp;ಡ್ರೈವ್",
     your_reports: "ನಿಮ್ಮ ವರದಿಗಳು",
     no_reports: "ಇನ್ನೂ ವರದಿಗಳಿಲ್ಲ. ಗುಂಡಿ ಹುಡುಕಲು ಹೊರಡಿ.",
-    banner_setup: "ಫೋಟೋ ಮತ್ತು ಡ್ರೈವ್ ಬಳಸಲು OpenAI API ಕೀ ಸೇರಿಸಿ.",
     settings_title: "ಸೆಟ್ಟಿಂಗ್ಸ್",
     key_label: "OpenAI API ಕೀ (ಈ ಸಾಧನದಲ್ಲಿ ಉಳಿಯುತ್ತದೆ; OpenAI ಗೆ ಪ್ರಮಾಣಪತ್ರವಾಗಿ ಹೋಗುತ್ತದೆ)",
     name_label: "ನಿಮ್ಮ ಹೆಸರು (ದೂರು ಇಮೇಲ್‌ಗಳಲ್ಲಿ ಬಳಸಲಾಗುತ್ತದೆ)",
@@ -566,7 +571,6 @@ const I18N = {
     privacy_link: "ಗೌಪ್ಯತಾ ನೀತಿ", sources_link: "ಡೇಟಾ ಮೂಲಗಳು ಮತ್ತು ಮಿತಿಗಳು",
     privacy_accept: "ಮುಂದುವರಿಸಿ", privacy_decline: "ಈಗ ಬೇಡ",
     wipe_btn: "ಎಲ್ಲಾ ಆ್ಯಪ್ ಡೇಟಾ ಅಳಿಸಿ",
-    welcome_hint: "ಫೋಟೋ ಮತ್ತು ಡ್ರೈವ್ ಬಳಸಲು OpenAI API ಕೀ ಸೇರಿಸಿ. ಕೀ ಸಾಧನದಲ್ಲಿ ಉಳಿದು OpenAI ಗೆ ಪ್ರಮಾಣಪತ್ರವಾಗಿ ಮಾತ್ರ ಹೋಗುತ್ತದೆ.",
     key_required: "ಮುಂದುವರಿಸಲು OpenAI API ಕೀ ಸೇರಿಸಿ.",
     back: "ಹಿಂದೆ", save: "ಉಳಿಸಿ", discard: "ತ್ಯಜಿಸಿ", del: "ಅಳಿಸಿ", email_btn: "ಇಮೇಲ್", stop: "&#9632; ನಿಲ್ಲಿಸಿ", working: "ನಡೆಯುತ್ತಿದೆ...",
     chip_draft: "ಡ್ರಾಫ್ಟ್", chip_sent: "ಸಲ್ಲಿಸಲಾಗಿದೆ ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ", chip_queued: "ಇಮೇಲ್‌ನಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ", chip_queued_bmc: "BMC ಹಸ್ತಾಂತರ ತೆರೆಯಲಾಗಿದೆ", chip_rejected: "ಗುಂಡಿ: ಇಲ್ಲ", chip_review: "ಪರಿಶೀಲನೆ ಬೇಕು",
@@ -740,7 +744,6 @@ const I18N = {
     drive_btn: "&#128663; &nbsp;ड्राइव्ह",
     your_reports: "तुमचे अहवाल",
     no_reports: "अजून कोणतेही अहवाल नाहीत.",
-    banner_setup: "फोटो आणि ड्राइव्ह वापरण्यासाठी OpenAI API की जोडा.",
     settings_title: "सेटिंग्ज",
     key_label: "OpenAI API की (येथे जतन होते; विनंतीचे प्रमाणीकरण करण्यासाठी OpenAI कडे पाठवली जाते)",
     name_label: "तुमचे नाव (तक्रारीच्या ईमेलमध्ये वापरले जाईल)",
@@ -769,7 +772,6 @@ const I18N = {
     privacy_link: "गोपनीयता धोरण", sources_link: "डेटा स्रोत आणि मर्यादा",
     privacy_accept: "पुढे जा", privacy_decline: "आत्ता नको",
     wipe_btn: "अॅपचा सर्व डेटा हटवा",
-    welcome_hint: "फोटो आणि ड्राइव्ह वापरण्यासाठी OpenAI API की जोडा. की या साधनावर जतन होते आणि फक्त विनंतीच्या प्रमाणीकरणासाठी OpenAI कडे जाते.",
     key_required: "पुढे जाण्यासाठी OpenAI API की जोडा.",
     back: "मागे", save: "जतन करा", discard: "रद्द करा", del: "हटवा", email_btn: "ईमेल",
     stop: "&#9632; थांबवा", working: "प्रक्रिया सुरू आहे...",
@@ -934,7 +936,6 @@ const I18N = {
     drive_btn: "&#128663; &nbsp;ড্রাইভ",
     your_reports: "আপনার রিপোর্ট",
     no_reports: "এখনও কোনও রিপোর্ট নেই।",
-    banner_setup: "ছবি ও ড্রাইভ ব্যবহার করতে OpenAI API key যোগ করুন।",
     settings_title: "সেটিংস",
     key_label: "OpenAI API key (এখানে সংরক্ষিত; অনুমোদনের পরিচয় হিসেবে OpenAI-তে পাঠানো হয়)",
     name_label: "আপনার নাম (অভিযোগের ইমেলে ব্যবহৃত হবে)",
@@ -963,7 +964,6 @@ const I18N = {
     privacy_link: "গোপনীয়তা নীতি", sources_link: "তথ্যের উৎস ও সীমাবদ্ধতা",
     privacy_accept: "এগিয়ে যান", privacy_decline: "এখন নয়",
     wipe_btn: "অ্যাপের সব তথ্য মুছুন",
-    welcome_hint: "ছবি ও ড্রাইভ ব্যবহার করতে OpenAI API key যোগ করুন। key এই ডিভাইসে থাকে এবং শুধু অনুরোধের অনুমোদন হিসেবে OpenAI-তে যায়।",
     key_required: "এগিয়ে যেতে OpenAI API key যোগ করুন।",
     back: "ফিরে যান", save: "সংরক্ষণ করুন", discard: "বাদ দিন", del: "মুছুন", email_btn: "ইমেল", stop: "&#9632; থামান", working: "কাজ চলছে...",
     chip_draft: "খসড়া", chip_sent: "জমা হয়েছে বলে চিহ্নিত", chip_queued: "ইমেলে খোলা হয়েছে", chip_queued_bmc: "BMC পরিষেবা খোলা হয়েছে", chip_rejected: "রাস্তার গর্ত: না", chip_review: "যাচাই প্রয়োজন",
@@ -1144,7 +1144,8 @@ const tIssue = (value) => {
 };
 const damageType = (r) => (r && r.damage_type) || (r && r.is_pothole ? "pothole_cavity" : "none");
 const assessment = (r) => (r && r.assessment) || (r && r.is_pothole ? "clear" : "absent");
-const tDamage = (value) => t("damage_" + (typeof value === "string" ? value : damageType(value)));
+const tDamage = (value) => value && value.report_origin === "user_reported" && isRoadReport(value)
+  ? t("manual_verdict") : t("damage_" + (typeof value === "string" ? value : damageType(value)));
 const tAssessment = (value) => t("assessment_" + (typeof value === "string" ? value : assessment(value)));
 const eventCountText = (n) => n === 1 ? t("potholes_one", { n }) : t("potholes_many", { n });
 const alreadyCountText = (n) => n === 1 ? t("already_one", { n }) : t("already_many", { n });
@@ -1793,6 +1794,7 @@ function getPosition() {
 
 async function handleFile(file, captureMeta = {}) {
   if (!file) return;
+  if (!(await ensureDataConsent()) || !confirm(t("manual_confirm"))) return;
   const captureSource = captureMeta.captureSource === "manual_camera"
     ? "manual_camera" : "manual_import";
   const bindCurrentLocation = captureSource === "manual_camera"
@@ -1813,6 +1815,7 @@ async function handleFile(file, captureMeta = {}) {
   const fd = new FormData();
   fd.append("photo", file);
   fd.append("issue_type", "road_damage");
+  fd.append("issue_confirmed", "true");
   fd.append("capture_source", captureSource);
   if (capturedAtMs != null) fd.append("captured_at_ms", String(capturedAtMs));
   if (pos) {
@@ -1824,7 +1827,7 @@ async function handleFile(file, captureMeta = {}) {
     if (pos.heading != null) fd.append("heading", String(pos.heading));
   }
   try {
-    const report = await api("/api/report", { method: "POST", body: fd });
+    const report = await api("/api/manual-report", { method: "POST", body: fd });
     await loadReports();
     openDetail(report);
   } catch (e) {
@@ -1873,6 +1876,7 @@ function step(delta) {
 // do not hold, or genuinely outside the state. Collapsing them told a Mysuru user their
 // city was "outside coverage", which was wrong and unhelpful.
 function unroutedTitle(r) {
+  if (r.unrouted_reason === "private_manual") return t("manual_saved");
   if (r.unrouted_reason === "no_location") return t("no_location");
   if (r.unrouted_reason === "location_uncertain") return t("location_uncertain");
   if (r.unrouted_reason === "jurisdiction_unavailable") return t("jurisdiction_unavailable");
@@ -1891,6 +1895,7 @@ function unroutedTitle(r) {
   return t("outside_coverage");
 }
 function unroutedHelp(r) {
+  if (r.unrouted_reason === "private_manual") return t("manual_help");
   if (!isRoadReport(r)) {
     if (r.unrouted_reason === "no_location") return t("civic_no_location_help");
     if (r.unrouted_reason === "location_uncertain") return t("civic_location_uncertain_help");
@@ -1911,6 +1916,7 @@ function unroutedHelp(r) {
 }
 
 function detectionVerdict(r) {
+  if (r.report_origin === "user_reported" && isRoadReport(r)) return t("manual_verdict");
   if (!isRoadReport(r)) return t("verdict_civic_prepared", { type: tIssue(r) });
   if (physicalCondition(r) === "fixed") return t("verdict_fixed");
   if (physicalCondition(r) === "repair_review") return t("verdict_repair_review");
@@ -2038,6 +2044,10 @@ function openDetail(r, list) {
         <div class="meta" style="color:var(--bad)">&#9888; ${escapeHtml(unroutedTitle(r))}</div>
         <div class="meta">${escapeHtml(unroutedHelp(r))}</div>
         ${repairEvidenceHtml(r)}
+        ${r.unrouted_reason === "private_manual" ? `<div class="btn-row">
+          <button class="ghost" id="shareEvidenceBtn">${t("share_evidence_btn")}</button>
+          <button class="ghost" id="cloudAnalysisBtn">${t("cloud_optional")}</button>
+        </div>` : ""}
         ${physicalCondition(r) !== "fixed" && canRetryRouting(r)
           ? `<button class="send" id="retryRoutingBtn" style="width:100%;margin-top:12px">${t("retry_routing_btn")}</button>` : ""}
         <div class="btn-row">
@@ -2162,6 +2172,20 @@ function openDetail(r, list) {
   }
   wireConditionActions(r);
   wireDetailChrome(r);
+  const manualShare = $("shareEvidenceBtn");
+  if (r.unrouted_reason === "private_manual" && manualShare) manualShare.onclick = () => shareEvidence(r);
+  const cloudAnalysis = $("cloudAnalysisBtn");
+  if (cloudAnalysis) cloudAnalysis.onclick = async () => {
+    if (!confirm(t("cloud_confirm"))) return;
+    cloudAnalysis.disabled = true;
+    try {
+      const analyzed = await api(`/api/reports/${r.id}/cloud-analysis`, {
+        method: "POST", body: JSON.stringify({ confirmed: true }),
+      });
+      await loadReports(); openDetail(analyzed);
+    } catch (e) { alert(e.message); }
+    finally { cloudAnalysis.disabled = false; }
+  };
   const retryRouting = $("retryRoutingBtn");
   if (retryRouting) retryRouting.onclick = async () => {
     retryRouting.disabled = true;
@@ -4263,17 +4287,6 @@ $("captureBtn").onclick = async () => {
   try {
     if (nativeInitialRestorePending) await nativeInitialRestorePromise.catch(() => {});
     if (drive || driveStarting || nativeFinishLocked || nativeWipeLocked) return;
-    try {
-      await window.CredentialBroker.ready();
-    } catch (error) {
-      alert(error.message || "Secure credential storage is unavailable.");
-      openSettings(true, false);
-      return;
-    }
-    if (!window.CredentialBroker.hasOpenAi()) {
-      openSettings(true, false);
-      return;
-    }
     if (!(await ensureDataConsent())) return;
     await beginPotholeCapture();
   } finally {
@@ -4284,7 +4297,6 @@ $("captureBtn").onclick = async () => {
 
 async function beginPotholeCapture() {
   await requestNativeCapturePermissions();
-  StandaloneAPI.prewarm();
   const native = window.Capacitor && Capacitor.isNativePlatform
     && Capacitor.isNativePlatform();
   const camera = native && Capacitor.Plugins && Capacitor.Plugins.Camera;
@@ -5744,11 +5756,6 @@ $("setSave").onclick = async () => {
     await window.CredentialBroker.ready();
   } catch (error) {
     alert(error.message || "Secure credential storage is unavailable.");
-    return;
-  }
-  if (initialSettingsActive && !trimmedKey && !window.CredentialBroker.hasOpenAi()) {
-    alert(t("key_required"));
-    $("setKey").focus();
     return;
   }
   const selectedModel = $("setModel").value === "gpt-5.6" ? "gpt-5.6" : "gpt-5-mini";

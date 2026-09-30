@@ -127,8 +127,9 @@ selected state or an approximate 2° highway tile. See the
 
 1. Install the APK attached to the
    [latest release](https://github.com/coding-parrot/pothole-reporter/releases/latest).
-2. On first launch, enter your OpenAI API key in Settings and choose Phone camera or
-   Dashcam. Phone mode needs camera access; both modes need precise location and notifications.
+2. Photo reports can be saved privately offline without an API key. Confirm the pothole
+   yourself, then review or export the full-frame photo; saving is not an official submission.
+   An OpenAI API key is optional for separate cloud analysis and Drive. Dashcam remains disabled.
 3. Capture while safely stopped, or securely mount the phone before starting **Drive**.
 4. Review the image, location, authority, wording, and contract-verification status before
    choosing an external complaint channel.

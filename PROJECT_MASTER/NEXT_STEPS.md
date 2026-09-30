@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## Latest future-product next action — REPORT-LOCAL-001 implementation
+
+REPORT-LOCAL-001 source/browser work is implemented and validated. The exact next future-product action remains **REPORT-LOCAL-001 device verification**: confirm real Android camera capture, offline save/review after app restart, bounded resource behavior and user-initiated export on a supported device. No device was connected or tested in this checkpoint; preserve the recorded blocker rather than retrying it. The task is partially complete overall; do not start CONF-001 or another task. Cloud/BYOK remains optional; source/browser evidence and limits are in PROJECT_STATUS.md and AGENT_WORKLOG.md. NEW-002/release work stays separate. Earlier NOT STARTED entries below are historical.
+
 ## Latest future-product next task — 2026-09-30 DETECT-001
 
 D0 is decided and DETECT-001 is complete at decision/acceptance-contract level; see [PRODUCT_DECISIONS.md](PRODUCT_DECISIONS.md). Exact next future-product task: **REPORT-LOCAL-001**, implement and verify manual-first private offline pothole photo reporting while retaining cloud/BYOK as optional. CORE-002 is complete. No primary on-device integration or cloud removal selected. REPORT-LOCAL-001 was not started here; browser/device offline workflow evidence remains required. Earlier D0-pending entries below are historical. NEW002-PROV-001 and release gates remain separate and unchanged.

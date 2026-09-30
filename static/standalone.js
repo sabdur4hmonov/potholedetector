@@ -9596,13 +9596,18 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
     }
   }
 
-  async function createCivicReport(fd) {
+  async function createCivicReport(fd, localRoad = false) {
     const issueType = String(fd.get("issue_type") || "");
-    if (!ISSUE_TYPE_SET.has(issueType) || issueType === "road_damage") {
-      throw new Error("Choose garbage or open/damaged manhole for a civic report.");
+    if (localRoad ? issueType !== "road_damage"
+      : !ISSUE_TYPE_SET.has(issueType) || issueType === "road_damage") {
+      throw new Error(localRoad ? "Choose road damage for a manual pothole report."
+        : "Choose garbage or open/damaged manhole for a civic report.");
     }
     const photo = fd.get("photo");
     if (!photo || !photo.size) throw new Error("Empty photo.");
+    if (localRoad && fd.get("issue_confirmed") !== "true") {
+      throw new Error("Confirm that this photo shows the pothole you want to report.");
+    }
     const latRaw = fd.get("lat"), lngRaw = fd.get("lng");
     const lat = latRaw != null && latRaw !== "" ? parseFloat(latRaw) : null;
     const lng = lngRaw != null && lngRaw !== "" ? parseFloat(lngRaw) : null;
@@ -9618,10 +9623,10 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
     progress(pmsg("compress"));
     const dataUrl = await toDataUrl(photo, 2000, 0.85, true);
     progress(pmsg("finalize"));
-    const geo = lat != null ? await reverseGeocode(lat, lng).catch(() => null) : null;
+    const geo = !localRoad && lat != null ? await reverseGeocode(lat, lng).catch(() => null) : null;
     const address = (geo && geo.short) || null;
-    const route = await routeOfficer(
-      geo || address, lat, lng, gpsAccuracyRaw, headingRaw, speedRaw, issueType);
+    const route = localRoad ? { routed: false, unrouted_reason: "private_manual" }
+      : await routeOfficer(geo || address, lat, lng, gpsAccuracyRaw, headingRaw, speedRaw, issueType);
     const covered = !!route.routed;
     progress(pmsg("write"));
     const [subject, body] = covered
@@ -9643,7 +9648,7 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
       report_origin: "user_reported",
       is_reportable: 1,
       is_pothole: 0,
-      damage_type: "none",
+      damage_type: localRoad ? null : "none",
       assessment: "manual",
       image_quality: null,
       on_drivable_surface: false,
@@ -9654,7 +9659,7 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
       temporal_consistency: null,
       size: null,
       decision: "manual",
-      description: civicIssueName(issueType, LANG()),
+      description: localRoad ? "User-reported pothole; not AI verified" : civicIssueName(issueType, LANG()),
       email_subject: subject,
       email_body: body,
       complaint_template_version: body ? COMPLAINT_TEMPLATE_VERSION : null,
@@ -9724,6 +9729,14 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
       seen_count: 1,
       last_seen_at: capturedAt || Date.now() / 1000,
     };
+    if (localRoad) {
+      rec.issue_confirmation = "user_confirmed_photo";
+      rec.is_pothole = null;
+      for (const field of ["on_drivable_surface", "has_localized_cavity",
+        "has_unambiguous_lower_interior", "has_broken_edge_or_rim", "has_depth_or_surface_loss"]) rec[field] = null;
+      if (!finiteCoord(rec.lat) || !finiteCoord(rec.lng)
+        || Math.abs(rec.lat) > 90 || Math.abs(rec.lng) > 180) rec.lat = rec.lng = null;
+    }
     rec.id = await addReport(rec);
     return toDict(rec);
   }
@@ -10970,6 +10983,8 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
     });
     const issueStem = issueFileStem(rec.issue_type);
     const evidenceBits = [
+      rec.report_origin === "user_reported" && rec.issue_type === "road_damage"
+        ? "User-reported pothole; not AI verified; no complaint submitted by saving this photo" : "",
       when ? `${rec.capture_source === "manual_import" ? "Selected photo file date"
         : Number.isFinite(rec.captured_at) ? "Captured" : "Report created"} (IST): ${when}` : "",
       rec.capture_source === "manual_import"
@@ -11073,7 +11088,7 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
         path: name,
         label: r.human_label,
         labelled_by: "owner",
-        model_said: {
+        model_said: r.report_origin === "user_reported" ? null : {
           is_pothole: !!r.is_pothole,
           is_reportable: r.is_reportable == null ? !!r.is_pothole : !!r.is_reportable,
           damage_type: damageTypeOf(r), assessment: assessmentOf(r),
@@ -11095,7 +11110,7 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
           decision: r.decision || (r.status === "rejected" ? "reject" : "accept"),
           size: r.size, description: r.description,
         },
-        detector: { model: r.detection_model || "legacy", detail: r.image_detail || null,
+        detector: r.report_origin === "user_reported" ? null : { model: r.detection_model || "legacy", detail: r.image_detail || null,
                     prompt_version: r.prompt_version || "legacy", schema_version: r.schema_version || 1,
                     evidence_count: r.evidence_count || 1 },
         lat: r.lat, lng: r.lng, address: r.address,
@@ -11312,6 +11327,25 @@ work on the carriageway itself is explicit. confidence is your 0 to 1 confidence
     }
     if (path === "/api/report" && method === "POST") return createReport(opts.body, false);
     if (path === "/api/civic-report" && method === "POST") return createCivicReport(opts.body);
+    if (path === "/api/manual-report" && method === "POST") return createCivicReport(opts.body, true);
+    if ((m = path.match(/^\/api\/reports\/(\d+)\/cloud-analysis$/)) && method === "POST") {
+      if (JSON.parse(opts.body || "{}").confirmed !== true) throw new Error("Cloud analysis requires confirmation.");
+      const rec = await getReport(m[1]);
+      if (!rec || rec.report_origin !== "user_reported" || rec.issue_type !== "road_damage") {
+        throw new Error("Only a saved manual pothole report can use this action.");
+      }
+      const fd = new FormData();
+      fd.append("photo", await dataUrlToBlob(fullFramePhoto(rec)));
+      fd.append("capture_source", rec.capture_source);
+      if (rec.location_source) fd.append("location_source", rec.location_source);
+      if (Number.isFinite(rec.speed_mps)) fd.append("speed", String(rec.speed_mps));
+      for (const field of ["lat", "lng", "gps_accuracy", "heading"]) {
+        if (Number.isFinite(rec[field])) fd.append(field, String(rec[field]));
+      }
+      if (Number.isFinite(rec.captured_at)) fd.append("captured_at_ms", String(rec.captured_at * 1000));
+      // Analysis creates a separate result; it never overwrites the private manual report.
+      return createReport(fd, false);
+    }
     if (path === "/api/frame" && method === "POST") return createReport(opts.body, true);
     if (path === "/api/native-report" && method === "POST") {
       return importNativeReport(JSON.parse(opts.body || "{}"));

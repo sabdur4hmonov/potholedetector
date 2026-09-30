@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-09-30 — REPORT-LOCAL-001 source/browser implementation
+
+Added confirmed private manual pothole creation with no required key/network service, no-key onboarding/capture, truthful review and evidence export, and optional separate cloud analysis retaining the original. Preserved bounded whole-frame preparation, transaction completion, manual non-merge and cloud security limits. Added real-browser offline/restart/abort/privacy/Delete All coverage; updated canonical assets, mirrors/CSP, README and privacy disclosure. Android camera/device performance remains unverified; task partially complete overall. No NEW-002 work.
+
 ## 2026-09-30 — DETECT-001
 
 Recorded the human D0 decision and acceptance targets in PRODUCT_DECISIONS.md: manual-first private offline photo reporting, retained optional cloud/BYOK, no primary on-device integration at this stage. Updated registry/status/roadmap and exact next task to REPORT-LOCAL-001. Documentation only; no product implementation or security/release gate change.

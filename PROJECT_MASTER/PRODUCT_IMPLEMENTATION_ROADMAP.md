@@ -1,5 +1,9 @@
 # Product implementation roadmap
 
+## 2026-09-30 REPORT-LOCAL-001 implementation checkpoint
+
+The manual-first private offline pothole Photo path now exists in source and passes real Chromium/IndexedDB tests on canonical and packaged assets. Optional confirmed cloud analysis retains the manual report and produces a separate result. New manual copy and corrected no-key onboarding copy use existing English fallback until translation review; no Uzbekistan routing or language rollout is claimed. Actual Android camera/offline restart/resource evidence is still required, so REPORT-LOCAL-001 is partially complete overall. Finish that device verification before moving to the next task; NEW-002/release gates remain unchanged.
+
 ## 2026-09-30 DETECT-001 decision update
 
 D0 is resolved: manual-first private offline photo reporting is the primary path; existing cloud/BYOK remains optional, and on-device detection is not integrated as the primary path at this stage. [PRODUCT_DECISIONS.md](PRODUCT_DECISIONS.md) is authoritative for the exact choice and acceptance targets. DETECT-001 is complete at decision/contract level; REPORT-LOCAL-001 implementation and offline browser/device verification remain pending. Model-specific evaluation is not applicable to this choice. Historical D0-pending proposals below are superseded by this decision; other decisions and security/release gates are unchanged.

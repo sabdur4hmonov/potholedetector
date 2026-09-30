@@ -381,12 +381,13 @@ Each phase card names its objective/why, prerequisites and dependencies, tasks, 
 ### REPORT-LOCAL-001
 
 - **Title:** Implement the chosen local/free detection and private report path.
-- **Phase:** 2. **Priority:** P1. **Status:** NOT STARTED — DETECT-001 and CORE-002 dependencies satisfied; exact next future-product task, requiring separate authorization.
+- **Phase:** 2. **Priority:** P1. **Status:** PARTIALLY COMPLETE — source/browser implementation verified 2026-09-30; Android camera/offline/device performance evidence remains blocked by the recorded missing device.
 - **Dependencies:** DETECT-001 and CORE-002.
 - **Repository areas:** NativeInferenceEngine, DriveForegroundService, manual Photo/web report path and evidence storage. **Existing code to reuse:** existing report factory, keyframe replay, bounded image handling and user-confirmed handoff.
 - **Implementation steps:** Integrate the chosen path behind current outcome shape; remove/disable cloud/BYOK surfaces only if D0 chose no-cloud production; retain private review and strict acceptance.
 - **Tests:** Full-frame regression, negative corpus, native/web report contracts, offline replay, bounded resources and device performance.
 - **Acceptance criteria:** Ordinary user can produce/review a local report without paid AI under the chosen mode; no false claim of unattended accuracy.
+- **Implementation/evidence:** Photo and first-launch settings require no key. Confirmed manual potholes save privately without geocoding/routing/model calls; review/export uses whole-frame evidence and honest user-reported labels. Optional confirmed cloud analysis creates a separate report and preserves the manual row. Real Chromium tests on packaged and canonical assets cover offline/no-key operation, consent/cancel/invalid input, transaction abort/retry, non-merge, export, restart and Delete All. Full-frame/image/CSP/mirror/outbox/AI-budget regressions pass. No model was added; detector accuracy/licensing/latency targets are inapplicable under D0. Actual native camera, Android restart and device resource/performance checks remain required; no release claim is made.
 - **Security/privacy constraints:** Complete frames only, no hidden network call, private media and explicit handoff.
 - **Documentation updates:** Status, privacy/README as behavior changes, roadmap and worklog.
 - **Stop conditions:** Accuracy, latency, memory or licensing target unmet; preserve existing behavior until approved.
