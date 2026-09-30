@@ -91,3 +91,7 @@ The JSON-java 20250517 POM now has authenticated publisher-signature evidence, b
 ## Future product development after FUTURE-DEDUP-001
 
 The shared native/web road-event matcher fixture is in `android-app/android/app/src/test/resources/road-event-match-v1.json`; it covers 20 current match decisions. The exact next future product task is **CORE-002 outbox acknowledgement parity**: establish focused regression checks that a native paged report is acknowledged only after its IndexedDB commit, without altering deduplication or taking over the separate NEW002-PROV-001 stream. This task has not started.
+
+## Future product development after CORE-002
+
+CORE-002 source/contract regression coverage is complete. The production paged web import awaits durable IndexedDB transaction completion before acknowledging native reports; aborts leave reports retryable, and a failed native acknowledgement leaves committed web records intact for replay. No production outbox change was needed. The exact next future product task is **D0: record the human detection-path choice for DETECT-001** (manual-first or a reviewed on-device detector), including its licence, quality and privacy targets. Do not start DETECT-001 implementation without that decision. NEW002-PROV-001 remains a separate security/release stream.

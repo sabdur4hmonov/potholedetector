@@ -29,3 +29,4 @@ Dates and outcomes are report dates, not release dates. No SEC-008–SEC-016 or 
 ## 2026-09-30 future product development
 
 - **FUTURE-DEDUP-001:** Extracted the existing native road-event match decision into a pure helper and added one 20-case JSON fixture consumed by native JVM and production-JS tests. Matching thresholds and canonical storage behavior were not changed; see `PROJECT_STATUS.md` and the agent worklog for validation limits. The next future product task is CORE-002 outbox acknowledgement parity.
+- **CORE-002:** Added an offline regression test for the existing paged native-report bridge and IndexedDB commit boundary. It covers successful, aborted, partial-page and retry paths, plus native acknowledgement failure after web commit. Production outbox behavior is unchanged.

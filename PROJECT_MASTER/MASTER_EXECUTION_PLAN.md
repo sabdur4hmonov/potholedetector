@@ -352,11 +352,11 @@ Each phase card names its objective/why, prerequisites and dependencies, tasks, 
 ### CORE-002
 
 - **Title:** Add shared native/web dedupe and outbox parity fixtures.
-- **Phase:** 1. **Priority:** P1. **Status:** PARTIAL: shared matcher fixture complete under FUTURE-DEDUP-001; outbox acknowledgement parity remains.
+- **Phase:** 1. **Priority:** P1. **Status:** COMPLETE (2026-09-30): FUTURE-DEDUP-001 shared matcher fixture plus CORE-002 outbox acknowledgement durability regression.
 - **Dependencies:** CORE-001.
 - **Repository areas:** JVM test resources, tests, static/standalone.js test surface and DriveModePlugin contracts. **Existing code to reuse:** image_enhancement_parity_test.py fixture pattern, roadEventMatch and NativeAcknowledgementCommit.
 - **Implementation steps:** Create one versioned JSON corpus, run it in Kotlin and JS, and assert paged sync acknowledgement only after IndexedDB commit.
-- **Tests:** JVM and Node/Python parity; existing native duplicate/replay tests.
+- **Tests:** Shared matcher JVM/Node fixture; `native_outbox_ack_durability_test.cjs` against the production page loop and IndexedDB helper; existing native pager/acknowledgement JVM tests and web paging/native contracts.
 - **Acceptance criteria:** Same fixture outputs in both runtimes, including ambiguous GPS and replay cases.
 - **Security/privacy constraints:** Synthetic coordinates/media only; no real trip data in fixtures.
 - **Documentation updates:** Status, roadmap and worklog.

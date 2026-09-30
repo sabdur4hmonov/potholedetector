@@ -97,7 +97,7 @@ Each feature below lists what exists, what is missing, where it belongs, the And
 - **Missing:**
   - A **confidence/importance score**. `seenCount` is stored but never turned into a score or shown as one; `openDash` counts reports, not confirmations.
   - A distinction between "seen again on the same drive" and "independently confirmed on another drive". Only `sighting_drive_ids.length` approximates this.
-- **Dedupe regression checkpoint:** the 2026-09-30 FUTURE-DEDUP-001 fixture covers 20 common native/web match decisions. It does not cover the outbox acknowledgement contract or implementation-specific states.
+- **Phase 1 regression checkpoints:** the 2026-09-30 FUTURE-DEDUP-001 fixture covers 20 common native/web match decisions. CORE-002 separately exercises production web paging and IndexedDB transaction completion with controlled commits/aborts, alongside native pager and acknowledgement JVM tests. The shared matcher fixture does not assert implementation-specific persistence states.
 - **Where:**
   - The pure `NativeRoadEventMatcher` object is now in `drive/`; `NativeDeduplicationEngine` keeps the transaction and DAO.
   - Add a pure scoring module on each side: proposed `android/.../hazard/HazardScoringPolicy.kt` and `static/hazard-model.js`.
