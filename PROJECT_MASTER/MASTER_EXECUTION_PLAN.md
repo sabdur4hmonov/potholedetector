@@ -412,8 +412,9 @@ Each phase card names its objective/why, prerequisites and dependencies, tasks, 
 ### FRESH-001
 
 - **Title:** Add time-based freshness without auto-repair.
-- **Phase:** 3. **Priority:** P1. **Status:** PLANNED.
+- **Phase:** 3. **Priority:** P1. **Status:** BLOCKED on human freshness-policy decision; decision preparation complete (2026-10-01), implementation not started.
 - **Dependencies:** CONF-001.
+- **Decision gate:** [FRESHNESS_DECISION.md](FRESHNESS_DECISION.md) records existing state/boundary semantics, affected contracts and the missing approved fresh/aging cutoffs plus expired inclusion/boundary/behavior. Fixture windows and the 30-day matching horizon are not product defaults. No freshness decision has been recorded.
 - **Repository areas:** same pure hazard policies and report/map UI. **Existing code to reuse:** last_seen_at, 30-day dedupe horizon and conditionStatus.
 - **Implementation steps:** Define fresh/aging/stale/expired display states; keep matching horizon distinct from freshness; expose unknown timestamps honestly.
 - **Tests:** Clock boundary, stale cache, fixed/open/review and native/JS parity fixtures.

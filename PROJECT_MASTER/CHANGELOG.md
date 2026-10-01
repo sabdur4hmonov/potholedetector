@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-01 — FRESH-001 decision preparation
+
+Prepared the freshness-policy decision brief from existing roadmap/source/fixture evidence, clarified inclusive boundaries and timestamp/condition constraints, and recorded FRESH-001 as blocked pending human-approved cutoffs and expired semantics. Documentation only; no policy chosen or implementation started. REPORT-LOCAL-001 physical validation remains deferred/blocked and NEW-002 remains untouched.
+
 ## 2026-10-01 — CONF-001
 
 Exposed existing categorical confidence/severity as a versioned native/web evidence snapshot without selecting freshness cutoffs. Added conservative private report-detail explanations, an 18-case shared evidence fixture, JVM/Node coverage and real Chromium consumer checks. Original scoring/matching/outbox contracts are preserved. Updated HTML mirrors/CSP hashes and the CSP script inventory guard for the existing local hazard-model module. REPORT-LOCAL-001 physical validation remains explicitly deferred/blocked; no NEW-002, release or physical-device work.

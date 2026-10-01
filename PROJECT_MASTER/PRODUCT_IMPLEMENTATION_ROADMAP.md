@@ -1,5 +1,9 @@
 # Product implementation roadmap
 
+## 2026-10-01 FRESH-001 decision preparation
+
+F8/FRESH-001 has an explicit [decision package](FRESHNESS_DECISION.md), not a selected decay policy. Existing fresh/aging/stale/unknown behavior is reusable; planned expired behavior needs an explicit choice, boundary and meaning. Human-approved cutoffs/rationale remain missing. Implementation and dependent freshness consumers are blocked; no fixture value or deduplication horizon becomes policy by this documentation. REPORT-LOCAL-001 physical validation remains deferred/blocked; NEW-002 remains separate.
+
 ## 2026-10-01 CONF-001 production consumer
 
 The confidence/severity foundation now has a private report-detail consumer, with a versioned evidence API shared by native and web policy implementations. No additional scoring formula or calibration was invented: display explains distinct-drive support and canonical visual size, with unknown/manual/fixed limits. See [CONFIDENCE_SEVERITY.md](CONFIDENCE_SEVERITY.md) and the worklog for validation. Freshness windows and warning/road-health use remain undecided. The human explicitly authorized this package while REPORT-LOCAL-001 physical-device validation remains DEFERRED/BLOCKED and the overall task partially complete; earlier sequencing statements are historical. FRESH-001 requires its product policy decision next. NEW-002/release gates are unchanged.

@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-01 FRESH-001 decision preparation
+
+[FRESHNESS_DECISION.md](FRESHNESS_DECISION.md) documents the existing classifier, timestamp provenance, inclusive boundary contract, unknown/condition/manual constraints, affected components and validation needed after approval. Decision preparation is complete; FRESH-001 is BLOCKED on human-approved cutoffs and expired semantics, with no implementation or selected policy. CONF-001 remains complete. REPORT-LOCAL-001 remains PARTIALLY COMPLETE and DEFERRED/BLOCKED on physical validation. No production source, schema, fixture, threshold, release/signing, device evidence or NEW-002 file changed in this package.
+
 ## 2026-10-01 CONF-001 observation support and visual severity
 
 **Status: COMPLETE at source/JVM/browser level.** Focused JVM tests: three passed, zero failures/errors. Node evidence/original scoring parity and canonical/packaged Chromium detail/manual regressions passed. This does not claim physical-device deployment.

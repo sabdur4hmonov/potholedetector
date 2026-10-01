@@ -1,5 +1,9 @@
 # Product decisions
 
+## FRESH-001 freshness policy — pending human decision (2026-10-01)
+
+**NOT APPROVED.** [FRESHNESS_DECISION.md](FRESHNESS_DECISION.md) prepares the required fresh/aging cutoffs and planned expired-state choice, evidence, consequences and contracts. No product freshness window or expiry semantics have been selected. Existing one-day/seven-day fixture values remain test parameters. This pending entry does not change D0, manual-first eligibility, condition/repair rules or authorize FRESH-001 implementation.
+
 ## D0 — DETECT-001: manual-first detection path (2026-09-30)
 
 **Status: COMPLETE — human decision and acceptance contract recorded.** This completes the decision task, not REPORT-LOCAL-001 implementation or production verification. The user explicitly approved the following direction in this chat:

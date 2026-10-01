@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## 2026-10-01 FRESH-001 decision package
+
+The next future-product action is the human freshness-policy response in [FRESHNESS_DECISION.md](FRESHNESS_DECISION.md): approved fresh/aging age boundaries with rationale, and whether the planned expired state is included with its boundary and behavior. Preparation is complete; FRESH-001 implementation remains BLOCKED and not started. No cutoff is inferred from the one-day/seven-day fixture or 30-day matching horizon. Do not advance to a dependent task. REPORT-LOCAL-001 remains partially complete and DEFERRED/BLOCKED on physical-device validation. D0/CONF-001 and NEW-002/release gates are unchanged.
+
 ## 2026-10-01 authorized CONF-001 work package
 
 CONF-001 is complete at source/JVM/browser level; original scoring behavior and relevant regressions pass. Git preservation and validation details are recorded in the worklog.
