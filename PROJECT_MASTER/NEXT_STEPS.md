@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## 2026-10-01 device preparation ready — gate still OPEN/PENDING
+
+The exact next task remains **REPORT-LOCAL-001 physical-device validation**. When a supported, authorized Android phone is available, follow [REPORT_LOCAL_DEVICE_VALIDATION.md](REPORT_LOCAL_DEVICE_VALIDATION.md) using the recorded verified debug APK, synthetic geometry target and tested evidence/resource tool. Real camera, offline Android restart, export/media and performance observations are still required. Preparation does not pass any physical acceptance check or permit later product tasks. NEW-002 remains untouched.
+
 ## Latest future-product next action — REPORT-LOCAL-001 implementation
 
 REPORT-LOCAL-001 source/browser work is implemented and validated. The exact next future-product action remains **REPORT-LOCAL-001 device verification**: confirm real Android camera capture, offline save/review after app restart, bounded resource behavior and user-initiated export on a supported device. No device was connected or tested in this checkpoint; preserve the recorded blocker rather than retrying it. The task is partially complete overall; do not start CONF-001 or another task. Cloud/BYOK remains optional; source/browser evidence and limits are in PROJECT_STATUS.md and AGENT_WORKLOG.md. NEW-002/release work stays separate. Earlier NOT STARTED entries below are historical.

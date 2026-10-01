@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="white"/>
+  <rect x="8" y="8" width="784" height="584" fill="none" stroke="black" stroke-width="4"/>
+  <rect x="20" y="20" width="90" height="90" fill="#dc2626"/>
+  <text x="125" y="65" font-size="24">TOP LEFT / RED</text>
+  <circle cx="735" cy="65" r="45" fill="#16a34a"/>
+  <text x="440" y="65" font-size="24">TOP RIGHT / GREEN</text>
+  <path d="M20 575 L110 575 L65 485 Z" fill="#2563eb"/>
+  <text x="125" y="550" font-size="22">BOTTOM LEFT / BLUE</text>
+  <path d="M735 485 L780 530 L735 575 L690 530 Z" fill="#d97706"/>
+  <text x="410" y="550" font-size="22">BOTTOM RIGHT / ORANGE</text>
+  <text x="400" y="165" text-anchor="middle" font-size="22">PRINTABLE CAMERA GEOMETRY TARGET</text>
+  <text x="400" y="198" text-anchor="middle" font-size="18">Photograph all four markers and the complete outer border</text>
+  <ellipse cx="400" cy="325" rx="120" ry="75" fill="#777" stroke="black" stroke-width="8"/>
+  <path d="M270 320 L300 280 L340 305 L375 250 L405 275 L455 240 L470 280 L515 290 L530 330" fill="none" stroke="black" stroke-width="5"/>
+  <path d="M380 325 H420 M400 305 V345" stroke="white" stroke-width="4"/>
+  <text x="400" y="445" text-anchor="middle" font-size="20">SYNTHETIC DRAWING — NOT A REAL POTHOLE</text>
+  <text x="400" y="472" text-anchor="middle" font-size="16">Tests camera/evidence geometry only; establishes no detector accuracy</text>
+</svg>

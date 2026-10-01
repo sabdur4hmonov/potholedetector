@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-01 — REPORT-LOCAL-001 device-independent preparation
+
+Added a physical-device validation runbook/evidence matrix, a tested all-pending template and bounded read-only resource collector, and a printable synthetic camera target. Prepared and validated a baseline debug APK after refreshing missing generated assets. No product source, acceptance criteria, NEW-002 or release gate changed. Camera/Android-restart/device-performance acceptance remains OPEN/PENDING.
+
 ## 2026-09-30 — REPORT-LOCAL-001 source/browser implementation
 
 Added confirmed private manual pothole creation with no required key/network service, no-key onboarding/capture, truthful review and evidence export, and optional separate cloud analysis retaining the original. Preserved bounded whole-frame preparation, transaction completion, manual non-merge and cloud security limits. Added real-browser offline/restart/abort/privacy/Delete All coverage; updated canonical assets, mirrors/CSP, README and privacy disclosure. Android camera/device performance remains unverified; task partially complete overall. No NEW-002 work.
