@@ -1,5 +1,9 @@
 # Product implementation roadmap
 
+## 2026-10-01 CONF-001 production consumer
+
+The confidence/severity foundation now has a private report-detail consumer, with a versioned evidence API shared by native and web policy implementations. No additional scoring formula or calibration was invented: display explains distinct-drive support and canonical visual size, with unknown/manual/fixed limits. See [CONFIDENCE_SEVERITY.md](CONFIDENCE_SEVERITY.md) and the worklog for validation. Freshness windows and warning/road-health use remain undecided. The human explicitly authorized this package while REPORT-LOCAL-001 physical-device validation remains DEFERRED/BLOCKED and the overall task partially complete; earlier sequencing statements are historical. FRESH-001 requires its product policy decision next. NEW-002/release gates are unchanged.
+
 ## 2026-09-30 REPORT-LOCAL-001 implementation checkpoint
 
 The manual-first private offline pothole Photo path now exists in source and passes real Chromium/IndexedDB tests on canonical and packaged assets. Optional confirmed cloud analysis retains the manual report and produces a separate result. New manual copy and corrected no-key onboarding copy use existing English fallback until translation review; no Uzbekistan routing or language rollout is claimed. Actual Android camera/offline restart/resource evidence is still required, so REPORT-LOCAL-001 is partially complete overall. Finish that device verification before moving to the next task; NEW-002/release gates remain unchanged.

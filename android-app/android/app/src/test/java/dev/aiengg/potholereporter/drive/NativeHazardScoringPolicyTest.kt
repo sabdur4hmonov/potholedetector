@@ -19,8 +19,11 @@ class NativeHazardScoringPolicyTest {
         isReportable = (value(defaults, patch, "is_reportable") as Number).toInt(),
         debugCapture = value(defaults, patch, "debug_capture") as Boolean,
         driveId = value(defaults, patch, "drive_id") as String?,
-        sightingDriveIdsJson = (value(defaults, patch, "sighting_drive_ids") as JSONArray).toString(),
+        sightingDriveIdsJson = value(defaults, patch, "sighting_drive_ids").toString(),
         seenCount = (value(defaults, patch, "seen_count") as Number).toInt(),
+        measurementConfidence = value(defaults, patch, "measurement_confidence") as? String
+            ?: "not_applicable",
+        imageQuality = value(defaults, patch, "image_quality") as? String,
         lastSeenAt = (value(defaults, patch, "last_seen_at") as? Number)?.toLong(),
         size = value(defaults, patch, "size") as String?
     )
@@ -65,5 +68,29 @@ class NativeHazardScoringPolicyTest {
     @Test(expected = IllegalArgumentException::class)
     fun freshnessWindowMustBeExplicitAndOrdered() {
         HazardFreshnessWindow(10, 10)
+    }
+
+    @Test fun sharedEvidenceCasesWithoutFreshnessPolicy() {
+        val stream = requireNotNull(javaClass.classLoader?.getResourceAsStream("hazard-evidence-v1.json"))
+        val fixture = JSONObject(stream.bufferedReader().use { it.readText() })
+        assertEquals(1, fixture.getInt("version"))
+        val defaults = fixture.getJSONObject("defaults").put("last_seen_at", JSONObject.NULL)
+        val cases = fixture.getJSONArray("cases")
+        assertEquals(18, cases.length())
+        for (index in 0 until cases.length()) {
+            val row = cases.getJSONObject(index)
+            val patch = row.getJSONObject("report")
+            val input = report(defaults, patch)
+            val condition = value(defaults, patch, "condition_status") as String?
+            val first = NativeHazardScoringPolicy.evidence(input, condition)
+            val id = row.getString("id")
+            assertEquals(id, "hazard-evidence-v1", first.policyVersion)
+            assertEquals(id, row.getString("confidence"), first.confidence.name.lowercase())
+            assertEquals(id, row.getString("severity"), first.severity.name.lowercase())
+            assertEquals(id, row.getInt("drives"), first.independentDriveCount)
+            assertEquals(id, if (row.isNull("fixed")) null else row.getBoolean("fixed"), first.isFixed)
+            assertEquals(id, first, NativeHazardScoringPolicy.evidence(input, condition))
+            assertTrue(id, first.confidence.rank in 0..2 && first.severity.rank in 0..3)
+        }
     }
 }

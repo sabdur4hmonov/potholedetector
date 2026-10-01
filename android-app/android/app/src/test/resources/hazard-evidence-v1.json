@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "defaults": {"decision":"accept","is_pothole":1,"is_reportable":1,"debug_capture":false,"drive_id":"a","sighting_drive_ids":["a"],"seen_count":1,"size":"medium","condition_status":"open"},
+  "cases": [
+    {"id":"clear_observation","report":{},"confidence":"single_observation","severity":"medium","drives":1,"fixed":false},
+    {"id":"distinct_drives","report":{"sighting_drive_ids":["a","b"]},"confidence":"independent_reobservation","severity":"medium","drives":2,"fixed":false},
+    {"id":"weak_is_not_probability","report":{"measurement_confidence":"low","image_quality":"borderline"},"confidence":"single_observation","severity":"medium","drives":1,"fixed":false},
+    {"id":"missing_size","report":{"size":null},"confidence":"single_observation","severity":"unknown","drives":1,"fixed":false},
+    {"id":"conflicting_binary_gate","report":{"is_pothole":0,"sighting_drive_ids":["a","b"]},"confidence":"unknown","severity":"unknown","drives":2,"fixed":false},
+    {"id":"conflicting_decision","report":{"decision":"review","size":"large"},"confidence":"unknown","severity":"unknown","drives":1,"fixed":false},
+    {"id":"invalid_visual_class","report":{"size":"deep"},"confidence":"single_observation","severity":"unknown","drives":1,"fixed":false},
+    {"id":"empty_drives","report":{"drive_id":null,"sighting_drive_ids":[]},"confidence":"single_observation","severity":"medium","drives":0,"fixed":false},
+    {"id":"duplicate_blank_invalid_drives","report":{"sighting_drive_ids":["a","a",""," ","b",null,7]},"confidence":"independent_reobservation","severity":"medium","drives":2,"fixed":false},
+    {"id":"malformed_drive_list","report":{"sighting_drive_ids":"bad"},"confidence":"single_observation","severity":"medium","drives":1,"fixed":false},
+    {"id":"manual_private","report":{"decision":"manual","is_pothole":0,"size":null,"drive_id":null,"sighting_drive_ids":[],"report_origin":"user_reported"},"confidence":"unknown","severity":"unknown","drives":0,"fixed":false},
+    {"id":"debug","report":{"debug_capture":true},"confidence":"unknown","severity":"unknown","drives":1,"fixed":false},
+    {"id":"fixed_historical","report":{"condition_status":"fixed","size":"large"},"confidence":"single_observation","severity":"large","drives":1,"fixed":true},
+    {"id":"unknown_condition","report":{"condition_status":"unrecognized"},"confidence":"single_observation","severity":"medium","drives":1,"fixed":null},
+    {"id":"extreme_replay_count","report":{"seen_count":2147483647},"confidence":"single_observation","severity":"medium","drives":1,"fixed":false},
+    {"id":"small_boundary","report":{"size":"small"},"confidence":"single_observation","severity":"small","drives":1,"fixed":false},
+    {"id":"missing_decision","report":{"decision":null},"confidence":"unknown","severity":"unknown","drives":1,"fixed":false},
+    {"id":"not_reportable","report":{"is_reportable":0},"confidence":"unknown","severity":"unknown","drives":1,"fixed":false}
+  ]
+}

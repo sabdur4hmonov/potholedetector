@@ -1,5 +1,11 @@
 # Current project status
 
+## 2026-10-01 CONF-001 observation support and visual severity
+
+**Status: COMPLETE at source/JVM/browser level.** Focused JVM tests: three passed, zero failures/errors. Node evidence/original scoring parity and canonical/packaged Chromium detail/manual regressions passed. This does not claim physical-device deployment.
+
+CONF-001 exposes the completed scoring foundation's confidence/severity portion without requiring a freshness window and displays it in private report detail on canonical, Android WebView and hosted assets. Categories remain ordinal: distinct drives are reobservations, not independent people or an accuracy probability; severity is a visual size estimate. Incomplete/conflicting eligibility, manual-first and debug reports remain unknown; fixed evidence is historical. No detection/matching threshold, stored field, cloud behavior or scoring fixture changed. Validation results and limits are in the latest worklog and [CONFIDENCE_SEVERITY.md](CONFIDENCE_SEVERITY.md). Under explicit human authorization, REPORT-LOCAL-001 remains PARTIALLY COMPLETE and DEFERRED/BLOCKED on physical-device validation while CONF-001 proceeds. Exact next task: FRESH-001 after a separate freshness-policy decision. NEW-002, signing, release and physical evidence remain untouched. Earlier queue statements below describe their historical checkpoints.
+
 ## 2026-10-01 REPORT-LOCAL-001 device-independent preparation
 
 [REPORT_LOCAL_DEVICE_VALIDATION.md](REPORT_LOCAL_DEVICE_VALIDATION.md) now contains the physical-device procedure, acceptance evidence matrix, debug APK identity and limits. A tested read-only resource collector and all-pending template generator are in `tools/report-local-device-evidence.py`; a printable synthetic camera target supports edge-to-edge evidence inspection. The existing offline debug build and a changed-assets rebuild completed; the final APK passed CRC, metadata, debug signature and packaged asset checks. Product/native tracked sources remain at the `92ccf4a` baseline. This is debug preparation, not proof of clean reproducibility, NEW-002 provenance or device behavior. **REPORT-LOCAL-001 remains PARTIALLY COMPLETE; physical-device gate OPEN/PENDING.** Phone availability, actual camera/offline Android restart/export/resources evidence remain required. No later task or NEW-002 work started.

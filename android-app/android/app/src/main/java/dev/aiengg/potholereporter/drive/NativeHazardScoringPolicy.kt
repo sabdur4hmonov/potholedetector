@@ -33,15 +33,20 @@ internal data class HazardScore(
     val isFixed: Boolean?
 )
 
+internal data class HazardEvidence(
+    val confidence: HazardConfidence,
+    val severity: HazardSeverity,
+    val independentDriveCount: Int,
+    val isFixed: Boolean?,
+    val policyVersion: String = "hazard-evidence-v1"
+)
+
 /** Derived snapshot only. It never changes matching, repair state, or persisted reports. */
 internal object NativeHazardScoringPolicy {
-    fun score(
+    fun evidence(
         report: ReportEntity,
-        referenceAtSeconds: Long,
-        window: HazardFreshnessWindow,
         conditionStatus: String? = null
-    ): HazardScore {
-        require(referenceAtSeconds >= 0)
+    ): HazardEvidence {
         val accepted = report.decision == "accept" && report.isPothole == 1 &&
             report.isReportable == 1 && !report.debugCapture
         val driveIds = buildList {
@@ -60,14 +65,6 @@ internal object NativeHazardScoringPolicy {
             driveIds.size >= 2 -> HazardConfidence.INDEPENDENT_REOBSERVATION
             else -> HazardConfidence.SINGLE_OBSERVATION
         }
-        val observedAt = report.lastSeenAt
-        val freshness = when {
-            !accepted || observedAt == null || observedAt <= 0 || observedAt > referenceAtSeconds ->
-                HazardFreshness.UNKNOWN
-            referenceAtSeconds - observedAt <= window.freshThroughSeconds -> HazardFreshness.FRESH
-            referenceAtSeconds - observedAt <= window.staleAfterSeconds -> HazardFreshness.AGING
-            else -> HazardFreshness.STALE
-        }
         val severity = if (!accepted) HazardSeverity.UNKNOWN else when (report.size) {
             "small" -> HazardSeverity.SMALL
             "medium" -> HazardSeverity.MEDIUM
@@ -79,6 +76,26 @@ internal object NativeHazardScoringPolicy {
             "open", "repair_review" -> false
             else -> null
         }
-        return HazardScore(confidence, freshness, severity, driveIds.size, isFixed)
+        return HazardEvidence(confidence, severity, driveIds.size, isFixed)
+    }
+
+    fun score(
+        report: ReportEntity,
+        referenceAtSeconds: Long,
+        window: HazardFreshnessWindow,
+        conditionStatus: String? = null
+    ): HazardScore {
+        require(referenceAtSeconds >= 0)
+        val evidence = evidence(report, conditionStatus)
+        val observedAt = report.lastSeenAt
+        val freshness = when {
+            evidence.confidence == HazardConfidence.UNKNOWN || observedAt == null ||
+                observedAt <= 0 || observedAt > referenceAtSeconds -> HazardFreshness.UNKNOWN
+            referenceAtSeconds - observedAt <= window.freshThroughSeconds -> HazardFreshness.FRESH
+            referenceAtSeconds - observedAt <= window.staleAfterSeconds -> HazardFreshness.AGING
+            else -> HazardFreshness.STALE
+        }
+        return HazardScore(evidence.confidence, freshness, evidence.severity,
+            evidence.independentDriveCount, evidence.isFixed)
     }
 }

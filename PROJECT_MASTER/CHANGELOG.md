@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-01 — CONF-001
+
+Exposed existing categorical confidence/severity as a versioned native/web evidence snapshot without selecting freshness cutoffs. Added conservative private report-detail explanations, an 18-case shared evidence fixture, JVM/Node coverage and real Chromium consumer checks. Original scoring/matching/outbox contracts are preserved. Updated HTML mirrors/CSP hashes and the CSP script inventory guard for the existing local hazard-model module. REPORT-LOCAL-001 physical validation remains explicitly deferred/blocked; no NEW-002, release or physical-device work.
+
 ## 2026-10-01 — REPORT-LOCAL-001 device-independent preparation
 
 Added a physical-device validation runbook/evidence matrix, a tested all-pending template and bounded read-only resource collector, and a printable synthetic camera target. Prepared and validated a baseline debug APK after refreshing missing generated assets. No product source, acceptance criteria, NEW-002 or release gate changed. Camera/Android-restart/device-performance acceptance remains OPEN/PENDING.

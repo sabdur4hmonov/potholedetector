@@ -397,7 +397,7 @@ Each phase card names its objective/why, prerequisites and dependencies, tasks, 
 ### CONF-001
 
 - **Title:** Derive conservative confidence and severity from existing observations.
-- **Phase:** 3. **Priority:** P1. **Status:** PLANNED.
+- **Phase:** 3. **Priority:** P1. **Status:** COMPLETE at source/JVM/browser level (2026-10-01); no device/release claim.
 - **Dependencies:** CORE-002; DETECT-001 decision for calibration targets.
 - **Repository areas:** pure Kotlin hazard policy, small static hazard model, report detail. **Existing code to reuse:** seenCount, distinct drive IDs, GPS accuracy, damage type, size estimate and condition.
 - **Implementation steps:** Define bounded, explainable formula and unknown state; implement mirror functions with one shared fixture; do not persist initially.
@@ -405,8 +405,9 @@ Each phase card names its objective/why, prerequisites and dependencies, tasks, 
 - **Acceptance criteria:** Deterministic score/label; independent confirmation contributes more than repeated same-drive sighting; visual severity is labeled an estimate.
 - **Security/privacy constraints:** No inference of exact physical dimensions, no network or private-route exposure.
 - **Documentation updates:** Status, scoring specification, roadmap and worklog.
+- **Implementation/evidence:** [CONFIDENCE_SEVERITY.md](CONFIDENCE_SEVERITY.md) specifies `hazard-evidence-v1`, extracted from the existing scoring foundation without changing original score outputs. Native/web evidence parity covers 18 new vectors; original 18 scoring vectors remain unchanged. Report detail consumes observation-support and visual-size categories with unknown/manual/fixed explanations; real Chromium tests pass on canonical and packaged assets offline. Focused JVM tests pass with incremental compilation disabled after a stale-module visibility failure. No numeric calibration, freshness cutoffs, matching/inference thresholds or persisted fields added. Explicit human authorization defers REPORT-LOCAL-001 physical validation for this package; its task stays partially complete and DEFERRED/BLOCKED. NEW-002 remains separate.
 - **Stop conditions:** Missing calibration evidence or misleading public wording.
-- **Next task:** FRESH-001.
+- **Next task:** FRESH-001 after a separate approved freshness-policy/cutoff decision; do not promote fixture windows to product policy.
 
 ### FRESH-001
 

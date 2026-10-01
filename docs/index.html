@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-hfaVajX6RNKxOqyH1JsEnujVbF5QbzE1fppnjFI2bMQ='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-alMgFglTmLTaMAlOyaPUSj9LtMAekaj5T3g0uYO4LOg='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org https://kgis.ksrsac.in https://tgrac.telangana.gov.in https://coding-parrot.github.io/pothole-reporter/; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-QFgxQ8aYOKCqatJNLHxKP9WMykEfHBJA2rZl0drg/Wk='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-alMgFglTmLTaMAlOyaPUSj9LtMAekaj5T3g0uYO4LOg='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org https://kgis.ksrsac.in https://tgrac.telangana.gov.in https://coding-parrot.github.io/pothole-reporter/; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -268,6 +268,7 @@
 
 <script src="vendor/leaflet.js"></script>
 <script src="standalone.js"></script>
+<script src="hazard-model.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const INITIAL_SETUP_KEY = "initial_setup_complete";
@@ -331,6 +332,15 @@ const I18N = {
     drive_btn: "&#128663; &nbsp;Drive",
     your_reports: "Your reports",
     no_reports: "No reports yet.",
+    evidence_confidence: "Observation support",
+    evidence_unknown: "Unknown / insufficient accepted evidence",
+    evidence_single: "Single observation; no corroborating drive",
+    evidence_reobserved: "Reobserved across distinct drives",
+    evidence_limits: "Distinct drives do not establish independent people or a probability of accuracy. Repeated sightings on one drive do not increase this category.",
+    evidence_severity: "Visual severity estimate",
+    evidence_size_limits: "Based on the saved visual size class; no physical depth, area or safety rating is measured.",
+    evidence_manual: "User-reported; AI observation support and visual severity remain unknown.",
+    evidence_fixed: "Historical observation evidence; current condition is fixed.",
     banner_setup: "Photo works offline without a key. An OpenAI API key is optional for cloud analysis and Drive.",
     settings_title: "Settings",
     key_label: "OpenAI API key (sent to OpenAI as the credential)",
@@ -2024,6 +2034,23 @@ $("portalCopyAll").onclick = async () => {
   } catch (e) { alert(e.message || e); }
 };
 
+function hazardEvidenceHtml(r) {
+  if (!isRoadReport(r)) return "";
+  const evidence = HazardModel.deriveHazardEvidence(r);
+  const confidenceKey = evidence.confidence === "independent_reobservation"
+    ? "evidence_reobserved" : evidence.confidence === "single_observation"
+    ? "evidence_single" : "evidence_unknown";
+  const manual = r.report_origin === "user_reported" || r.decision === "manual";
+  return `<div class="meta" data-hazard-evidence="${evidence.policy_version}">
+    <div>${escapeHtml(t("evidence_confidence"))}: ${escapeHtml(t(confidenceKey))}</div>
+    <div>${escapeHtml(t("evidence_severity"))}: ${escapeHtml(evidence.severity === "unknown"
+      ? t("evidence_unknown") : tSize(evidence.severity))}</div>
+    <div>${escapeHtml(t(manual ? "evidence_manual" : "evidence_limits"))}</div>
+    <div>${escapeHtml(t("evidence_size_limits"))}</div>
+    ${evidence.is_fixed === true ? `<div>${escapeHtml(t("evidence_fixed"))}</div>` : ""}
+  </div>`;
+}
+
 function openDetail(r, list) {
   if (list) { detailList = list; detailIdx = list.findIndex((x) => x.id === r.id); }
   else if (!detailList.some((x) => x.id === r.id)) { detailList = [r]; detailIdx = 0; }
@@ -2036,6 +2063,7 @@ function openDetail(r, list) {
       <div class="card">
         ${photoBlock(r)}
         ${captureProvenanceHtml(r)}
+        ${hazardEvidenceHtml(r)}
         <div class="verdict" style="color:var(--accent)">
           ${escapeHtml(detectionVerdict(r))}
         </div>
@@ -2060,6 +2088,7 @@ function openDetail(r, list) {
       <div class="card">
         ${photoBlock(r)}
         ${captureProvenanceHtml(r)}
+        ${hazardEvidenceHtml(r)}
         <div class="verdict" style="color:${r.status === "review" ? "var(--accent)" : "var(--bad)"}">${escapeHtml(detectionVerdict(r))}</div>
         <div>${chip(r.status, r)} ${conditionChip(r)}</div>
         <div class="meta">${escapeHtml(r.description || "")}</div>
@@ -2124,6 +2153,7 @@ function openDetail(r, list) {
       <div class="card">
         ${photoBlock(r)}
         ${captureProvenanceHtml(r)}
+        ${hazardEvidenceHtml(r)}
         <div class="verdict" style="color:${sent || fixed ? "var(--ok)" : "var(--accent)"}">
           ${escapeHtml(verdictText)}
         </div>

@@ -1,5 +1,11 @@
 # Next steps from the preserved tree
 
+## 2026-10-01 authorized CONF-001 work package
+
+CONF-001 is complete at source/JVM/browser level; original scoring behavior and relevant regressions pass. Git preservation and validation details are recorded in the worklog.
+
+The human explicitly deferred REPORT-LOCAL-001 physical validation and authorized CONF-001 source work. REPORT-LOCAL-001 remains PARTIALLY COMPLETE, DEFERRED/BLOCKED on a supported physical Android device; preparation and browser/JVM checks do not close it. CONF-001 exposes and displays existing confidence/severity categories without a new formula or freshness policy; see [CONFIDENCE_SEVERITY.md](CONFIDENCE_SEVERITY.md). The next task is FRESH-001, whose user-visible freshness policy/cutoffs require a separate product decision; existing fixture windows remain test parameters. Do not start FRESH-001 here. Earlier instructions barring later tasks are historical and superseded only for the explicitly authorized CONF-001 package. D0, NEW-002 and release gates are unchanged.
+
 ## 2026-10-01 device preparation ready — gate still OPEN/PENDING
 
 The exact next task remains **REPORT-LOCAL-001 physical-device validation**. When a supported, authorized Android phone is available, follow [REPORT_LOCAL_DEVICE_VALIDATION.md](REPORT_LOCAL_DEVICE_VALIDATION.md) using the recorded verified debug APK, synthetic geometry target and tested evidence/resource tool. Real camera, offline Android restart, export/media and performance observations are still required. Preparation does not pass any physical acceptance check or permit later product tasks. NEW-002 remains untouched.

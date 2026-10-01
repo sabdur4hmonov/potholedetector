@@ -1,5 +1,9 @@
 # FUTURE-SCORING-001: hazard scoring foundation
 
+## 2026-10-01 CONF-001 consumer
+
+CONF-001 now exposes the existing confidence/severity dimensions as `hazard-evidence-v1` and displays explained observation support and visual severity in report detail. The original score outputs and 18 shared vectors are unchanged. See [CONFIDENCE_SEVERITY.md](CONFIDENCE_SEVERITY.md). This consumes no freshness policy and adds no warning/map/road-health scoring. Statements below about no production consumer describe the original foundation checkpoint.
+
 This task adds a deterministic, report-derived scoring snapshot for native and web consumers. It does not change report matching, storage, warnings, map display, or repair workflow. The shared cases live in `android-app/android/app/src/test/resources/hazard-scoring-v1.json`; `NativeHazardScoringPolicyTest` and `tests/hazard_scoring_parity_test.cjs` consume the same file.
 
 ## Contract
