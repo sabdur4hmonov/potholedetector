@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## 2026-10-01 TRIP-001 display-only package complete
+
+The authorized independent TRIP-001 private dashboard slice is complete at source/Node/browser level; [TRIP_STATISTICS.md](TRIP_STATISTICS.md) documents its versioned bounds and limits. The exact next trip work package is **TRIP-002**, BLOCKED until the human records D1 retention/opt-out/minimization policy. Obtain D1 before implementation; no route history, new retained fields or defaults are authorized. FRESH-001 independently remains BLOCKED on the [freshness decision](FRESHNESS_DECISION.md). REPORT-LOCAL-001 remains PARTIALLY COMPLETE and DEFERRED/BLOCKED on physical validation. NEW-002 stays separate. Earlier checkpoint sequencing below is historical; this cycle authorized only one independent implementation package.
+
 ## 2026-10-01 FRESH-001 decision package
 
 The next future-product action is the human freshness-policy response in [FRESHNESS_DECISION.md](FRESHNESS_DECISION.md): approved fresh/aging age boundaries with rationale, and whether the planned expired state is included with its boundary and behavior. Preparation is complete; FRESH-001 implementation remains BLOCKED and not started. No cutoff is inferred from the one-day/seven-day fixture or 30-day matching horizon. Do not advance to a dependent task. REPORT-LOCAL-001 remains partially complete and DEFERRED/BLOCKED on physical-device validation. D0/CONF-001 and NEW-002/release gates are unchanged.

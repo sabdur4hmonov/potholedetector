@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-01 — TRIP-001
+
+Added bounded pure sampled GPS statistics and a private offline dashboard consumer with unavailable/partial coverage and uncertainty labels. No persistence, route display, upload, speed gamification or native/scoring change. Added numerical/unit and real-browser/IndexedDB checks; synchronized hosted/Android mirrors, CSP hashes and script inventory. TRIP-002 remains blocked on D1; FRESH-001 and physical REPORT-LOCAL-001 gates remain open. No NEW-002, build/release or device work.
+
 ## 2026-10-01 — FRESH-001 decision preparation
 
 Prepared the freshness-policy decision brief from existing roadmap/source/fixture evidence, clarified inclusive boundaries and timestamp/condition constraints, and recorded FRESH-001 as blocked pending human-approved cutoffs and expired semantics. Documentation only; no policy chosen or implementation started. REPORT-LOCAL-001 physical validation remains deferred/blocked and NEW-002 remains untouched.

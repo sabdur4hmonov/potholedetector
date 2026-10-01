@@ -483,7 +483,7 @@ Each phase card names its objective/why, prerequisites and dependencies, tasks, 
 ### TRIP-001
 
 - **Title:** Derive private drive statistics from the existing GPS track.
-- **Phase:** 5. **Priority:** P2. **Status:** PLANNED, with persistence blocked on D1.
+- **Phase:** 5. **Priority:** P2. **Status:** COMPLETE at source/Node/browser level for the non-persisting private dashboard slice; persistence/route history remains blocked on D1. See [TRIP_STATISTICS.md](TRIP_STATISTICS.md).
 - **Dependencies:** CORE-002; D1 for retaining/displaying route history beyond current behavior.
 - **Repository areas:** new pure static trip-stats module and existing dashboard/drive views. **Existing code to reuse:** trackKm, gps_track shape and getDrives.
 - **Implementation steps:** Apply accuracy and jump filters; compute distance, moving time, average moving speed and private max speed; label unavailable/uncertain values.

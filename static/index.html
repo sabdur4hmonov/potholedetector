@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-QFgxQ8aYOKCqatJNLHxKP9WMykEfHBJA2rZl0drg/Wk='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-alMgFglTmLTaMAlOyaPUSj9LtMAekaj5T3g0uYO4LOg='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org https://kgis.ksrsac.in https://tgrac.telangana.gov.in https://coding-parrot.github.io/pothole-reporter/; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-MLt/8tpLcvKj+NMAo6HfEa58YYSSR8diQ7DgAG57esA='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-alMgFglTmLTaMAlOyaPUSj9LtMAekaj5T3g0uYO4LOg='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org https://kgis.ksrsac.in https://tgrac.telangana.gov.in https://coding-parrot.github.io/pothole-reporter/; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -269,6 +269,7 @@
 <script src="vendor/leaflet.js"></script>
 <script src="standalone.js"></script>
 <script src="hazard-model.js"></script>
+<script src="trip-stats.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const INITIAL_SETUP_KEY = "initial_setup_complete";
@@ -341,6 +342,13 @@ const I18N = {
     evidence_size_limits: "Based on the saved visual size class; no physical depth, area or safety rating is measured.",
     evidence_manual: "User-reported; AI observation support and visual severity remain unknown.",
     evidence_fixed: "Historical observation evidence; current condition is fixed.",
+    trip_distance: "Estimated sampled km",
+    trip_moving: "Estimated moving minutes",
+    trip_average: "Estimated moving km/h",
+    trip_peak: "Peak sampled km/h (private)",
+    trip_unknown: "Unavailable",
+    trip_limits: "Private estimates from sampled GPS, after accuracy and jump filtering. Gaps and uncertain movement are omitted; these are not total journey distance or measured peak speed. No route is shown or uploaded.",
+    trip_partial: "Partial GPS coverage or calculation limit reached.",
     banner_setup: "Photo works offline without a key. An OpenAI API key is optional for cloud analysis and Drive.",
     settings_title: "Settings",
     key_label: "OpenAI API key (sent to OpenAI as the credential)",
@@ -5505,7 +5513,9 @@ async function openDash() {
   const sent = reports.filter((r) => r.status === "sent").length;
   const frames = drives.reduce((n, d) => n + (d.checked || 0), 0) || roadReports.length;
   const mb = footage.reduce((n, f) => n + f.bytes, 0) / 1048576;
-  const km = drives.reduce((n, d) => n + trackKm(d.gps_track || []), 0);
+  const trip = TripStats.summarizeDrives(drives);
+  const tripValue = (value, scale = 1) => value == null ? escapeHtml(t("trip_unknown"))
+    : (value * scale).toFixed(1);
 
   const days = new Set(holes.map((r) => new Date(r.created_at * 1000).toDateString())).size;
   const first = holes.length ? fmtDate(Math.min(...holes.map((r) => r.created_at))) : "";
@@ -5520,7 +5530,12 @@ async function openDash() {
     tile(holes.length, t("stat_found")) + tile(sent, t("stat_reported")) +
     tile(fixedCount, t("stat_fixed")) +
     tile(frames, t("stat_frames")) + tile(drives.length, t("stat_drives")) +
-    tile(km.toFixed(1), t("stat_km")) + tile(mb.toFixed(0), t("stat_footage"));
+    tile(tripValue(trip.distance_m, 0.001), t("trip_distance")) + tile(mb.toFixed(0), t("stat_footage")) +
+    tile(tripValue(trip.moving_time_s, 1 / 60), t("trip_moving")) +
+    tile(tripValue(trip.avg_moving_speed_mps, 3.6), t("trip_average")) +
+    tile(tripValue(trip.max_interval_speed_mps, 3.6), t("trip_peak")) +
+    `<div class="meta" data-trip-coverage="${trip.coverage}">${escapeHtml(t("trip_limits"))}
+      ${trip.coverage === "partial" ? escapeHtml(t("trip_partial")) : ""}</div>`;
 
   const bars = (title, counts) => {
     const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]);

@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-01 TRIP-001 private sampled statistics
+
+TRIP-001's display-only slice is COMPLETE at source/Node/browser level. The existing dashboard now shows bounded filtered sampled distance, moving minutes, time-weighted average moving speed and private peak sampled speed from existing tracks, with unavailable/partial coverage and explicit uncertainty. No new persistence, route UI, native computation, sharing or upload. See [TRIP_STATISTICS.md](TRIP_STATISTICS.md) and the worklog for contract, bounds and validation. This independently executable Phase 1 slice was explicitly authorized while blocked tasks remain deferred. Exact next task: TRIP-002 only after human D1 retention/opt-out/minimization approval. FRESH-001 remains BLOCKED on human policy approval; REPORT-LOCAL-001 remains PARTIALLY COMPLETE and DEFERRED/BLOCKED on physical Android validation. NEW-002, release/signing and device evidence are untouched. No build/device/field-calibration claim.
+
 ## 2026-10-01 FRESH-001 decision preparation
 
 [FRESHNESS_DECISION.md](FRESHNESS_DECISION.md) documents the existing classifier, timestamp provenance, inclusive boundary contract, unknown/condition/manual constraints, affected components and validation needed after approval. Decision preparation is complete; FRESH-001 is BLOCKED on human-approved cutoffs and expired semantics, with no implementation or selected policy. CONF-001 remains complete. REPORT-LOCAL-001 remains PARTIALLY COMPLETE and DEFERRED/BLOCKED on physical validation. No production source, schema, fixture, threshold, release/signing, device evidence or NEW-002 file changed in this package.

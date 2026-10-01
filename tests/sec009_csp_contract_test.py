@@ -65,6 +65,8 @@ class Sec009CspTest(unittest.TestCase):
             self.assertLess(position, self.text.index(marker))
         for entry in ENTRIES[1:]:
             self.assertEqual(ENTRIES[0].read_bytes(), entry.read_bytes(), str(entry))
+            self.assertEqual((ENTRIES[0].parent / "trip-stats.js").read_bytes(),
+                             (entry.parent / "trip-stats.js").read_bytes(), str(entry))
 
     def test_script_hash_matches_browser_normalized_content(self):
         scripts = [b for b in self.parsed.blocks["script"] if b.strip()]
@@ -89,13 +91,13 @@ class Sec009CspTest(unittest.TestCase):
     def test_app_execution_needs_no_dynamic_code_or_remote_scripts(self):
         javascript = "\n".join(self.parsed.blocks["script"]) + "\n".join(
             (ROOT / "static" / name).read_text(encoding="utf-8")
-            for name in ("standalone.js", "hazard-model.js"))
+            for name in ("standalone.js", "hazard-model.js", "trip-stats.js"))
         for pattern in (r"\beval\s*\(", r"\bnew\s+Function\s*\(", r"\bWebSocket\s*\(",
                         r"\bEventSource\s*\(", r"createElement\(\s*['\"]script['\"]"):
             self.assertNotRegex(javascript, pattern)
         self.assertEqual([attrs["src"] for tag, attrs in self.parsed.tags
                           if tag == "script" and "src" in attrs],
-                         ["vendor/leaflet.js", "standalone.js", "hazard-model.js"])
+                         ["vendor/leaflet.js", "standalone.js", "hazard-model.js", "trip-stats.js"])
 
     def test_connections_are_explicit_and_cover_actual_requirements(self):
         values = self.csp["connect-src"]

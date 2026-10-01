@@ -1,5 +1,9 @@
 # Product implementation roadmap
 
+## 2026-10-01 TRIP-001 Phase 1 display-only slice
+
+The new pure trip-stats module computes private sampled distance, moving time, average moving speed and peak sampled speed from existing tracks, consumed in the existing dashboard. The same web calculation serves canonical, hosted and packaged Android assets; no service-side native mirror is needed. [TRIP_STATISTICS.md](TRIP_STATISTICS.md) records admission/resource bounds, partial/unavailable states and source/browser validation. No retained derived fields or route-history UI were added. Phase 1 display-only TRIP-001 is complete; Phase 2/TRIP-002 remains blocked on human D1. FRESH-001 remains blocked on human freshness policy and REPORT-LOCAL-001 remains partially complete/deferred pending physical-device acceptance; NEW-002 unchanged. Historical F6 missing average/max statistics below is superseded only for this dashboard slice.
+
 ## 2026-10-01 FRESH-001 decision preparation
 
 F8/FRESH-001 has an explicit [decision package](FRESHNESS_DECISION.md), not a selected decay policy. Existing fresh/aging/stale/unknown behavior is reusable; planned expired behavior needs an explicit choice, boundary and meaning. Human-approved cutoffs/rationale remain missing. Implementation and dependent freshness consumers are blocked; no fixture value or deduplication horizon becomes policy by this documentation. REPORT-LOCAL-001 physical validation remains deferred/blocked; NEW-002 remains separate.
