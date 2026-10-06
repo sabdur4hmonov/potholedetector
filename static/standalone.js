@@ -1,3 +1,28 @@
+// Show startup/runtime script errors on screen. Without this a script failure leaves a blank
+// page and nothing to report; this is the first script the page loads.
+(() => {
+  const note = (label, detail) => {
+    try {
+      let box = document.getElementById("bootErrorBox");
+      if (!box) {
+        box = document.createElement("pre");
+        box.id = "bootErrorBox";
+        box.style.cssText = "position:fixed;left:8px;right:8px;bottom:8px;max-height:40vh;overflow:auto;"
+          + "background:#3a1010;color:#ffd7d7;font:11px/1.4 monospace;padding:8px;border-radius:8px;"
+          + "z-index:99999;white-space:pre-wrap;margin:0";
+        (document.body || document.documentElement).appendChild(box);
+      }
+      if (box.textContent.length < 3000) box.textContent += label + ": " + detail + "\n";
+    } catch (_) {}
+  };
+  window.addEventListener("error", (e) => note("error", String(e.message) + " @ "
+    + String(e.filename || "").split("/").pop() + ":" + e.lineno + ":" + e.colno));
+  window.addEventListener("unhandledrejection", (e) => {
+    const r = e.reason;
+    note("promise", String(r && (r.stack || r.message) || r).slice(0, 500));
+  });
+})();
+
 // The app engine: the entire pipeline on-device, no server anywhere.
 // The page's api() delegates every call here.
 (() => {
