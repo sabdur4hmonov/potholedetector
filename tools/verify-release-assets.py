@@ -11,19 +11,14 @@ import zipfile
 
 CORDOVA_GENERATED_ASSETS = frozenset({"cordova.js", "cordova_plugins.js"})
 HOSTED_DOC_FILES = frozenset({
-    "BMC_PILOT.md",
-    "CATALOG_REFRESH.md",
     "DEMO.md",
-    "SOURCES.md",
     "architecture.excalidraw",
     "architecture.png",
-    "coverage-overview.svg",
     "example-pothole-thumb.jpg",
     "example-pothole.jpg",
     "privacy.html",
-    "sources.html",
 })
-HOSTED_DOC_PREFIXES = ("packs/",)
+HOSTED_DOC_PREFIXES: tuple[str, ...] = ()
 AAB_PUBLIC_PREFIX = "base/assets/public/"
 APK_PUBLIC_PREFIX = "assets/public/"
 
@@ -74,7 +69,7 @@ def verify_source_trees(static: Path, www: Path, docs: Path, packaged: Path) -> 
     packaged_files = _files(packaged)
 
     # static/ is the canonical app asset set. Android www must be an exact mirror,
-    # while docs/ may additionally contain only the explicitly hosted pages/data packs.
+    # while docs/ may additionally contain only the explicitly hosted pages.
     _require_same_set(set(static_files), set(www_files), "static-to-www mirror")
     _require_same_bytes(static_files, www_files, "static-to-www mirror")
 

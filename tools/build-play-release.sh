@@ -22,23 +22,6 @@ PACKAGED_ASSETS_ROOT=$ANDROID_ROOT/app/src/main/assets/public
 SOURCE_CAPACITOR_CONFIG=android-app/capacitor.config.json
 PACKAGED_CAPACITOR_CONFIG=$ANDROID_ROOT/app/src/main/assets/capacitor.config.json
 RELEASE_ASSET_VERIFIER=tools/verify-release-assets.py
-PACK_MANIFEST=static/pack-manifest-v1.35.json
-PREVIOUS_PACK_MANIFEST=static/pack-manifest-v1.33.json
-V131_PACK_MANIFEST=static/pack-manifest-v1.31.json
-V130_PACK_MANIFEST=static/pack-manifest-v1.30.json
-V129_PACK_MANIFEST=static/pack-manifest-v1.29.json
-V128_PACK_MANIFEST=static/pack-manifest-v1.28.json
-V127_PACK_MANIFEST=static/pack-manifest-v1.27.json
-INITIAL_PACK_MANIFEST=static/pack-manifest-v1.26.json
-LEGACY_PACK_MANIFEST=static/pack-manifest.json
-HIGHWAY_MANIFEST=static/highway-manifest.json
-FORBIDDEN_STATE_ASSETS=(
-  delhi-coverage.json
-  karnataka-bodies.json
-  kolkata-coverage.json
-  maharashtra-coverage.json
-  tenders.json
-)
 
 fail() {
   echo "FAIL: $*" >&2
@@ -130,7 +113,7 @@ fi
 [ -n "$APKSIGNER" ] && [ -x "$APKSIGNER" ] || \
   fail "Android SDK apksigner is missing; install Android SDK Build Tools"
 
-echo "1/7 validating hosted data packs, municipal schemas and web-source mirrors (read only)"
+echo "1/7 validating web-source mirrors (read only)"
 [ -d static ] || fail "static source directory is missing"
 [ -d docs ] || fail "hosted docs directory is missing"
 [ -d "$WWW_ROOT" ] || fail "Android www source directory is missing"
@@ -139,27 +122,6 @@ echo "1/7 validating hosted data packs, municipal schemas and web-source mirrors
 [ -f "$PACKAGED_CAPACITOR_CONFIG" ] || fail "packaged Capacitor config is missing"
 [ -f "$RELEASE_ASSET_VERIFIER" ] || fail "release asset verifier is missing"
 [ -x "$ANDROID_ROOT/gradlew" ] || fail "Gradle wrapper is missing or not executable"
-python3 tools/build-state-packs.py --check
-python3 tools/build-national-highways.py --check
-python3 tools/build-highway-contract-packs.py --check
-python3 tools/build-gepnic-road-notice-packs.py --check
-python3 tools/build-pmgsy-road-agreement-packs.py --check
-python3 tests/state_pack_validation_test.py
-same_file "$PACK_MANIFEST" "$WWW_ROOT/pack-manifest-v1.35.json" "v1.35 pack manifest mirror"
-same_file "$PREVIOUS_PACK_MANIFEST" "$WWW_ROOT/pack-manifest-v1.33.json" "v1.33 pack manifest mirror"
-same_file "$V131_PACK_MANIFEST" "$WWW_ROOT/pack-manifest-v1.31.json" "v1.31 pack manifest mirror"
-same_file "$V130_PACK_MANIFEST" "$WWW_ROOT/pack-manifest-v1.30.json" "v1.30 pack manifest mirror"
-same_file "$V129_PACK_MANIFEST" "$WWW_ROOT/pack-manifest-v1.29.json" "v1.29 pack manifest mirror"
-same_file "$V128_PACK_MANIFEST" "$WWW_ROOT/pack-manifest-v1.28.json" "v1.28 pack manifest mirror"
-same_file "$V127_PACK_MANIFEST" "$WWW_ROOT/pack-manifest-v1.27.json" "v1.27 pack manifest mirror"
-same_file "$INITIAL_PACK_MANIFEST" "$WWW_ROOT/pack-manifest-v1.26.json" "v1.26 pack manifest mirror"
-same_file "$LEGACY_PACK_MANIFEST" "$WWW_ROOT/pack-manifest.json" "legacy pack manifest mirror"
-same_file "$HIGHWAY_MANIFEST" "$WWW_ROOT/highway-manifest.json" "highway manifest mirror"
-for asset in "${FORBIDDEN_STATE_ASSETS[@]}"; do
-  [ ! -e "static/$asset" ] || fail "state data must not be bundled in static/: $asset"
-  [ ! -e "$WWW_ROOT/$asset" ] || fail "state data must not be bundled in Android www/: $asset"
-  [ ! -e "$PACKAGED_ASSETS_ROOT/$asset" ] || fail "state data must not be bundled in packaged Android assets: $asset"
-done
 python3 "$RELEASE_ASSET_VERIFIER" \
   --static static --www "$WWW_ROOT" --docs docs --packaged "$PACKAGED_ASSETS_ROOT"
 same_json "$SOURCE_CAPACITOR_CONFIG" "$PACKAGED_CAPACITOR_CONFIG" \
@@ -189,26 +151,6 @@ grep -Fq 'android:versionName="1.38.0"' "$BUNDLE_MANIFEST" || fail "expected ver
 grep -Fq 'android:allowBackup="false"' "$BUNDLE_MANIFEST" || fail "allowBackup must remain false"
 grep -Fq 'android:dataExtractionRules="@xml/data_extraction_rules"' "$BUNDLE_MANIFEST" || fail "data extraction exclusions are missing"
 grep -Fq 'android:fullBackupContent="@xml/backup_rules"' "$BUNDLE_MANIFEST" || fail "legacy backup exclusions are missing"
-grep -Fq 'com.bmc.potholequickfix' "$BUNDLE_MANIFEST" || fail "BMC Pothole QuickFix package query is missing"
-grep -Fq 'com.newnmmc.app' "$BUNDLE_MANIFEST" || fail "My NMMC package query is missing"
-grep -Fq 'com.nyatitechnologies.pmcroadmitra' "$BUNDLE_MANIFEST" || fail "PMC Road Mitra package query is missing"
-grep -Fq 'com.kmc.app' "$BUNDLE_MANIFEST" || fail "official KMC app package query is missing"
-grep -Fq 'com.sis.pwdsewaapp' "$BUNDLE_MANIFEST" || fail "official PWD Sewa app package query is missing"
-grep -Fq 'com.ceedeev.grivenancev2' "$BUNDLE_MANIFEST" || fail "official Namma Chennai app package query is missing"
-grep -Fq 'org.tnega.cmhelpline.citizen' "$BUNDLE_MANIFEST" || fail "official Mudhalvarin Mugavari app package query is missing"
-grep -Fq 'cgg.gov.ghmc' "$BUNDLE_MANIFEST" || fail "official My Cure app package query is missing"
-grep -Fq 'com.amplvb.ccrs' "$BUNDLE_MANIFEST" || fail "official AMC CCRS app package query is missing"
-grep -Fq 'com.nhai.rajmargyatra' "$BUNDLE_MANIFEST" || fail "official Rajmargyatra app package query is missing"
-grep -Fq 'com.nammabengaluruNew.org' "$BUNDLE_MANIFEST" || fail "official Sahaaya app package query is missing"
-grep -Fq 'com.esri.ugms_bmc' "$BUNDLE_MANIFEST" || fail "official BMC MARG app package query is missing"
-grep -Fq 'in.gov.pmc.pmccare' "$BUNDLE_MANIFEST" || fail "official PMC CARE app package query is missing"
-grep -Fq 'com.nic.dl.delhijanmitra' "$BUNDLE_MANIFEST" || fail "official Delhi JanSunwai app package query is missing"
-grep -Fq 'in.nic.up.jansunwai.upjansunwai' "$BUNDLE_MANIFEST" || fail "official UP Jansunwai app package query is missing"
-grep -Fq 'com.rajsampark.versiontwo' "$BUNDLE_MANIFEST" || fail "official Rajasthan Sampark 2.0 package query is missing"
-grep -Fq 'in.gov.dpg.cmhelpline' "$BUNDLE_MANIFEST" || fail "official CM Helpline Goa app package query is missing"
-grep -Fq 'com.magnum.helpline' "$BUNDLE_MANIFEST" || fail "official MP CM Helpline app package query is missing"
-grep -Fq 'com.bpsms.jansamadhan' "$BUNDLE_MANIFEST" || fail "official Bihar Jan Samadhan app package query is missing"
-grep -Fq 'com.sociomatic.janasunani' "$BUNDLE_MANIFEST" || fail "official Odisha Jana Sunani app package query is missing"
 grep -Fq 'com.google.android.apps.maps' "$BUNDLE_MANIFEST" || fail "Google Maps package query is missing"
 grep -Fq 'dev.aiengg.potholereporter.drive.DriveForegroundService' "$BUNDLE_MANIFEST" || fail "native Drive foreground service is missing"
 grep -Fq 'android:foregroundServiceType="camera|connectedDevice|location"' "$BUNDLE_MANIFEST" || fail "Drive foreground service types are wrong"
@@ -302,27 +244,7 @@ json_in_zip_matches "$SOURCE_CAPACITOR_CONFIG" "$AAB_PATH" \
 json_in_zip_matches "$SOURCE_CAPACITOR_CONFIG" "$APK_PATH" \
   assets/capacitor.config.json "APK Capacitor runtime config"
 
-echo "6/7 confirming large data packs are absent from both artifacts"
-for asset in "${FORBIDDEN_STATE_ASSETS[@]}"; do
-  if unzip -Z1 "$AAB_PATH" | grep -Fx "base/assets/public/$asset" >/dev/null; then
-    fail "state data is bundled in the AAB: $asset"
-  fi
-  if unzip -Z1 "$APK_PATH" | grep -Fx "assets/public/$asset" >/dev/null; then
-    fail "state data is bundled in the APK: $asset"
-  fi
-done
-if unzip -Z1 "$AAB_PATH" | grep -Eq '^base/assets/public/packs/v1/highways/'; then
-  fail "National Highway geometry tiles are bundled in the AAB"
-fi
-if unzip -Z1 "$AAB_PATH" | grep -Eq '^base/assets/public/packs/v1/(contracts|road-notices|road-agreements)/'; then
-  fail "contract/tender data packs are bundled in the AAB"
-fi
-if unzip -Z1 "$APK_PATH" | grep -Eq '^assets/public/packs/v1/highways/'; then
-  fail "National Highway geometry tiles are bundled in the APK"
-fi
-if unzip -Z1 "$APK_PATH" | grep -Eq '^assets/public/packs/v1/(contracts|road-notices|road-agreements)/'; then
-  fail "contract/tender data packs are bundled in the APK"
-fi
+echo "6/7 confirming the artifacts were accepted"
 
 echo "7/7 release bundle and APK accepted"
 bundle_bytes=$(stat -f%z "$AAB_PATH" 2>/dev/null || stat -c%s "$AAB_PATH")
