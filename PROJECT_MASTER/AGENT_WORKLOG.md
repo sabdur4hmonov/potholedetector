@@ -580,3 +580,15 @@ finding; none exists after NEW-002.
 * **Remaining blockers/exact next task:** on-device detector (needs labelled data and GPU), Uzbek translation review, device verification, privacy contact/Pages/app ID decisions.
 * **Commit/push:** work is on branch `remove-india`; main is updated only after CI is green.
 
+
+---
+
+## 2026-10-06 — Real-phone startup crash fix and emulator smoke job
+
+* **Date/time:** 2026-10-06 (Asia/Tashkent). **Agent/tool:** Claude (Sonnet 5.5) in a cloud sandbox; GitHub-hosted CI as the verification loop.
+* **Task/status:** Owner installed the CI debug APK on a phone: only the header and gear were visible, then Android showed a crash dialog. COMPLETE at emulator level (API 34 x86_64 in CI), not verified on a physical phone.
+* **Root cause:** `NativeCredentialPlugin` and `ManagedMediaPlugin` authorized every call with `bridge.webView.url`. Capacitor runs plugin methods on the `CapacitorPlugins` background thread and `WebView.getUrl()` throws off the main thread, so the first native call from the page killed the process (`FATAL EXCEPTION: CapacitorPlugins ... A WebView method was called on thread 'CapacitorPlugins'`). The code predates this session and had never run on a device.
+* **Fix:** `NativeBridgeAuthorization.mainDocumentUrl(webView)` reads the URL on the main thread (2 s timeout, fails closed with null); both plugins use it. The trusted-document policy itself is unchanged.
+* **Diagnostics added:** top-of-file on-screen JS error overlay in standalone.js (mirrored); CI job `android-emulator-smoke` (continue-on-error) that installs the debug APK, launches it, collects crash buffer, pid-filtered logcat, uiautomator text and WebView page state through the debugger, and publishes them as annotations; tools/emulator-smoke.sh.
+* **Validation:** before the fix the emulator showed `FATAL EXCEPTION` and no live pid; after the fix the process stays alive, no crash buffer, and the page reports no boot error with the first-run Settings screen shown. Main CI passed. No release build, signing, NEW-002/provenance or physical-device work.
+* **Remaining blockers/exact next task:** owner installs the new debug APK and confirms first-run Settings appears and Photo works; then the on-device detector training session (needs labelled data and GPU).

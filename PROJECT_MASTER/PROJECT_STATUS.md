@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-06 Startup crash fixed (emulator-verified only)
+
+The debug APK crashed at startup on a phone because native plugin authorization called `WebView.getUrl()` off the main thread. Fixed and verified on a CI emulator (process stays alive, first-run Settings renders, no boot error). Not yet verified on a physical phone.
+
 ## 2026-10-06 Uzbekistan refocus
 
 India-specific code, data, tests and UI are removed on branch `remove-india` (merged to main after CI is green). English and Uzbek UI, 7/30-day freshness chips and 30-day GPS-track retention are implemented and covered by `freshness_policy_test.py` and `track_retention_test.py` plus a JVM `TrackRetentionPolicyTest`. Not done: the on-device detector (needs training data and a GPU, see NEXT_STEPS), Uzbekistan hazards/speed cameras, physical-device verification of any of this. The Uzbek strings have not been reviewed by a native speaker. The privacy page needs GitHub Pages enabled and a contact address from the owner; the Android application ID is still the upstream `dev.aiengg.potholereporter`.

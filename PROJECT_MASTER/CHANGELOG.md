@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-06 — Startup crash fix
+
+Fixed an app-killing crash on first native call: plugin authorization read `WebView.getUrl()` on Capacitor's background thread. It now reads the URL on the main thread and fails closed. Added an on-screen JS error overlay and a CI emulator smoke job that launches the debug APK and reports crashes and page state.
+
 ## 2026-10-06 — Uzbekistan refocus (branch `remove-india`)
 
 Removed every India-specific route, authority pack, tender/complaint flow, handoff endpoint and the Kannada/Marathi/Bengali UI; the app now saves accepted detections as local drafts with photo, coordinates and street name, and offers English and O'zbekcha. Added the 7/30-day freshness chips (FRESH-001), 30-day GPS-track retention with per-drive deletion and opt-out (TRIP-002), a sync tool for the mirrored web assets, and rewrote the README, privacy policy, store-listing draft and demo notes. Tests were brought in line; AI-path browser tests now run the page as a native app with a mocked OpenAI bridge because browser builds refuse paid calls (SEC-006).
