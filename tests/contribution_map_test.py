@@ -83,7 +83,7 @@ def main():
     )
     tile_user_agent = capacitor.get("appendUserAgent", "")
     if not all(value in tile_user_agent for value in (
-        "PotholeReporter/", "coding-parrot.github.io/pothole-reporter", "contact@aiengg.dev"
+        "PotholeReporter/", "github.com/sabdur4hmonov/potholedetector"
     )):
         failures.append(f"Android map requests have no identifiable user agent: {tile_user_agent}")
     with sync_playwright() as playwright:

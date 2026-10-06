@@ -69,9 +69,7 @@ internal object NativeRepairContract {
             "sharpest current view. No current image is cropped, tiled, masked, or limited " +
             "to a region of interest."
         val languageNote = when (language) {
-            "kn" -> "\n- Write description in formal Kannada."
-            "mr" -> "\n- Write description in clear formal Marathi."
-            "bn" -> "\n- Write description in clear formal Bengali."
+            "uz" -> "\n- Write description in clear Uzbek (Latin script)."
             else -> ""
         }
         return PROMPT + layout + languageNote

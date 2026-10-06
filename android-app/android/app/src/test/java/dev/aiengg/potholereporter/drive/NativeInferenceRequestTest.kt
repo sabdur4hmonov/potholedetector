@@ -10,14 +10,14 @@ class NativeInferenceRequestTest {
     @Test
     fun detectionRequestIsTheExactJsonSentToOpenAi() {
         val urls = listOf("context", "early", "primary", "late")
-        val prompt = NativeDetectionContract.buildPrompt("mr", urls.size, primaryIndex = 1)
+        val prompt = NativeDetectionContract.buildPrompt("uz", urls.size, primaryIndex = 1)
         val request = buildDetectionRequest("gpt-5.6", "high", urls, prompt)
         val content = request.content()
 
         assertEquals("gpt-5.6", request.getString("model"))
         assertEquals(urls, (0 until 4).map { content.getJSONObject(it).getString("image_url") })
         assertEquals("high", content.getJSONObject(0).getString("detail"))
-        assertTrue(content.getJSONObject(4).getString("text").contains("formal Marathi"))
+        assertTrue(content.getJSONObject(4).getString("text").contains("clear Uzbek"))
         assertTrue(content.getJSONObject(4).getString("text").contains("4 supplied image(s)"))
         assertEquals("pothole_binary_assessment", request.schema().getString("name"))
         assertTrue(request.schema().getBoolean("strict"))

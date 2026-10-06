@@ -95,16 +95,15 @@ const assert = require('node:assert/strict');
       localStorage.setItem('sec002-probe', 'test-only');
       await StandaloneAPI.handle('/api/reports', { method: 'DELETE' });
       const db = await new Promise((resolve, reject) => {
-        const request = indexedDB.open('potholes', 6);
+        const request = indexedDB.open('potholes', 7);
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
       await new Promise((resolve, reject) => {
-        const tx = db.transaction(['reports', 'drives', 'footage', 'state_packs'], 'readwrite');
+        const tx = db.transaction(['reports', 'drives', 'footage'], 'readwrite');
         tx.objectStore('reports').put({ id: 9001, photo: new Blob(['test-only-photo']) });
         tx.objectStore('drives').put({ id: 'sec002-test-drive' });
         tx.objectStore('footage').put({ key: 'sec002-test-drive#1', drive_id: 'sec002-test-drive', blob: new Blob(['test-only-video']) });
-        tx.objectStore('state_packs').put({ cache_key: 'sec002-test-pack', blob: new Blob(['test-only-pack']) });
         tx.oncomplete = resolve; tx.onabort = () => reject(tx.error);
       });
       const cache = await caches.open('sec002-test-cache');
@@ -117,7 +116,7 @@ const assert = require('node:assert/strict');
       const retained = localStorage.getItem('sec002-probe');
       release(); await pending;
       const result = await deleteAllAppData();
-      const remaining = await Promise.all(['reports', 'drives', 'footage', 'state_packs'].map(name =>
+      const remaining = await Promise.all(['reports', 'drives', 'footage'].map(name =>
         new Promise(resolve => { const request = db.transaction(name).objectStore(name).count(); request.onsuccess = () => resolve(request.result); })));
       db.close();
       return { failed, retained, cleared: result.cleared,

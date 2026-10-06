@@ -14,9 +14,6 @@ const PIXEL = 'R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 const requirements = [
   'https://api.openai.com/v1/models?limit=1',
   'https://nominatim.openstreetmap.org/reverse?lat=12&lon=77',
-  'https://kgis.ksrsac.in/kgismaps/rest/services/Boundaries/Admin_Dynamic_New/MapServer/1/query',
-  'https://tgrac.telangana.gov.in/arcgis/rest/services/Hydra_Folder/Administrative_Layer/MapServer/1/query',
-  'https://coding-parrot.github.io/pothole-reporter/pack-manifest-v1.35.json',
 ];
 
 async function prepare(browser) {
@@ -180,7 +177,7 @@ async function bridgeModel(browser, fallback) {
       await new Promise((resolve, reject) => { const s = document.createElement('script'); s.src = '/cordova.js'; s.onload = resolve; s.onerror = reject; document.head.append(s); });
       return Promise.all([
         '/_capacitor_file_/photo.jpg', '/_capacitor_content_/media/photo',
-        '/_capacitor_http_interceptor_?u=https%3A%2F%2Fcoding-parrot.github.io%2Fpothole-reporter%2Fpack-manifest-v1.35.json'
+        '/_capacitor_http_interceptor_?u=https%3A%2F%2Fnominatim.openstreetmap.org%2Freverse%3Flat%3D12%26lon%3D77'
       ].map(async url => (await CapacitorWebFetch(url)).ok));
     });
     assert.ok(assets.every(Boolean), 'same-origin native resource or GET proxy blocked');

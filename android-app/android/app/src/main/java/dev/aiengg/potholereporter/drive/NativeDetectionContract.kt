@@ -77,9 +77,7 @@ internal object NativeDetectionContract {
     fun buildPrompt(language: String, imageCount: Int, primaryIndex: Int): String {
         require(imageCount >= 3) { "Detection requires context plus at least two complete frames" }
         val languageSuffix = when (language) {
-            "kn" -> "\n- Write the description field in formal Kannada (ಕನ್ನಡ ಭಾಷೆಯಲ್ಲಿ ಬರೆಯಿರಿ)."
-            "mr" -> "\n- Write the description field in clear formal Marathi (मराठी भाषेत लिहा)."
-            "bn" -> "\n- Write the description field in clear formal Bengali (পরিষ্কার, প্রমিত বাংলায় লিখুন)."
+            "uz" -> "\n- Write the description field in clear Uzbek (Latin script)."
             else -> ""
         }
         val layout = "\n- Capture layout: image 1 is downscaled full-frame context from the " +

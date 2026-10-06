@@ -392,7 +392,7 @@ with sync_playwright() as p:
       const baseline = await StandaloneAPI.handle("/api/reports");
       const canonical = baseline.slice().sort((a, b) => a.lat - b.lat)[0];
       await new Promise((resolve, reject) => {
-        const req = indexedDB.open("potholes", 6);
+        const req = indexedDB.open("potholes", 7);
         req.onerror = () => reject(req.error);
         req.onsuccess = () => {
           const db = req.result;

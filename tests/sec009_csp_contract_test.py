@@ -109,15 +109,11 @@ class Sec009CspTest(unittest.TestCase):
             self.assertNotIn(value, ("https:", "http:", "ws:", "wss:"))
             if value.startswith("https://"):
                 self.assertTrue(urlsplit(value).hostname)
-        for origin in ("https://api.openai.com", "https://nominatim.openstreetmap.org",
-                       "https://kgis.ksrsac.in", "https://tgrac.telangana.gov.in",
-                       "https://coding-parrot.github.io/pothole-reporter/"):
+        for origin in ("https://api.openai.com", "https://nominatim.openstreetmap.org"):
             self.assertIn(origin, values)
-        # Trusted pack metadata supplies the Telangana point-query destinations.
-        for pack in (ROOT / "docs/packs").rglob("*.json"):
-            for url in re.findall(r'"query_url"\s*:\s*"([^"]+)"', pack.read_text(encoding="utf-8")):
-                parts = urlsplit(url)
-                self.assertIn(f"{parts.scheme}://{parts.netloc}", values)
+        # Nothing else may be reachable: the app has no other network destination.
+        self.assertEqual({v for v in values if v.startswith("https://")},
+                         {"https://api.openai.com", "https://nominatim.openstreetmap.org"})
 
     def test_styles_images_media_and_bridge_remain_compatible(self):
         styles = [b for b in self.parsed.blocks["style"] if b.strip()]

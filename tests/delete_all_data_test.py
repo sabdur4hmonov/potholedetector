@@ -23,18 +23,16 @@ with sync_playwright() as playwright:
         """async () => {
           await StandaloneAPI.handle("/api/reports", {method: "DELETE"});
           const db = await new Promise((resolve, reject) => {
-            const request = indexedDB.open("potholes", 6);
+            const request = indexedDB.open("potholes", 7);
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
           });
           await new Promise((resolve, reject) => {
-            const tx = db.transaction(["reports", "drives", "footage", "state_packs"], "readwrite");
+            const tx = db.transaction(["reports", "drives", "footage"], "readwrite");
             tx.objectStore("reports").put({id: 9001, created_at: 1, photo: new Blob(["photo"])});
             tx.objectStore("drives").put({id: "wipe-drive"});
             tx.objectStore("footage").put({key: "wipe-drive#1", drive_id: "wipe-drive",
               blob: new Blob(["video"])});
-            tx.objectStore("state_packs").put({cache_key: "wipe-pack", state_code: "XX",
-              last_used_at: 1, blob: new Blob(["pack"])});
             tx.oncomplete = resolve;
             tx.onabort = () => reject(tx.error);
           });
@@ -91,8 +89,8 @@ with sync_playwright() as playwright:
           releaseReplay();
           const completed = await wipePromise;
           const counts = await new Promise((resolve, reject) => {
-            const tx = db.transaction(["reports", "drives", "footage", "state_packs"], "readonly");
-            const values = {}, names = ["reports", "drives", "footage", "state_packs"];
+            const tx = db.transaction(["reports", "drives", "footage"], "readonly");
+            const values = {}, names = ["reports", "drives", "footage"];
             for (const name of names) {
               const req = tx.objectStore(name).count();
               req.onsuccess = () => { values[name] = req.result; };
@@ -130,7 +128,7 @@ with sync_playwright() as playwright:
     failure_result = failure_page.evaluate(
         """async () => {
           const db = await new Promise((resolve, reject) => {
-            const request = indexedDB.open("potholes", 6);
+            const request = indexedDB.open("potholes", 7);
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
           });

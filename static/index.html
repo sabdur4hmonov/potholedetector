@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-MLt/8tpLcvKj+NMAo6HfEa58YYSSR8diQ7DgAG57esA='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-alMgFglTmLTaMAlOyaPUSj9LtMAekaj5T3g0uYO4LOg='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org https://kgis.ksrsac.in https://tgrac.telangana.gov.in https://coding-parrot.github.io/pothole-reporter/; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-saEFAx9b3lEkOyJ9JF1npOdiYgpw2nPk5e4gJj9k6EU='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-A7LMI5ZF49b6jgJT4aTGXLuhsXrjgoY3cnzyxXEOPd8='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -42,7 +42,6 @@
   .chip.rejected { background:#331516; color:#ff9d9d; }
   .chip.review { background:#3a2b12; color:#ffd28a; }
   .chip.queued { background:#122f33; color:#7cd8e8; }
-  .chip.unrouted { background:#2b2b33; color:#b9b9c6; }
   .chip.fixed { background:#12331d; color:#7ce8a2; }
   .chip.repair-review { background:#302642; color:#d4b8ff; }
   .meta { color:var(--mut); font-size:12px; margin-top:2px; }
@@ -73,7 +72,7 @@
   <div class="row" style="justify-content:space-between;align-items:flex-start">
     <div>
       <h1>Pothole Reporter</h1>
-      <div class="sub" id="subTitle">Shoot it. Verify it. Use the suggested official route.</div>
+      <div class="sub" id="subTitle">Mount it. Drive. Potholes are found and mapped automatically.</div>
     </div>
     <button class="ghost" id="gearBtn" style="flex:none;padding:10px 14px" aria-label="Settings">&#9881;&#65039;</button>
   </div>
@@ -95,18 +94,6 @@
   </div>
 
   <div id="detail" class="hidden"></div>
-
-  <div id="portalCopy" class="hidden">
-    <div class="card">
-      <div class="verdict" id="portalCopyTitle">Portal fields</div>
-      <div class="meta" id="portalCopyHint" style="margin-top:6px">Copy these fields into the official grievance portal. Contract details appear only after exact-road responsibility is verified.</div>
-      <textarea id="portalCopyText" readonly style="min-height:55vh;margin-top:12px"></textarea>
-      <div class="btn-row">
-        <button class="ghost" id="portalCopyBack">Back</button>
-        <button class="send" id="portalCopyAll">Copy all</button>
-      </div>
-    </div>
-  </div>
 
   <div id="drive" class="hidden">
     <div id="webDrivePanel" style="position:relative">
@@ -171,18 +158,14 @@
     <div class="card">
       <div class="verdict" id="settingsTitle">Settings</div>
       <div class="meta" id="settingsHint" style="margin-bottom:6px"></div>
-      <label id="langLabel">Language / ಭಾಷೆ / भाषा / বাংলা</label>
+      <label id="langLabel">Language / Til</label>
       <select id="setLang" style="width:100%;background:#131417;color:#f2f2f4;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit">
         <option value="en">English</option>
-        <option value="kn">ಕನ್ನಡ</option>
-        <option value="mr">मराठी</option>
-        <option value="bn">বাংলা</option>
+        <option value="uz">O&#8216;zbekcha</option>
       </select>
       <label id="keyLabel">OpenAI API key</label>
       <input type="password" id="setKey" autocomplete="off" spellcheck="false" placeholder="sk-...">
       <div class="meta" id="credentialStorageNote"></div>
-      <label id="nameLabel">Your name (used in complaint emails)</label>
-      <input type="text" id="setName" placeholder="Username for emails">
       <label id="modelLabel">Photo model</label>
       <select id="setModel">
         <option value="gpt-5-mini">gpt-5-mini — recommended</option>
@@ -227,11 +210,10 @@
         <span id="keepFramesLabel">Save every analysed frame to the device</span>
       </label>
       <div class="meta" id="keepFramesNote"></div>
-      <div class="meta" id="settingsNote" style="margin-top:10px">Complaints are always created as email drafts addressed to the concerned corporation officer. Nothing sends until you press send in your email app.</div>
+      <div class="meta" id="settingsNote" style="margin-top:10px">Reports stay on this phone. Nothing is sent to any authority.</div>
       <div class="meta" id="independentNote" style="margin-top:10px"></div>
       <div class="policy-links">
-        <a id="privacyLink" href="https://coding-parrot.github.io/pothole-reporter/privacy.html" target="_blank" rel="noopener noreferrer">Privacy policy</a>
-        <a id="sourcesLink" href="https://coding-parrot.github.io/pothole-reporter/sources.html" target="_blank" rel="noopener noreferrer">Data sources and limits</a>
+        <a id="privacyLink" href="https://sabdur4hmonov.github.io/potholedetector/privacy.html" target="_blank" rel="noopener noreferrer">Privacy policy</a>
       </div>
       <button class="ghost" id="reviewBtn" style="width:100%;margin-top:12px">Review and label frames</button>
       <button class="ghost" id="exportBtn" style="width:100%;margin-top:8px">Export labelled dataset</button>
@@ -250,8 +232,7 @@
       <p class="meta" id="privacyLocal" style="font-size:13px;line-height:1.5;margin-top:10px"></p>
       <p class="meta" id="privacyGovernment" style="font-size:13px;line-height:1.5;margin-top:10px"></p>
       <div class="policy-links">
-        <a id="consentPrivacyLink" href="https://coding-parrot.github.io/pothole-reporter/privacy.html" target="_blank" rel="noopener noreferrer">Privacy policy</a>
-        <a id="consentSourcesLink" href="https://coding-parrot.github.io/pothole-reporter/sources.html" target="_blank" rel="noopener noreferrer">Data sources and limits</a>
+        <a id="consentPrivacyLink" href="https://sabdur4hmonov.github.io/potholedetector/privacy.html" target="_blank" rel="noopener noreferrer">Privacy policy</a>
       </div>
       <div class="btn-row">
         <button class="ghost" id="privacyDecline">Not now</button>
@@ -313,23 +294,16 @@ function needsInitialSettings() {
 let initialSettingsRequired = needsInitialSettings();
 let initialSettingsActive = false;
 
-// ---------- i18n (English / Kannada / Marathi) ----------
+// ---------- i18n (English / Uzbek) ----------
 const I18N = {
   en: {
     manual_confirm: "Save this photo as a private, user-reported pothole? It will not be AI verified or sent anywhere.",
     manual_verdict: "User-reported pothole · not AI verified",
-    manual_saved: "Saved privately on this device",
-    manual_help: "Review or export your photo offline. No complaint has been submitted. Optional cloud analysis creates a separate result and keeps this report.",
+    manual_help: "Review or export your photo offline. Optional cloud analysis creates a separate result and keeps this report.",
     cloud_optional: "Optional cloud analysis",
     cloud_confirm: "Send this photo to your configured AI provider for optional analysis? This requires connectivity and uses your existing AI allowance. Your manual report will remain saved.",
-    sub: "Capture it. Verify the issue. Prepare a complaint for a suggested office.",
+    sub: "Mount it. Drive. Potholes are found and mapped automatically.",
     report_btn: "&#128247; &nbsp;Photo",
-    issue_picker_title: "Report",
-    issue_picker_hint: "Choose the issue, then take a clear photo while safely stopped.",
-    issue_road: "Pothole", issue_garbage: "Garbage", issue_open_manhole: "Manhole",
-    issue_road_damage: "pothole", issue_garbage_label: "garbage",
-    issue_open_manhole_label: "open / damaged manhole",
-    verdict_civic_prepared: "{type} report prepared from your photo",
     drive_btn: "&#128663; &nbsp;Drive",
     your_reports: "Your reports",
     no_reports: "No reports yet.",
@@ -354,8 +328,6 @@ const I18N = {
     key_label: "OpenAI API key (sent to OpenAI as the credential)",
     credential_storage_native: "Android encrypts retained credentials with a non-exportable Keystore key. Saved credentials are never shown here; leave a field blank to keep its current value.",
     credential_storage_browser: "This browser keeps the API key only in memory until this page closes or reloads. It is not saved in browser storage.",
-    name_label: "Your name (used in complaint emails)",
-    name_placeholder: "Username for emails",
     model_label: "Photo model",
     detail_label: "Photo detail",
     accuracy_note: "Drive uses gpt-5.6/high; these choices apply only to Photo.",
@@ -369,71 +341,62 @@ const I18N = {
     dashcam_rtsp_invalid: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
     dashcam_native_only: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
     debug_label: "Debug mode: keep the drive video after analysing it",
-    settings_note: "Pothole photos and video-derived frames are sent to OpenAI for detection and can contain number plates or faces. Exact location is sent to OpenStreetMap/Nominatim; Karnataka points use Karnataka GIS and Hyderabad points use Telangana GIS. A verified state pack or 2° National Highway tile is downloaded from GitHub Pages and cached here; that request reveals the state or approximate tile and ordinary connection metadata, not exact coordinates. Your API key is sent only to OpenAI. The app never submits automatically.",
-    independent_note: "Independent, unofficial app. It is not affiliated with or endorsed by any government body. Routing is best-effort and must be reviewed before sending.",
+    settings_note: "Pothole photos and video-derived frames are sent to OpenAI for detection and can contain number plates or faces. Exact location is sent to OpenStreetMap/Nominatim to look up the street name. Your API key is sent only to OpenAI. Reports stay on this phone and the app never sends them to any authority.",
+    independent_note: "Independent, unofficial app. It is not affiliated with or endorsed by any government body.",
     privacy_title: "Before capture and location access",
     privacy_permission: "The app asks for Precise Location and, only when Phone camera is selected, Camera.",
     privacy_source: "Drive Mode uses no audio. It uses either this phone's camera or the dashcam RTSP stream you configure, plus this phone's location, in the background—even while Maps or a call is on screen.",
-    privacy_body: "If you continue, the app will ask for Precise Location and, only when Phone camera is selected, Camera. While Drive Mode runs, precise location is collected to tag and route road damage even when this app is not visible or in use, including while Maps or a call is on screen. Pothole photos—or sampled complete frames from the selected Drive video source—are sent with your API key to OpenAI for detection. On a precise later live-drive revisit, the saved earlier damage photo and current views may be sent together for repair verification. Exact coordinates are sent to OpenStreetMap/Nominatim; Karnataka reports query Karnataka GIS and Hyderabad reports query Telangana GIS. The required state routing pack is downloaded from GitHub Pages. Processing can occur outside India.",
-    privacy_local: "Drive Mode uses no audio. It uses either this phone's camera or the dashcam RTSP stream you configure, plus this phone's location, in the background—even when this app is not visible and Maps or a call is on screen. A visible persistent foreground-service notification always shows this use; pause or stop it from the app or notification. On Android, the RTSP address, credentials, and OpenAI key are encrypted with a non-exportable Android Keystore key and are never returned to the WebView; local RTSP itself is normally unencrypted, so use only a trusted dashcam Wi-Fi. A browser keeps its OpenAI key in memory only until the page closes or reloads. Selected complete frames are stored before analysis; the whole dashcam stream is not uploaded. Optional silent local video recording is off by default and is available only for Phone camera. Video and saved frames share a 4 GB cap; report and repair evidence has a separate 512 MB cap. Both stop writing before free storage falls below 500 MB. Drive stops after the selected active-time battery limit and fully stops after 15 minutes continuously paused. Reports, photos, repair evidence, footage, sampled frames, location tracks, settings, verified state packs and highway tiles remain on this device until deleted. Physical road condition is tracked separately from official complaint status.",
-    privacy_government: "This independent app is not a government service and never submits automatically. GitHub Pages receives your IP address, time, user agent and the requested state-pack or 2° highway-tile path, which reveals a state or approximate tile but not exact coordinates, photos or report content. Location may be sent to a government GIS for jurisdiction checks as disclosed above. Complaint text and photos reach a complaint service only when you deliberately open or complete a handoff. Review the destination and content.",
-    privacy_link: "Privacy policy", sources_link: "Data sources and limits",
-    privacy_accept: "Continue", privacy_decline: "Not now",
+    privacy_body: "If you continue, the app will ask for Precise Location and, only when Phone camera is selected, Camera. While Drive Mode runs, precise location is collected to tag road damage even when this app is not visible or in use, including while Maps or a call is on screen. Pothole photos—or sampled complete frames from the selected Drive video source—are sent with your API key to OpenAI for detection. On a precise later live-drive revisit, the saved earlier damage photo and current views may be sent together for repair verification. Exact coordinates are sent to OpenStreetMap/Nominatim to look up the street name. Processing can occur outside Uzbekistan.",
+    privacy_local: "Drive Mode uses no audio. It uses either this phone's camera or the dashcam RTSP stream you configure, plus this phone's location, in the background—even when this app is not visible and Maps or a call is on screen. A visible persistent foreground-service notification always shows this use; pause or stop it from the app or notification. On Android, the RTSP address, credentials, and OpenAI key are encrypted with a non-exportable Android Keystore key and are never returned to the WebView; local RTSP itself is normally unencrypted, so use only a trusted dashcam Wi-Fi. A browser keeps its OpenAI key in memory only until the page closes or reloads. Selected complete frames are stored before analysis; the whole dashcam stream is not uploaded. Optional silent local video recording is off by default and is available only for Phone camera. Video and saved frames share a 4 GB cap; report and repair evidence has a separate 512 MB cap. Both stop writing before free storage falls below 500 MB. Drive stops after the selected active-time battery limit and fully stops after 15 minutes continuously paused. Reports, photos, repair evidence, footage, sampled frames, location tracks and settings remain on this device until deleted.",
+    privacy_government: "This independent app is not a government service and never sends reports to any authority by itself. Your location is sent to OpenStreetMap/Nominatim to look up the street name, and photos are sent to OpenAI for detection, as disclosed above.",
+    privacy_link: "Privacy policy",
+    privacy_accept: "Continue",
+    privacy_decline: "Not now",
     wipe_btn: "Delete all app data",
     welcome_hint: "Save private Photo reports offline without a key. Add an OpenAI API key only for optional cloud analysis or Drive. The key is sent to OpenAI only as the request credential.",
-    key_required: "Add an OpenAI API key to continue.",
-    back: "Back", save: "Save", discard: "Discard", del: "Delete", email_btn: "Email", stop: "&#9632; Stop", working: "Working...",
-    chip_draft: "Draft", chip_sent: "Marked submitted", chip_queued: "Opened in email", chip_queued_bmc: "BMC handoff opened", chip_rejected: "Pothole: NO", chip_review: "Needs review",
-    chip_unrouted: "Not routed",
-    chip_fixed: "Fixed", chip_repair_review: "Repair needs review",
-    fixed_action_blocked: "This pothole is verified fixed, so the old complaint cannot be filed again.",
+    back: "Back",
+    save: "Save",
+    del: "Delete",
+    stop: "&#9632; Stop",
+    working: "Working...",
+    chip_draft: "Saved",
+    chip_rejected: "Pothole: NO",
+    chip_review: "Needs review",
+    chip_fixed: "Fixed",
+    chip_repair_review: "Repair needs review",
+    fixed_action_blocked: "This pothole is verified fixed, so its old evidence can no longer be shared.",
     verdict_fixed: "Verified fixed on a later drive",
     verdict_repair_review: "Possible repair found — compare both photos",
     repair_evidence_label: "Later revisit",
     repair_review_help: "The app found a possible completed repair at the same spot, but did not mark it fixed automatically. Confirm only if the old pothole footprint is clearly covered by intact repair material.",
-    fixed_local_note: "Physical condition only: this does not claim that an official grievance was closed. Any prior submission status remains unchanged.",
-    confirm_fixed_btn: "Confirm fixed", reopen_btn: "Mark open",
+    fixed_local_note: "Physical condition only: it reflects what a later drive saw at this spot.",
+    confirm_fixed_btn: "Confirm fixed",
+    reopen_btn: "Mark open",
     stat_fixed: "verified fixed",
     no_location: "The location could not be determined.",
-    location_uncertain: "GPS is not accurate enough to choose an authority.",
-    location_uncertain_help: "Road damage was confirmed, but the frame location is not accurate enough to choose a recipient. Retake it with a fresh GPS fix; for an uncalibrated dashcam stream, use Phone camera when automatic authority and tender routing is required. This report was saved without a recipient.",
-    jurisdiction_unavailable: "Verified routing data could not be downloaded or read.",
-    jurisdiction_unavailable_help: "Road damage was confirmed, but the app will not guess a civic authority without its verified state pack. Check the connection and try again; this report was saved without a recipient.",
-    road_unknown: "Could not check who owns this road",
-    road_unknown_help: "The app could not reach the state road network to check whether this is a national highway, so it will not name a city officer for a road that may not be theirs. Try again when you have a signal.",
-    nat_highway: "{road} is a national highway",
-    nat_highway_help: "A road service identified this as a National Highway, but the verified national tile could not safely identify its mapped reference. Nothing was addressed to a municipality. Use Rajmargyatra or 1033 and verify the maintaining agency.",
-    rural_road: "This road is in {body} gram panchayat, not a town or city.",
-    rural_road_help: "Road damage was confirmed, but it sits outside every urban local body, so it belongs to the state PWD or the panchayat engineering department rather than a municipality. Those are not in the directory yet, so no complaint has been addressed. The photo and location are saved.",
-    no_address: "No published address for {body}.",
-    no_address_help: "Road damage was confirmed and the responsible local body identified, but the app holds no official email for it and will not guess one. The photo and location are saved; the address can be added to the directory.",
-    no_location_help: "Road damage was confirmed, but without a GPS fix the app cannot tell which corporation is responsible, so it will not address a complaint. The photo is saved.",
-    civic_no_location_help: "The issue was saved, but without a GPS fix the app cannot choose a civic authority. Retake the photo with location switched on.",
-    civic_location_uncertain_help: "The issue was saved, but the GPS accuracy could cross a civic boundary. Retake it with a fresh, more accurate fix.",
-    civic_jurisdiction_unavailable_help: "The issue was saved, but verified civic-routing data could not be read. Check the connection and try again; the app will not guess an authority.",
-    civic_rural: "This location is in {body} gram panchayat, outside supported urban coverage.",
-    civic_rural_help: "The issue and location are saved, but this app does not yet hold a verified complaint route for that rural body.",
-    civic_no_address_help: "The civic body was identified, but the app holds no verified complaint address for it and will not guess one. The photo and location are saved.",
-    civic_unsupported: "No verified {type} channel for {body}.",
-    civic_unsupported_help: "The issue and evidence are saved, but this app has not verified that the suggested recipient accepts this category, so it will not open or address a complaint to a guess.",
-    civic_outside_coverage_help: "This point is outside India's verified State/UT boundaries, or exact routing data is unavailable. The photo and location are saved without a recipient.",
-    retry_routing_btn: "Retry routing",
-    retry_routing_unchanged: "Routing is still unavailable. The original photo and location remain saved; try again when the connection or routing data is available.",
     confirm_import_location: "This browser may have returned an existing photo. Attach your current GPS location only if the photo shows the place where you are now.",
     capture_provenance_camera: "Taken now with the app camera",
     capture_provenance_import: "Selected/imported photo · original capture time not verified",
-    review_btn: "Review and label frames", export_btn: "Export labelled dataset",
-    dash_btn: "&#128506;&#65039; &nbsp;Contribution", dash_title: "Your contribution",
+    review_btn: "Review and label frames",
+    export_btn: "Export labelled dataset",
+    dash_btn: "&#128506;&#65039; &nbsp;Contribution",
+    dash_title: "Your contribution",
     dash_range: "{days} of reporting · first on {first}",
     dash_empty: "No reports yet. Your map fills up as you report issues or drive.",
-    day_one: "1 day", day_many: "{n} days",
-    stat_found: "reports saved", stat_reported: "confirmed submissions", stat_frames: "pothole checks",
-    stat_drives: "drives", stat_footage: "MB of footage", stat_km: "km of road covered",
-    by_type: "By report type", by_size: "By pothole size", by_area: "By corporation", map_pins: "{n} pinned",
+    day_one: "1 day",
+    day_many: "{n} days",
+    stat_found: "reports saved",
+    stat_frames: "pothole checks",
+    stat_drives: "drives",
+    stat_footage: "MB of footage",
+    by_type: "By report type",
+    by_size: "By pothole size",
+    map_pins: "{n} pinned",
     map_empty: "No mapped potholes yet.",
     map_offline: "Map tiles need a connection. Points are still plotted below.",
     zoom_hint: "Pinch to zoom · drag to pan · double tap to reset",
-    rec_suffix: "· recording {mb} MB", rec_failed: "· not recording",
+    rec_suffix: "· recording {mb} MB",
+    rec_failed: "· not recording",
     net_trouble: "Connection trouble, still scanning ({n} frames waiting)",
     capture_failing: "The camera is not returning frames. Stop and restart the drive.",
     camera_lost: "Camera paused (another app may be using it). Scanning resumes automatically.",
@@ -441,13 +404,15 @@ const I18N = {
     coverage_dropped: "queued events dropped",
     drive_end_failed: "{n} frames could not be checked because of the connection.",
     footage_line: "Footage: {mb} MB · {segments} clips",
-    analyse_btn: "Analyse footage", delete_footage: "Delete footage",
+    analyse_btn: "Analyse footage",
+    delete_footage: "Delete footage",
     analysing: "Frame {i} of {n} · {found} new",
     analyse_done: "Footage analysed: {found} new potholes from {n} frames.",
     analyse_none: "No footage stored for this drive.",
     analysing_dup: "({n} already reported)",
     analyse_dup: "{n} of them were already reported.",
-    already_one: "{n} already-reported event", already_many: "{n} already-reported events",
+    already_one: "{n} already-reported event",
+    already_many: "{n} already-reported events",
     frames_no_permission: "Saving frames to storage was not permitted. Analyse anyway without saving them?",
     analysing_failed: "· {n} failed",
     analyse_incomplete: "Could not finish: {failed} of {n} frames were not checked ({err}) So no result is being claimed, and the video has been kept.",
@@ -466,29 +431,33 @@ const I18N = {
     drive_group: "{date} · {found}{known} · {checked} live frames checked{video}",
     drive_video_suffix: " · {n} video frames checked",
     drive_group_partial: "{date} · {found} · {kept} kept",
-    lbl_pothole: "Pothole", lbl_no: "Not pothole", lbl_skip: "Skip", lbl_done: "Done",
+    lbl_pothole: "Pothole",
+    lbl_no: "Not pothole",
+    lbl_skip: "Skip",
+    lbl_done: "Done",
     review_empty: "Nothing left to label. Drive with debug mode on to collect frames.",
     review_progress: "{n} left to label · {done} labelled so far",
     model_said: "The app said: {verdict}",
     export_ready: "{n} labelled frames, {mb} MB. Choose where to send it.",
-    outside_coverage: "This location is outside the area this app covers.",
-    outside_coverage_help: "This point is outside India's verified State/UT and mapped National Highway coverage, or exact routing data is unavailable. The photo and location are saved without a recipient.",
-    size_small: "small", size_medium: "medium", size_large: "large",
-    damage_pothole_cavity: "pothole cavity", damage_failed_patch: "failed road repair",
-    damage_surface_breakup: "broken road surface", damage_rut_or_depression: "road rut / depression",
-    damage_other_road_damage: "other road damage", damage_none: "no reportable damage",
-    assessment_clear: "clear", assessment_probable: "probable", assessment_uncertain: "uncertain", assessment_absent: "absent",
+    size_small: "small",
+    size_medium: "medium",
+    size_large: "large",
+    damage_pothole_cavity: "pothole cavity",
+    damage_failed_patch: "failed road repair",
+    damage_surface_breakup: "broken road surface",
+    damage_rut_or_depression: "road rut / depression",
+    damage_other_road_damage: "other road damage",
+    damage_none: "no reportable damage",
+    assessment_clear: "clear",
+    assessment_probable: "probable",
+    assessment_uncertain: "uncertain",
+    assessment_absent: "absent",
     verdict_detected: "Pothole: YES",
     verdict_review: "Possible {type} — retake or review before reporting",
     verdict_rejected: "Pothole: NO",
-    early_yes: "Pothole: YES. Preparing the complaint...",
+    early_yes: "Pothole: YES. Saving the report...",
     early_review: "Possible road damage. A clearer photo is needed.",
     early_no: "Pothole: NO.",
-    verdict_sent: "Marked submitted",
-    verdict_queued: "Opened in your email app. Edit and resend if you didn't send it.",
-    email_subject_label: "Email subject",
-    email_body_label: "Email body (review before sending)",
-    routes_to: "Routes to:",
     getting_location: "Getting your location...",
     waiting_gps: "Waiting for GPS...",
     gps_30s: "Still no GPS fix after 30 s. Check that location is on with high accuracy.",
@@ -496,654 +465,207 @@ const I18N = {
     holding: "Holding position ({checked} checked, {found} found)",
     scanning: "Scanning ({mode})... {checked} checked{analyzing}",
     analyzing_suffix: ", {n} analyzing",
-    potholes_one: "{n} pothole", potholes_many: "{n} potholes",
+    potholes_one: "{n} pothole",
+    potholes_many: "{n} potholes",
     drive_tip: "Before moving, aim the camera so the travelled road fills the orange guide with little sky or dashboard. Each check uses three recent frames. Back hides this screen; Drive continues until you press Stop in the app or notification.",
     drive_end: "Drive ended: {found} found, {checked} frames checked.",
     drive_end_known: "Drive ended: no new report; {already} seen again, {checked} frames checked.",
     drive_seen_suffix: " {already} seen again.",
     drive_end_zero: "No potholes found in this drive ({checked} events checked{debug}).",
     debug_saved_suffix: ", debug frames saved for review",
-    confirm_send: "Open your email app with the complaint addressed to {to}?",
-    confirm_suggested_email: "Location suggests {authority}, but this does not prove road ownership. Open your email app with the complaint addressed to {to}?",
-    open_official_btn: "Open {name}",
     share_evidence_btn: "Share evidence",
-    copy_whatsapp_btn: "Copy WhatsApp",
-    portal_fields_btn: "Portal fields",
-    portal_fields_title: "Portal fields",
-    portal_fields_hint: "Copy these fields into the official grievance portal. Contract details appear only after exact-road responsibility is verified.",
-    copy_all_btn: "Copy all",
-    copied_message: "Copied.",
-    official_whatsapp_btn: "Official WhatsApp",
-    official_call_btn: "Call {number}",
-    confirm_whatsapp_share: "Open the official WhatsApp for {authority} with this report's text and exact location? Nothing is sent until you press Send in WhatsApp.",
-    official_disclaimer: "Suggested civic authority: {authority}. This does not prove who owns this road. This independent app only prepares evidence; finish the grievance yourself in {service} and save its official reference ID.",
-    authority_disclaimer: "Suggested civic authority from the location: {authority}. Road ownership is not verified; check the recipient before sending.",
-    official_civic_disclaimer: "Suggested civic authority: {authority}. Verify its jurisdiction and choose the correct issue category in {service}. This independent app only prepares evidence; finish the grievance yourself and save its official reference ID.",
-    authority_civic_disclaimer: "Suggested civic authority from the location: {authority}. Verify its jurisdiction and the complaint category before sending.",
-    confirm_suggested_civic_email: "Location suggests {authority}. Verify its civic jurisdiction and category before opening an email addressed to {to}.",
-    routing_match: "Routing clue: {field} = {value}. Verify it before submitting.",
-    alternate_handoff_btn: "Open {name}",
-    confirm_official_handoff: "Copy the prepared fields and open {service} for the suggested authority {authority}? This records only that the handoff opened—not that a grievance was submitted.",
-    official_grievance_generic_label: "Official grievance/reference ID",
-    official_grievance_generic_placeholder: "Enter the ID returned by the official service",
-    chip_queued_official: "Official handoff opened",
-    bmc_prepare_btn: "Prepare Mumbai report",
-    bmc_share_btn: "Share evidence",
-    bmc_quickfix_btn: "Open Pothole QuickFix",
-    bmc_whatsapp_btn: "BMC WhatsApp",
-    bmc_call_btn: "Call 1916",
-    bmc_disclaimer: "This independent app prepares evidence but does not submit a BMC grievance. Review it, then finish in an official BMC channel. Do not mark it submitted without an official grievance ID.",
-    bmc_ward: "Suggested BMC ward: {ward} (from OpenStreetMap; verify in the official app)",
-    complaint_title_label: "Complaint title",
-    complaint_body_label: "Complaint details (review before sharing)",
-    official_grievance_label: "Official BMC grievance ID",
-    official_grievance_placeholder: "Enter ID returned by BMC",
-    mark_submitted_btn: "Mark submitted",
-    submitted_reference: "Official grievance ID: {id}",
-    confirm_bmc_handoff: "Continue to BMC's official Pothole QuickFix app? This app will only mark that the handoff was opened, not that a grievance was submitted.",
-    confirm_mark_submitted: "Confirm that you completed submission through an official channel?",
-    evidence_shared: "Evidence is ready. Choose an official BMC channel in the share sheet.",
     confirm_delete: "Delete this report?",
     confirm_wipe: "Delete ALL app data from this phone, including the API key, settings, reports, photos, footage and exported debug frames?",
     camera_failed: "Camera access failed: ",
-    drive_stopped: "Drive mode stopped: ",
-    the_officer: "the concerned officer",
+    by_street: "By street",
   },
-  kn: {
-    sub: "ಫೋಟೋ ತೆಗೆಯಿರಿ. ಸಮಸ್ಯೆ ಪರಿಶೀಲಿಸಿ. ಸೂಚಿಸಿದ ಕಚೇರಿಗೆ ದೂರು ಕರಡು ಸಿದ್ಧಪಡಿಸಿ.",
-    report_btn: "&#128247; &nbsp;ಫೋಟೋ",
-    issue_picker_title: "ವರದಿ",
-    issue_picker_hint: "ಸುರಕ್ಷಿತವಾಗಿ ನಿಂತ ನಂತರ ಸಮಸ್ಯೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಿ ಸ್ಪಷ್ಟ ಫೋಟೋ ತೆಗೆಯಿರಿ.",
-    issue_road: "ಗುಂಡಿ", issue_garbage: "ಕಸ", issue_open_manhole: "ಮ್ಯಾನ್‌ಹೋಲ್",
-    issue_road_damage: "ಗುಂಡಿ", issue_garbage_label: "ಕಸ",
-    issue_open_manhole_label: "ತೆರೆದ / ಹಾನಿಗೊಂಡ ಮ್ಯಾನ್‌ಹೋಲ್",
-    verdict_civic_prepared: "ನಿಮ್ಮ ಫೋಟೋದಿಂದ {type} ವರದಿ ಸಿದ್ಧವಾಗಿದೆ",
-    drive_btn: "&#128663; &nbsp;ಡ್ರೈವ್",
-    your_reports: "ನಿಮ್ಮ ವರದಿಗಳು",
-    no_reports: "ಇನ್ನೂ ವರದಿಗಳಿಲ್ಲ. ಗುಂಡಿ ಹುಡುಕಲು ಹೊರಡಿ.",
-    settings_title: "ಸೆಟ್ಟಿಂಗ್ಸ್",
-    key_label: "OpenAI API ಕೀ (ಈ ಸಾಧನದಲ್ಲಿ ಉಳಿಯುತ್ತದೆ; OpenAI ಗೆ ಪ್ರಮಾಣಪತ್ರವಾಗಿ ಹೋಗುತ್ತದೆ)",
-    name_label: "ನಿಮ್ಮ ಹೆಸರು (ದೂರು ಇಮೇಲ್‌ಗಳಲ್ಲಿ ಬಳಸಲಾಗುತ್ತದೆ)",
-    name_placeholder: "ಇಮೇಲ್‌ಗಳಿಗೆ ಬಳಸುವ ಹೆಸರು",
-    model_label: "ಫೋಟೋ ಮಾದರಿ",
-    detail_label: "ಫೋಟೋ ಚಿತ್ರದ ವಿವರ",
-    accuracy_note: "Drive gpt-5.6/high ಬಳಸುತ್ತದೆ; ಈ ಆಯ್ಕೆಗಳು Photoಗೆ ಮಾತ್ರ.",
-    capture_source_label: "ಡ್ರೈವ್ ವಿಡಿಯೋ ಮೂಲ",
-    phone_camera_option: "ಫೋನ್ ಕ್ಯಾಮೆರಾ",
-    dashcam_option: "ಡ್ಯಾಶ್‌ಕ್ಯಾಮ್",
-    capture_source_note: "ಆಯ್ದ ಮೂಲವನ್ನು ಮುಂದಿನ ಡ್ರೈವ್ ಆರಂಭವಾದಾಗ ಬಳಸಲಾಗುತ್ತದೆ.",
-    dashcam_capture_source_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
-    dashcam_rtsp_label: "ಡ್ಯಾಶ್‌ಕ್ಯಾಮ್ RTSP URL",
-    dashcam_rtsp_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
-    dashcam_rtsp_invalid: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
-    dashcam_native_only: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
-    debug_label: "ಡೀಬಗ್ ಮೋಡ್: ವಿಶ್ಲೇಷಣೆಯ ನಂತರವೂ ಡ್ರೈವ್ ವಿಡಿಯೋ ಉಳಿಸಿ",
-    settings_note: "ಗುಂಡಿಯ ಫೋಟೋಗಳು ಮತ್ತು ವಿಡಿಯೋ ಫ್ರೇಮ್‌ಗಳನ್ನು ಪತ್ತೆಗಾಗಿ OpenAI ಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ; ಅವುಗಳಲ್ಲಿ ವಾಹನ ಸಂಖ್ಯೆ ಅಥವಾ ಮುಖಗಳು ಇರಬಹುದು. ನಿಖರ ಸ್ಥಳವನ್ನು OpenStreetMap/Nominatim ಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ; ಕರ್ನಾಟಕದ ಸ್ಥಳಗಳಿಗೆ Karnataka GIS ಮತ್ತು ಹೈದರಾಬಾದ್ ಸ್ಥಳಗಳಿಗೆ Telangana GIS ಬಳಸಲಾಗುತ್ತದೆ. ಪರಿಶೀಲಿತ ರಾಜ್ಯ ಪ್ಯಾಕ್ ಅಥವಾ 2° ರಾಷ್ಟ್ರೀಯ ಹೆದ್ದಾರಿ ಟೈಲ್ GitHub Pages ನಿಂದ ಡೌನ್‌ಲೋಡ್ ಆಗಿ ಸಾಧನದಲ್ಲಿ ಉಳಿಯುತ್ತದೆ; ಆ ವಿನಂತಿ ರಾಜ್ಯ ಅಥವಾ ಅಂದಾಜು ಟೈಲ್ ಮತ್ತು ಸಾಮಾನ್ಯ ಸಂಪರ್ಕ ಮಾಹಿತಿಯನ್ನು ತೋರಿಸುತ್ತದೆ, ನಿಖರ ಸ್ಥಳವನ್ನಲ್ಲ. API ಕೀ OpenAI ಗೆ ಮಾತ್ರ ಹೋಗುತ್ತದೆ. ಆ್ಯಪ್ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ದೂರು ಸಲ್ಲಿಸುವುದಿಲ್ಲ.",
-    independent_note: "ಇದು ಸ್ವತಂತ್ರ, ಅನಧಿಕೃತ ಆ್ಯಪ್. ಯಾವುದೇ ಸರ್ಕಾರಿ ಸಂಸ್ಥೆಯೊಂದಿಗೆ ಸಂಬಂಧ ಅಥವಾ ಅನುಮೋದನೆ ಇಲ್ಲ. ಕಚೇರಿ ಸೂಚನೆ ಅತ್ಯುತ್ತಮ ಪ್ರಯತ್ನ ಮಾತ್ರ; ಕಳುಹಿಸುವ ಮೊದಲು ಪರಿಶೀಲಿಸಿ.",
-    privacy_title: "ಕ್ಯಾಪ್ಚರ್ ಮತ್ತು ಸ್ಥಳ ಪ್ರವೇಶಕ್ಕೂ ಮೊದಲು",
-    privacy_permission: "ಆ್ಯಪ್ ನಿಖರ ಸ್ಥಳಕ್ಕೆ ಮತ್ತು Phone camera ಆಯ್ಕೆಯಾದಾಗ ಮಾತ್ರ ಕ್ಯಾಮೆರಾಕ್ಕೆ ಅನುಮತಿ ಕೇಳುತ್ತದೆ.",
-    privacy_source: "Drive Mode ಆಡಿಯೋ ಬಳಸುವುದಿಲ್ಲ. ಇದು ಈ ಫೋನ್‌ನ ಕ್ಯಾಮೆರಾ ಅಥವಾ ನೀವು ಹೊಂದಿಸಿದ dashcam RTSP stream, ಮತ್ತು ಈ ಫೋನ್‌ನ ಸ್ಥಳವನ್ನು—Maps ಅಥವಾ ಕರೆ ಪರದೆಯಲ್ಲಿದ್ದರೂ—ಹಿನ್ನೆಲೆಯಲ್ಲಿ ಬಳಸುತ್ತದೆ.",
-    privacy_body: "ಮುಂದುವರಿಸಿದರೆ, ಆ್ಯಪ್ ಕ್ಯಾಮೆರಾ ಮತ್ತು ನಿಖರ ಸ್ಥಳಕ್ಕೆ ಅನುಮತಿ ಕೇಳುತ್ತದೆ. ಡ್ರೈವ್ ಮೋಡ್ ನಡೆಯುವಾಗ, ಆ್ಯಪ್ ಕಾಣಿಸದಿದ್ದರೂ ಅಥವಾ ಬಳಕೆಯಲ್ಲಿಲ್ಲದಿದ್ದರೂ—Maps ಅಥವಾ ಕರೆ ಪರದೆಯಲ್ಲಿದ್ದರೂ—ರಸ್ತೆ ಹಾನಿಗೆ ಸ್ಥಳ ಗುರುತು ಮತ್ತು ರೂಟಿಂಗ್ ಮಾಡಲು ನಿಖರ ಸ್ಥಳವನ್ನು ಸಂಗ್ರಹಿಸಲಾಗುತ್ತದೆ. ಗುಂಡಿಯ ಫೋಟೋಗಳು ಅಥವಾ ಡ್ರೈವ್ ಮೋಡ್‌ನ ಆಯ್ದ ಫ್ರೇಮ್‌ಗಳನ್ನು API ಕೀಯೊಂದಿಗೆ OpenAI ಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ. ನಂತರದ ನಿಖರ ಲೈವ್-ಡ್ರೈವ್ ಮರುಭೇಟಿಯಲ್ಲಿ, ಉಳಿಸಿದ ಹಿಂದಿನ ಹಾನಿಯ ಫೋಟೋ ಮತ್ತು ಪ್ರಸ್ತುತ ದೃಶ್ಯಗಳನ್ನು ದುರಸ್ತಿ ಪರಿಶೀಲನೆಗಾಗಿ ಒಟ್ಟಿಗೆ OpenAI ಗೆ ಕಳುಹಿಸಬಹುದು. ನಿಖರ ಸ್ಥಳವನ್ನು OpenStreetMap/Nominatim ಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ; ಕರ್ನಾಟಕದ ವರದಿಗಳು Karnataka GIS ಮತ್ತು ಹೈದರಾಬಾದ್ ವರದಿಗಳು Telangana GIS ಬಳಸುತ್ತವೆ. ಅಗತ್ಯ ರಾಜ್ಯ ರೂಟಿಂಗ್ ಪ್ಯಾಕ್ GitHub Pages ನಿಂದ ಡೌನ್‌ಲೋಡ್ ಆಗುತ್ತದೆ. ಸಂಸ್ಕರಣೆ ಭಾರತದ ಹೊರಗೆ ನಡೆಯಬಹುದು.",
-    privacy_local: "ಡ್ರೈವ್ ಮೋಡ್ ಆಡಿಯೋ ಬಳಸುವುದಿಲ್ಲ. ಡ್ರೈವ್ ಮೋಡ್ ಸಕ್ರಿಯವಾಗಿರುವಾಗ, ಈ ಆ್ಯಪ್ ಕಾಣಿಸದಿದ್ದರೂ ಅಥವಾ ನೀವು ಅದನ್ನು ಬಳಸದೇ Google Maps ಅಥವಾ ಕರೆ ಪರದೆಯಲ್ಲಿ ಇದ್ದರೂ Android ಕ್ಯಾಮೆರಾ ಮತ್ತು ಸ್ಥಳವನ್ನು ಹಿನ್ನಲೆಯಲ್ಲಿ ಬಳಸುತ್ತದೆ. ಕಾಣುವ ನಿರಂತರ foreground-service ಅಧಿಸೂಚನೆ ಈ ಬಳಕೆಯನ್ನು ಯಾವಾಗಲೂ ತೋರಿಸುತ್ತದೆ; ಆ್ಯಪ್ ಅಥವಾ ಅಧಿಸೂಚನೆಯಿಂದ ವಿರಾಮಗೊಳಿಸಿ ಅಥವಾ ನಿಲ್ಲಿಸಿ. ಡ್ರೈವ್ ಮೋಡ್ ಲೈವ್ ವಿಶ್ಲೇಷಣೆಗೆ ಮೊದಲು ವಿರಳವಾದ 720p ಸಾಕ್ಷ್ಯ ಫ್ರೇಮ್‌ಗಳನ್ನು ಆ್ಯಪ್‌ನ ಖಾಸಗಿ ಸಂಗ್ರಹದಲ್ಲಿ ಸ್ವತಂತ್ರವಾಗಿ ಉಳಿಸುತ್ತದೆ, ಆದ್ದರಿಂದ ಅಡಚಣೆಯಾದ ಅಥವಾ ಆಫ್‌ಲೈನ್ ಕೆಲಸವನ್ನು ಡ್ರೈವ್ ನಂತರ ವಿಶ್ಲೇಷಿಸಬಹುದು. ಐಚ್ಛಿಕ ಮೌನ ವಿಡಿಯೋ ಪೂರ್ವನಿಯೋಜಿತವಾಗಿ ಆಫ್ ಆಗಿರುತ್ತದೆ. ವರದಿಗಳು, ಫೋಟೋಗಳು, ದುರಸ್ತಿ ಸಾಕ್ಷ್ಯ, ಭೌತಿಕ ರಸ್ತೆ ಸ್ಥಿತಿ, ವಿಡಿಯೋ, ಸ್ಥಳ ಟ್ರ್ಯಾಕ್, ಸೆಟ್ಟಿಂಗ್ಸ್, ಪರಿಶೀಲಿತ ರಾಜ್ಯ ಪ್ಯಾಕ್‌ಗಳು ಮತ್ತು ಹೆದ್ದಾರಿ ಟೈಲ್‌ಗಳು ಅಳಿಸುವವರೆಗೆ ಸಾಧನದಲ್ಲಿರುತ್ತವೆ. ಭೌತಿಕ ರಸ್ತೆ ಸ್ಥಿತಿಯನ್ನು ಅಧಿಕೃತ ದೂರು ಸ್ಥಿತಿಯಿಂದ ಪ್ರತ್ಯೇಕವಾಗಿ ದಾಖಲಿಸಲಾಗುತ್ತದೆ.",
-    privacy_government: "ಈ ಸ್ವತಂತ್ರ ಆ್ಯಪ್ ಸರ್ಕಾರಿ ಸೇವೆಯಲ್ಲ ಮತ್ತು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ದೂರು ಸಲ್ಲಿಸುವುದಿಲ್ಲ. GitHub Pages ನಿಮ್ಮ IP, ಸಮಯ, user agent ಮತ್ತು ಕೇಳಿದ ರಾಜ್ಯ-ಪ್ಯಾಕ್ ಅಥವಾ 2° ಹೆದ್ದಾರಿ-ಟೈಲ್ ಮಾರ್ಗವನ್ನು ಪಡೆಯುತ್ತದೆ; ಇದರಿಂದ ರಾಜ್ಯ ಅಥವಾ ಅಂದಾಜು ಟೈಲ್ ತಿಳಿಯಬಹುದು, ನಿಖರ ಸ್ಥಳ, ಫೋಟೋ ಅಥವಾ ವರದಿ ವಿಷಯವಲ್ಲ. ಮೇಲಿನ ವಿವರದಂತೆ ಅಧಿಕಾರ ವ್ಯಾಪ್ತಿ ಪರಿಶೀಲಿಸಲು ಸ್ಥಳವನ್ನು ಸರ್ಕಾರಿ GIS ಗೆ ಕಳುಹಿಸಬಹುದು. ನೀವು ಉದ್ದೇಶಪೂರ್ವಕವಾಗಿ ಹಸ್ತಾಂತರವನ್ನು ತೆರೆಯುವ ಅಥವಾ ಪೂರ್ಣಗೊಳಿಸುವಾಗ ಮಾತ್ರ ದೂರಿನ ಪಠ್ಯ ಮತ್ತು ಫೋಟೋ ಅಧಿಕೃತ ದೂರು ಸೇವೆಗೆ ಹೋಗುತ್ತದೆ.",
-    privacy_link: "ಗೌಪ್ಯತಾ ನೀತಿ", sources_link: "ಡೇಟಾ ಮೂಲಗಳು ಮತ್ತು ಮಿತಿಗಳು",
-    privacy_accept: "ಮುಂದುವರಿಸಿ", privacy_decline: "ಈಗ ಬೇಡ",
-    wipe_btn: "ಎಲ್ಲಾ ಆ್ಯಪ್ ಡೇಟಾ ಅಳಿಸಿ",
-    key_required: "ಮುಂದುವರಿಸಲು OpenAI API ಕೀ ಸೇರಿಸಿ.",
-    back: "ಹಿಂದೆ", save: "ಉಳಿಸಿ", discard: "ತ್ಯಜಿಸಿ", del: "ಅಳಿಸಿ", email_btn: "ಇಮೇಲ್", stop: "&#9632; ನಿಲ್ಲಿಸಿ", working: "ನಡೆಯುತ್ತಿದೆ...",
-    chip_draft: "ಡ್ರಾಫ್ಟ್", chip_sent: "ಸಲ್ಲಿಸಲಾಗಿದೆ ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ", chip_queued: "ಇಮೇಲ್‌ನಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ", chip_queued_bmc: "BMC ಹಸ್ತಾಂತರ ತೆರೆಯಲಾಗಿದೆ", chip_rejected: "ಗುಂಡಿ: ಇಲ್ಲ", chip_review: "ಪರಿಶೀಲನೆ ಬೇಕು",
-    chip_unrouted: "ಮಾರ್ಗ ನಿಗದಿಯಾಗಿಲ್ಲ",
-    chip_fixed: "ದುರಸ್ತಿಯಾಗಿದೆ", chip_repair_review: "ದುರಸ್ತಿ ಪರಿಶೀಲನೆ ಬೇಕು",
-    verdict_fixed: "ನಂತರದ ಡ್ರೈವ್‌ನಲ್ಲಿ ದುರಸ್ತಿಯಾಗಿದೆ ಎಂದು ಪರಿಶೀಲಿಸಲಾಗಿದೆ",
-    verdict_repair_review: "ಸಂಭಾವ್ಯ ದುರಸ್ತಿ ಕಂಡುಬಂದಿದೆ — ಎರಡೂ ಫೋಟೋಗಳನ್ನು ಹೋಲಿಸಿ",
-    repair_evidence_label: "ನಂತರದ ಮರುಭೇಟಿ",
-    repair_review_help: "ಅದೇ ಸ್ಥಳದಲ್ಲಿ ಸಾಧ್ಯವಾದ ಪೂರ್ಣ ದುರಸ್ತಿಯನ್ನು ಆ್ಯಪ್ ಕಂಡಿದೆ, ಆದರೆ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ದುರಸ್ತಿಯಾಗಿದೆ ಎಂದು ಗುರುತಿಸಿಲ್ಲ. ಹಳೆಯ ಗುಂಡಿಯ ಸ್ಥಳವನ್ನು ಅಕ್ಷತ ದುರಸ್ತಿ ವಸ್ತು ಸ್ಪಷ್ಟವಾಗಿ ಮುಚ್ಚಿದ್ದರೆ ಮಾತ್ರ ದೃಢಪಡಿಸಿ.",
-    fixed_local_note: "ಇದು ಭೌತಿಕ ಸ್ಥಿತಿ ಮಾತ್ರ: ಅಧಿಕೃತ ದೂರನ್ನು ಮುಚ್ಚಲಾಗಿದೆ ಎಂಬ ಅರ್ಥವಲ್ಲ. ಹಿಂದಿನ ಸಲ್ಲಿಕೆ ಸ್ಥಿತಿ ಬದಲಾಗುವುದಿಲ್ಲ.",
-    fixed_action_blocked: "ಈ ಗುಂಡಿ ದುರಸ್ತಿಯಾಗಿದೆ ಎಂದು ಪರಿಶೀಲಿಸಲಾಗಿದೆ, ಆದ್ದರಿಂದ ಹಳೆಯ ದೂರನ್ನು ಮತ್ತೆ ಸಲ್ಲಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.",
-    confirm_fixed_btn: "ದುರಸ್ತಿಯಾಗಿದೆ ಎಂದು ದೃಢಪಡಿಸಿ", reopen_btn: "ತೆರೆದಿದೆ ಎಂದು ಗುರುತಿಸಿ",
-    stat_fixed: "ಪರಿಶೀಲಿತ ದುರಸ್ತಿ",
-    no_location: "ಸ್ಥಳ ಪತ್ತೆಯಾಗಲಿಲ್ಲ.",
-    location_uncertain: "ಅಧಿಕಾರಿಯನ್ನು ಆಯ್ಕೆ ಮಾಡಲು GPS ಸಾಕಷ್ಟು ನಿಖರವಾಗಿಲ್ಲ.",
-    location_uncertain_help: "ರಸ್ತೆ ಹಾನಿ ದೃಢಪಟ್ಟಿದೆ, ಆದರೆ ಸ್ವೀಕರಿಸುವವರನ್ನು ಆಯ್ಕೆ ಮಾಡಲು ಫ್ರೇಮ್ ಸ್ಥಳ ಸಾಕಷ್ಟು ನಿಖರವಾಗಿಲ್ಲ. ಹೊಸ GPS ಸ್ಥಳದೊಂದಿಗೆ ಮತ್ತೆ ಸೆರೆಹಿಡಿಯಿರಿ; ಕ್ಯಾಲಿಬ್ರೇಟ್ ಮಾಡದ ಡ್ಯಾಶ್‌ಕ್ಯಾಮ್‌ಗೆ ಸ್ವಯಂ ಪ್ರಾಧಿಕಾರ ಮತ್ತು ಟೆಂಡರ್ ಮಾರ್ಗ ಬೇಕಾದರೆ ಫೋನ್ ಕ್ಯಾಮೆರಾ ಬಳಸಿ. ಈ ವರದಿ ಸ್ವೀಕರಿಸುವವರಿಲ್ಲದೆ ಉಳಿಸಲಾಗಿದೆ.",
-    jurisdiction_unavailable: "ಪರಿಶೀಲಿತ ರೂಟಿಂಗ್ ಡೇಟಾವನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಲು ಅಥವಾ ಓದಲು ಆಗಲಿಲ್ಲ.",
-    jurisdiction_unavailable_help: "ಪರಿಶೀಲಿತ ರಾಜ್ಯ ಪ್ಯಾಕ್ ಇಲ್ಲದೆ ಆ್ಯಪ್ ಯಾವುದೇ ನಾಗರಿಕ ಸಂಸ್ಥೆಯನ್ನು ಊಹಿಸುವುದಿಲ್ಲ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ; ವರದಿ ಸ್ವೀಕರಿಸುವವರಿಲ್ಲದೆ ಉಳಿಸಲಾಗಿದೆ.",
-    road_unknown: "ಈ ರಸ್ತೆ ಯಾರ ವ್ಯಾಪ್ತಿಗೆ ಬರುತ್ತದೆ ಎಂದು ಪರಿಶೀಲಿಸಲಾಗಲಿಲ್ಲ",
-    road_unknown_help: "ಇದು ರಾಷ್ಟ್ರೀಯ ಹೆದ್ದಾರಿಯೇ ಎಂದು ಪರಿಶೀಲಿಸಲು ರಾಜ್ಯ ರಸ್ತೆ ಜಾಲವನ್ನು ತಲುಪಲಾಗಲಿಲ್ಲ. ಆದ್ದರಿಂದ ಬೇರೆಯವರ ರಸ್ತೆಗೆ ನಗರ ಅಧಿಕಾರಿಯ ಹೆಸರು ಸೂಚಿಸುವುದಿಲ್ಲ. ಸಿಗ್ನಲ್ ಬಂದ ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
-    nat_highway: "{road} ಒಂದು ರಾಷ್ಟ್ರೀಯ ಹೆದ್ದಾರಿ",
-    nat_highway_help: "ರಸ್ತೆ ಸೇವೆಯು ಇದನ್ನು ರಾಷ್ಟ್ರೀಯ ಹೆದ್ದಾರಿ ಎಂದು ಗುರುತಿಸಿದೆ, ಆದರೆ ಪರಿಶೀಲಿತ ರಾಷ್ಟ್ರೀಯ ಟೈಲ್ ಅದರ ನಕ್ಷೆಯ ಉಲ್ಲೇಖವನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ಗುರುತಿಸಲಿಲ್ಲ. ಯಾವುದೇ ಪುರಸಭೆಗೆ ಕಳುಹಿಸಿಲ್ಲ. ರಾಜಮಾರ್ಗಯಾತ್ರಾ ಅಥವಾ 1033 ಬಳಸಿ ನಿರ್ವಹಣಾ ಸಂಸ್ಥೆಯನ್ನು ಪರಿಶೀಲಿಸಿ.",
-    rural_road: "ಈ ರಸ್ತೆ {body} ಗ್ರಾಮ ಪಂಚಾಯತ್‌ನಲ್ಲಿದೆ, ಪಟ್ಟಣ ಅಥವಾ ನಗರದಲ್ಲಿ ಅಲ್ಲ.",
-    rural_road_help: "ಗುಂಡಿ ದೃಢಪಟ್ಟಿದೆ, ಆದರೆ ಇದು ಯಾವುದೇ ನಗರ ಸ್ಥಳೀಯ ಸಂಸ್ಥೆಯ ಹೊರಗಿದೆ. ಇದು ಲೋಕೋಪಯೋಗಿ ಇಲಾಖೆ ಅಥವಾ ಪಂಚಾಯತ್ ಎಂಜಿನಿಯರಿಂಗ್ ಇಲಾಖೆಗೆ ಸೇರಿದೆ, ಅವು ಇನ್ನೂ ಪಟ್ಟಿಯಲ್ಲಿಲ್ಲ. ಫೋಟೋ ಉಳಿಸಲಾಗಿದೆ.",
-    no_address: "{body} ಗೆ ಪ್ರಕಟಿತ ವಿಳಾಸ ಇಲ್ಲ.",
-    no_address_help: "ಗುಂಡಿ ದೃಢಪಟ್ಟಿದೆ ಮತ್ತು ಜವಾಬ್ದಾರ ಸಂಸ್ಥೆ ಗುರುತಿಸಲಾಗಿದೆ, ಆದರೆ ಅದರ ಅಧಿಕೃತ ಇಮೇಲ್ ಆ್ಯಪ್‌ನಲ್ಲಿ ಇಲ್ಲ, ಮತ್ತು ಊಹಿಸುವುದಿಲ್ಲ. ಫೋಟೋ ಉಳಿಸಲಾಗಿದೆ.",
-    no_location_help: "ಗುಂಡಿ ದೃಢಪಟ್ಟಿದೆ, ಆದರೆ GPS ಇಲ್ಲದೆ ಯಾವ ಪಾಲಿಕೆ ಜವಾಬ್ದಾರಿ ಎಂದು ತಿಳಿಯದು, ಆದ್ದರಿಂದ ದೂರು ಸಿದ್ಧಪಡಿಸಿಲ್ಲ. ಫೋಟೋ ಉಳಿಸಲಾಗಿದೆ.",
-    civic_no_location_help: "ಸಮಸ್ಯೆಯನ್ನು ಉಳಿಸಲಾಗಿದೆ, ಆದರೆ GPS ಸ್ಥಳವಿಲ್ಲದೆ ನಾಗರಿಕ ಸಂಸ್ಥೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಲಾಗುವುದಿಲ್ಲ. ಸ್ಥಳವನ್ನು ಆನ್ ಮಾಡಿ ಮತ್ತೆ ಫೋಟೋ ತೆಗೆಯಿರಿ.",
-    civic_location_uncertain_help: "ಸಮಸ್ಯೆಯನ್ನು ಉಳಿಸಲಾಗಿದೆ, ಆದರೆ GPS ನಿಖರತೆ ನಾಗರಿಕ ಗಡಿಯನ್ನು ದಾಟಬಹುದು. ಹೆಚ್ಚು ನಿಖರವಾದ ಹೊಸ ಸ್ಥಳದೊಂದಿಗೆ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
-    civic_jurisdiction_unavailable_help: "ಸಮಸ್ಯೆಯನ್ನು ಉಳಿಸಲಾಗಿದೆ, ಆದರೆ ಪರಿಶೀಲಿತ ನಾಗರಿಕ ರೂಟಿಂಗ್ ಡೇಟಾವನ್ನು ಓದಲು ಆಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ; ಆ್ಯಪ್ ಸಂಸ್ಥೆಯನ್ನು ಊಹಿಸುವುದಿಲ್ಲ.",
-    civic_rural: "ಈ ಸ್ಥಳ {body} ಗ್ರಾಮ ಪಂಚಾಯತ್‌ನಲ್ಲಿದೆ ಮತ್ತು ಬೆಂಬಲಿತ ನಗರ ವ್ಯಾಪ್ತಿಯ ಹೊರಗಿದೆ.",
-    civic_rural_help: "ಸಮಸ್ಯೆ ಮತ್ತು ಸ್ಥಳವನ್ನು ಉಳಿಸಲಾಗಿದೆ, ಆದರೆ ಈ ಗ್ರಾಮೀಣ ಸಂಸ್ಥೆಗೆ ಪರಿಶೀಲಿತ ದೂರು ಮಾರ್ಗ ಇನ್ನೂ ಲಭ್ಯವಿಲ್ಲ.",
-    civic_no_address_help: "ನಾಗರಿಕ ಸಂಸ್ಥೆಯನ್ನು ಗುರುತಿಸಲಾಗಿದೆ, ಆದರೆ ಅದರ ಪರಿಶೀಲಿತ ದೂರು ವಿಳಾಸ ಆ್ಯಪ್‌ನಲ್ಲಿ ಇಲ್ಲ ಮತ್ತು ಆ್ಯಪ್ ಊಹಿಸುವುದಿಲ್ಲ. ಫೋಟೋ ಮತ್ತು ಸ್ಥಳ ಉಳಿಸಲಾಗಿದೆ.",
-    civic_unsupported: "{body} ಗೆ ಪರಿಶೀಲಿತ {type} ದೂರು ಮಾರ್ಗ ಇಲ್ಲ.",
-    civic_unsupported_help: "ಸಮಸ್ಯೆ ಮತ್ತು ಸಾಕ್ಷಿ ಉಳಿಸಲಾಗಿದೆ, ಆದರೆ ಸೂಚಿಸಿದ ಸ್ವೀಕರಿಸುವವರು ಈ ವರ್ಗವನ್ನು ಸ್ವೀಕರಿಸುತ್ತಾರೆ ಎಂಬುದು ಪರಿಶೀಲಿತವಾಗಿಲ್ಲ; ಆ್ಯಪ್ ಊಹಿಸಿ ದೂರು ತೆರೆಯುವುದಿಲ್ಲ.",
-    civic_outside_coverage_help: "ಈ ಸ್ಥಳವು ಭಾರತದ ಪರಿಶೀಲಿತ ರಾಜ್ಯ/ಕೇಂದ್ರಾಡಳಿತ ಪ್ರದೇಶದ ಗಡಿಯ ಹೊರಗಿದೆ ಅಥವಾ ನಿಖರ ಮಾರ್ಗದರ್ಶನ ದತ್ತಾಂಶ ಲಭ್ಯವಿಲ್ಲ. ಫೋಟೋ ಮತ್ತು ಸ್ಥಳವನ್ನು ಸ್ವೀಕರಿಸುವವರಿಲ್ಲದೆ ಉಳಿಸಲಾಗಿದೆ.",
-    retry_routing_btn: "ಮಾರ್ಗವನ್ನು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
-    retry_routing_unchanged: "ಮಾರ್ಗ ಇನ್ನೂ ಲಭ್ಯವಿಲ್ಲ. ಮೂಲ ಚಿತ್ರ ಮತ್ತು ಸ್ಥಳ ಉಳಿದಿವೆ; ಸಂಪರ್ಕ ಅಥವಾ ಮಾರ್ಗ ಮಾಹಿತಿ ಲಭ್ಯವಾದಾಗ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
-    confirm_import_location: "ಈ ಬ್ರೌಸರ್ ಹಳೆಯ ಚಿತ್ರವನ್ನು ಆಯ್ಕೆ ಮಾಡಿರಬಹುದು. ಚಿತ್ರವು ನೀವು ಈಗಿರುವ ಸ್ಥಳವನ್ನೇ ತೋರಿಸಿದರೆ ಮಾತ್ರ ಪ್ರಸ್ತುತ GPS ಸ್ಥಳವನ್ನು ಜೋಡಿಸಿ.",
-    capture_provenance_camera: "ಆ್ಯಪ್ ಕ್ಯಾಮೆರಾದಿಂದ ಈಗ ತೆಗೆದದ್ದು",
-    capture_provenance_import: "ಆಯ್ಕೆ/ಆಮದು ಮಾಡಿದ ಚಿತ್ರ · ಮೂಲ ಸೆರೆ ಸಮಯ ಪರಿಶೀಲಿಸಲಾಗಿಲ್ಲ",
-    review_btn: "ಫ್ರೇಮ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಗುರುತಿಸಿ", export_btn: "ಗುರುತಿಸಿದ ಡೇಟಾಸೆಟ್ ರಫ್ತು ಮಾಡಿ",
-    dash_btn: "&#128506;&#65039; &nbsp;ಕೊಡುಗೆ", dash_title: "ನಿಮ್ಮ ಕೊಡುಗೆ",
-    dash_range: "{days} ವರದಿ · ಮೊದಲನೆಯದು {first}",
-    dash_empty: "ಇನ್ನೂ ವರದಿಗಳಿಲ್ಲ. ಸಮಸ್ಯೆಗಳನ್ನು ವರದಿ ಮಾಡಿದಂತೆ ಅಥವಾ ಡ್ರೈವ್ ಮಾಡಿದಂತೆ ನಕ್ಷೆ ತುಂಬುತ್ತದೆ.",
-    day_one: "1 ದಿನ", day_many: "{n} ದಿನಗಳು",
-    stat_found: "ಉಳಿಸಿದ ವರದಿಗಳು", stat_reported: "ದೃಢೀಕರಿಸಿದ ಸಲ್ಲಿಕೆಗಳು", stat_frames: "ಗುಂಡಿ ಪರಿಶೀಲನೆಗಳು",
-    stat_drives: "ಡ್ರೈವ್‌ಗಳು", stat_footage: "MB ವಿಡಿಯೋ", stat_km: "ಕಿಮೀ ರಸ್ತೆ",
-    by_type: "ವರದಿ ಪ್ರಕಾರ", by_size: "ಗುಂಡಿಯ ಗಾತ್ರ", by_area: "ಪಾಲಿಕೆ ಪ್ರಕಾರ", map_pins: "{n} ಗುರುತಿಸಲಾಗಿದೆ",
-    map_empty: "ನಕ್ಷೆಯಲ್ಲಿ ಇನ್ನೂ ಗುಂಡಿಗಳಿಲ್ಲ.",
-    map_offline: "ನಕ್ಷೆಗೆ ಇಂಟರ್ನೆಟ್ ಬೇಕು. ಬಿಂದುಗಳು ಕೆಳಗೆ ತೋರಿಸಲಾಗಿದೆ.",
-    zoom_hint: "ಜೂಮ್‌ಗೆ ಪಿಂಚ್ · ಸರಿಸಲು ಎಳೆಯಿರಿ · ಮರುಹೊಂದಿಸಲು ಡಬಲ್ ಟ್ಯಾಪ್",
-    rec_suffix: "· {mb} MB ರೆಕಾರ್ಡ್", rec_failed: "· ರೆಕಾರ್ಡ್ ಆಗುತ್ತಿಲ್ಲ",
-    net_trouble: "ಸಂಪರ್ಕ ಸಮಸ್ಯೆ, ಇನ್ನೂ ಸ್ಕ್ಯಾನ್ ಆಗುತ್ತಿದೆ ({n} ಬಾಕಿ)",
-    capture_failing: "ಕ್ಯಾಮರಾವು ಫ್ರೇಮ್ ನೀಡುತ್ತಿಲ್ಲ. ಡ್ರೈವ್ ನಿಲ್ಲಿಸಿ ಮತ್ತೆ ಪ್ರಾರಂಭಿಸಿ.",
-    camera_lost: "ಕ್ಯಾಮೆರಾ ವಿರಾಮದಲ್ಲಿದೆ (ಬೇರೆ ಆ್ಯಪ್ ಬಳಸುತ್ತಿರಬಹುದು). ತಾನಾಗಿಯೇ ಮುಂದುವರಿಯುತ್ತದೆ.",
-    camera_low_quality: "ಕ್ಯಾಮೆರಾ ಕೇವಲ {width}px / {fps}fps",
-    coverage_dropped: "ಬಾಕಿ ಘಟನೆಗಳು ಕೈಬಿಡಲಾಗಿದೆ",
-    drive_end_failed: "ಸಂಪರ್ಕದ ಕಾರಣ {n} ಫ್ರೇಮ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸಲಾಗಲಿಲ್ಲ.",
-    footage_line: "ವಿಡಿಯೋ: {mb} MB · {segments} ತುಣುಕುಗಳು",
-    analyse_btn: "ವಿಡಿಯೋ ವಿಶ್ಲೇಷಿಸಿ", delete_footage: "ವಿಡಿಯೋ ಅಳಿಸಿ",
-    analysing: "ಫ್ರೇಮ್ {i}/{n} · {found} ಹೊಸ",
-    analyse_done: "ವಿಶ್ಲೇಷಣೆ ಮುಗಿಯಿತು: {n} ಫ್ರೇಮ್‌ಗಳಿಂದ {found} ಹೊಸ ಗುಂಡಿಗಳು.",
-    analyse_none: "ಈ ಡ್ರೈವ್‌ಗೆ ವಿಡಿಯೋ ಇಲ್ಲ.",
-    analysing_dup: "({n} ಈಗಾಗಲೇ ವರದಿ)",
-    analyse_dup: "ಅವುಗಳಲ್ಲಿ {n} ಈಗಾಗಲೇ ವರದಿಯಾಗಿವೆ.",
-    already_one: "ಈಗಾಗಲೇ ವರದಿಯಾದ {n} ಘಟನೆ", already_many: "ಈಗಾಗಲೇ ವರದಿಯಾದ {n} ಘಟನೆಗಳು",
-    frames_no_permission: "ಫ್ರೇಮ್‌ಗಳನ್ನು ಉಳಿಸಲು ಅನುಮತಿ ಸಿಗಲಿಲ್ಲ. ಉಳಿಸದೆ ವಿಶ್ಲೇಷಣೆ ಮುಂದುವರಿಸಬೇಕೆ?",
-    analysing_failed: "· {n} ವಿಫಲ",
-    analyse_incomplete: "ಪೂರ್ಣಗೊಳಿಸಲಾಗಲಿಲ್ಲ: {n} ರಲ್ಲಿ {failed} ಫ್ರೇಮ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸಲಾಗಿಲ್ಲ ({err}) ಆದ್ದರಿಂದ ಯಾವುದೇ ಫಲಿತಾಂಶ ಹೇಳುತ್ತಿಲ್ಲ, ವಿಡಿಯೋ ಉಳಿಸಲಾಗಿದೆ.",
-    debug_note: "ಆನ್: ವಿಶ್ಲೇಷಣೆಯ ನಂತರವೂ ವಿಡಿಯೋ ಉಳಿಯುತ್ತದೆ. ಆಫ್: ಗುಂಡಿಗಳನ್ನು ತೆಗೆದ ನಂತರ ವಿಡಿಯೋ ಅಳಿಸಲಾಗುತ್ತದೆ.",
-    record_label: "ಡ್ರೈವ್ ಸಮಯದಲ್ಲಿ ಸ್ಥಳೀಯ ವಿಡಿಯೋ ರೆಕಾರ್ಡ್ ಮಾಡಿ (ಆಡಿಯೋ ಇಲ್ಲ; ಪೂರ್ವನಿಯೋಜಿತವಾಗಿ ಆಫ್)",
-    drive_limit_label: "ಡ್ರೈವ್ ಬ್ಯಾಟರಿ ಮಿತಿ",
-    drive_limit_note: "ಸಕ್ರಿಯ ಸಮಯ ಮಾತ್ರ. ಸಮಯ ಮುಗಿದಾಗ ಡ್ರೈವ್ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ನಿಲ್ಲುತ್ತದೆ; ವಿರಾಮದ ಸಮಯ ಲೆಕ್ಕವಾಗುವುದಿಲ್ಲ.",
-    keep_frames_label: "ವಿಶ್ಲೇಷಿಸಿದ ಎಲ್ಲ ಫ್ರೇಮ್‌ಗಳನ್ನು ಸಾಧನದಲ್ಲಿ ಉಳಿಸಿ",
-    keep_frames_note: "AI ಪರಿಶೀಲಿಸಿದ ಪ್ರತಿ ಫ್ರೇಮ್ ಮತ್ತು ಅದರ ತೀರ್ಮಾನವನ್ನು Documents/pothole-frames ನಲ್ಲಿ ಬರೆಯುತ್ತದೆ. ಫೈಲ್ಸ್ ಆ್ಯಪ್‌ನಲ್ಲಿ ಕಾಣುತ್ತದೆ. ಪ್ರತಿ ಫ್ರೇಮ್ ಸುಮಾರು 300 KB.",
-    frames_saved: "{n} ಫ್ರೇಮ್‌ಗಳನ್ನು Documents/{dir} ನಲ್ಲಿ ಬರೆಯಲಾಗಿದೆ.",
-    frames_failed: "ಫ್ರೇಮ್‌ಗಳನ್ನು ಸಾಧನದಲ್ಲಿ ಬರೆಯಲಾಗಲಿಲ್ಲ.",
-    footage_freed: "ವಿಡಿಯೋ ಅಳಿಸಲಾಗಿದೆ, {mb} MB ಮುಕ್ತ.",
-    footage_kept: "ವಿಡಿಯೋ ಉಳಿಸಲಾಗಿದೆ (ಡೀಬಗ್ ಮೋಡ್).",
-    offer_analyse: "ಈ ಡ್ರೈವ್‌ನ ವಿಡಿಯೋ ಈಗ ವಿಶ್ಲೇಷಿಸಬೇಕೆ? {clips} ತುಣುಕುಗಳು, {mb} MB. ಗುಂಡಿಗಳು ಫೋಟೋಗಳಾಗಿ ಉಳಿಯುತ್ತವೆ, ಉಳಿದವು ಅಳಿಸಲಾಗುತ್ತದೆ.",
-    confirm_delete_footage: "ಈ ಡ್ರೈವ್‌ನ ವಿಡಿಯೋ ಅಳಿಸಬೇಕೆ? ವರದಿಗಳು ಉಳಿಯುತ್ತವೆ.",
-    drive_group: "{date} · {found}{known} · {checked} ಲೈವ್ ಫ್ರೇಮ್ ಪರಿಶೀಲನೆ{video}",
-    drive_video_suffix: " · {n} ವಿಡಿಯೋ ಫ್ರೇಮ್ ಪರಿಶೀಲನೆ",
-    drive_group_partial: "{date} · {found} · {kept} ಉಳಿಸಲಾಗಿದೆ",
-    lbl_pothole: "ರಸ್ತೆ ಗುಂಡಿ", lbl_no: "ಗುಂಡಿ ಅಲ್ಲ", lbl_skip: "ಬಿಟ್ಟುಬಿಡಿ", lbl_done: "ಮುಗಿಯಿತು",
-    review_empty: "ಗುರುತಿಸಲು ಏನೂ ಉಳಿದಿಲ್ಲ. ಡೀಬಗ್ ಮೋಡ್ ಆನ್ ಮಾಡಿ ಡ್ರೈವ್ ಮಾಡಿ.",
-    review_progress: "{n} ಬಾಕಿ · {done} ಗುರುತಿಸಲಾಗಿದೆ",
-    model_said: "ಆ್ಯಪ್ ಹೇಳಿದ್ದು: {verdict}",
-    export_ready: "{n} ಗುರುತಿಸಿದ ಫ್ರೇಮ್‌ಗಳು, {mb} MB. ಎಲ್ಲಿಗೆ ಕಳುಹಿಸಬೇಕೆಂದು ಆಯ್ಕೆಮಾಡಿ.",
-    outside_coverage: "ಈ ಸ್ಥಳ ಈ ಆ್ಯಪ್ ಒಳಗೊಂಡ ವ್ಯಾಪ್ತಿಯ ಹೊರಗಿದೆ.",
-    outside_coverage_help: "ಈ ಸ್ಥಳವು ಭಾರತದ ಪರಿಶೀಲಿತ ರಾಜ್ಯ/ಕೇಂದ್ರಾಡಳಿತ ಪ್ರದೇಶ ಮತ್ತು ನಕ್ಷೆಗೊಂಡ ರಾಷ್ಟ್ರೀಯ ಹೆದ್ದಾರಿ ವ್ಯಾಪ್ತಿಯ ಹೊರಗಿದೆ ಅಥವಾ ನಿಖರ ಮಾರ್ಗದರ್ಶನ ದತ್ತಾಂಶ ಲಭ್ಯವಿಲ್ಲ. ಫೋಟೋ ಮತ್ತು ಸ್ಥಳವನ್ನು ಸ್ವೀಕರಿಸುವವರಿಲ್ಲದೆ ಉಳಿಸಲಾಗಿದೆ.",
-    size_small: "ಸಣ್ಣ", size_medium: "ಮಧ್ಯಮ", size_large: "ದೊಡ್ಡ",
-    damage_pothole_cavity: "ರಸ್ತೆ ಗುಂಡಿ", damage_failed_patch: "ವಿಫಲವಾದ ರಸ್ತೆ ದುರಸ್ತಿ",
-    damage_surface_breakup: "ಹಾಳಾದ ರಸ್ತೆ ಮೇಲ್ಮೈ", damage_rut_or_depression: "ರಸ್ತೆ ಕುಸಿತ",
-    damage_other_road_damage: "ಇತರೆ ರಸ್ತೆ ಹಾನಿ", damage_none: "ವರದಿ ಮಾಡಬಹುದಾದ ಹಾನಿ ಇಲ್ಲ",
-    assessment_clear: "ಸ್ಪಷ್ಟ", assessment_probable: "ಸಂಭಾವ್ಯ", assessment_uncertain: "ಅನಿಶ್ಚಿತ", assessment_absent: "ಇಲ್ಲ",
-    verdict_detected: "ಗುಂಡಿ: ಹೌದು",
-    verdict_review: "ಸಂಭಾವ್ಯ {type} — ವರದಿಗೂ ಮೊದಲು ಸ್ಪಷ್ಟ ಫೋಟೋ ಅಥವಾ ಪರಿಶೀಲನೆ ಬೇಕು",
-    verdict_rejected: "ಗುಂಡಿ: ಇಲ್ಲ",
-    early_yes: "ಗುಂಡಿ: ಹೌದು. ದೂರು ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ...",
-    early_review: "ಸಂಭಾವ್ಯ ರಸ್ತೆ ಹಾನಿ. ಸ್ಪಷ್ಟ ಫೋಟೋ ಬೇಕು.",
-    early_no: "ಗುಂಡಿ: ಇಲ್ಲ.",
-    verdict_sent: "ಸಲ್ಲಿಸಲಾಗಿದೆ ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ",
-    verdict_queued: "ನಿಮ್ಮ ಇಮೇಲ್ ಆ್ಯಪ್‌ನಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ. ಕಳುಹಿಸಿಲ್ಲದಿದ್ದರೆ ತಿದ್ದಿ ಮತ್ತೆ ತೆರೆಯಿರಿ.",
-    email_subject_label: "ಇಮೇಲ್ ವಿಷಯ",
-    email_body_label: "ಇಮೇಲ್ ಪಠ್ಯ (ಕಳುಹಿಸುವ ಮೊದಲು ಪರಿಶೀಲಿಸಿ)",
-    routes_to: "ಯಾರಿಗೆ:",
-    getting_location: "ನಿಮ್ಮ ಸ್ಥಳ ಪಡೆಯಲಾಗುತ್ತಿದೆ...",
-    waiting_gps: "GPS ಗಾಗಿ ಕಾಯಲಾಗುತ್ತಿದೆ...",
-    gps_30s: "30 ಸೆಕೆಂಡ್ ನಂತರವೂ GPS ಸಿಕ್ಕಿಲ್ಲ. ಲೊಕೇಶನ್ ಆನ್ ಇದೆಯೇ ಪರಿಶೀಲಿಸಿ.",
-    gps_lost: "GPS ಸಿಗ್ನಲ್ ಕಳೆದುಹೋಗಿದೆ, ಹೊಸ ಫಿಕ್ಸ್‌ಗಾಗಿ ಕಾಯಲಾಗುತ್ತಿದೆ...",
-    holding: "ಸ್ಥಳದಲ್ಲಿದ್ದೀರಿ ({checked} ಪರಿಶೀಲನೆ, {found} ಪತ್ತೆ)",
-    scanning: "ಸ್ಕ್ಯಾನ್ ({mode})... {checked} ಪರಿಶೀಲನೆ{analyzing}",
-    analyzing_suffix: ", {n} ವಿಶ್ಲೇಷಣೆ",
-    potholes_one: "{n} ಗುಂಡಿ", potholes_many: "{n} ಗುಂಡಿಗಳು",
-    drive_tip: "ಚಲಿಸುವ ಮೊದಲು ರಸ್ತೆ ಕಿತ್ತಳೆ ಮಾರ್ಗದರ್ಶಿಯೊಳಗೆ ತುಂಬುವಂತೆ ಕ್ಯಾಮೆರಾ ಹೊಂದಿಸಿ; ಆಕಾಶ ಮತ್ತು ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ಕಡಿಮೆ ಇರಲಿ. ಪ್ರತಿ ಪರಿಶೀಲನೆ ಮೂರು ಫ್ರೇಮ್‌ಗಳನ್ನು ಬಳಸುತ್ತದೆ.",
-    drive_end: "ಡ್ರೈವ್ ಮುಗಿಯಿತು: {found} ಪತ್ತೆ, {checked} ಫ್ರೇಮ್ ಪರಿಶೀಲನೆ.",
-    drive_end_known: "ಡ್ರೈವ್ ಮುಗಿಯಿತು: ಹೊಸ ವರದಿ ಇಲ್ಲ; {already} ಮತ್ತೆ ಕಂಡಿದೆ, {checked} ಫ್ರೇಮ್ ಪರಿಶೀಲನೆ.",
-    drive_seen_suffix: " {already} ಮತ್ತೆ ಕಂಡಿದೆ.",
-    drive_end_zero: "ಈ ಡ್ರೈವ್‌ನಲ್ಲಿ ಗುಂಡಿಗಳು ಪತ್ತೆಯಾಗಿಲ್ಲ ({checked} ಪರಿಶೀಲನೆಗಳು{debug}).",
-    debug_saved_suffix: ", ಡೀಬಗ್ ಫ್ರೇಮ್‌ಗಳು ಉಳಿದಿವೆ",
-    confirm_send: "{to} ಗೆ ಉದ್ದೇಶಿಸಿದ ದೂರಿನೊಂದಿಗೆ ನಿಮ್ಮ ಇಮೇಲ್ ಆ್ಯಪ್ ತೆರೆಯಬೇಕೆ?",
-    confirm_suggested_email: "ಸ್ಥಳವು {authority} ಅನ್ನು ಸೂಚಿಸುತ್ತದೆ, ಆದರೆ ಇದು ರಸ್ತೆ ಮಾಲೀಕತ್ವವನ್ನು ಸಾಬೀತುಪಡಿಸುವುದಿಲ್ಲ. {to} ಗೆ ಉದ್ದೇಶಿಸಿದ ದೂರಿನೊಂದಿಗೆ ಇಮೇಲ್ ಆ್ಯಪ್ ತೆರೆಯಬೇಕೆ?",
-    open_official_btn: "{name} ತೆರೆಯಿರಿ", share_evidence_btn: "ಸಾಕ್ಷ್ಯ ಹಂಚಿಕೊಳ್ಳಿ",
-    copy_whatsapp_btn: "WhatsApp ಪಠ್ಯ ನಕಲಿಸಿ",
-    portal_fields_btn: "ಪೋರ್ಟಲ್ ವಿವರಗಳು",
-    portal_fields_title: "ಪೋರ್ಟಲ್ ವಿವರಗಳು",
-    portal_fields_hint: "ಈ ವಿವರಗಳನ್ನು ಅಧಿಕೃತ ದೂರು ಪೋರ್ಟಲ್‌ಗೆ ನಕಲಿಸಿ. ನಿಖರ ರಸ್ತೆ ಜವಾಬ್ದಾರಿ ಪರಿಶೀಲನೆಯಾದಾಗ ಮಾತ್ರ ಗುತ್ತಿಗೆ ವಿವರಗಳು ಕಾಣಿಸುತ್ತವೆ.",
-    copy_all_btn: "ಎಲ್ಲವನ್ನೂ ನಕಲಿಸಿ",
-    copied_message: "ನಕಲಿಸಲಾಗಿದೆ.",
-    official_whatsapp_btn: "ಅಧಿಕೃತ WhatsApp", official_call_btn: "{number} ಗೆ ಕರೆ ಮಾಡಿ",
-    confirm_whatsapp_share: "ಈ ವರದಿಯ ಪಠ್ಯ ಮತ್ತು ನಿಖರ ಸ್ಥಳದೊಂದಿಗೆ {authority} ಸಂಸ್ಥೆಯ ಅಧಿಕೃತ WhatsApp ತೆರೆಯಬೇಕೆ? WhatsApp ನಲ್ಲಿ Send ಒತ್ತುವವರೆಗೆ ಏನೂ ಕಳುಹಿಸಲಾಗುವುದಿಲ್ಲ.",
-    official_disclaimer: "ಸೂಚಿಸಿದ ನಾಗರಿಕ ಸಂಸ್ಥೆ: {authority}. ಇದು ರಸ್ತೆ ಮಾಲೀಕತ್ವದ ದೃಢೀಕರಣವಲ್ಲ. ಈ ಸ್ವತಂತ್ರ ಆ್ಯಪ್ ಸಾಕ್ಷ್ಯವನ್ನು ಮಾತ್ರ ಸಿದ್ಧಪಡಿಸುತ್ತದೆ; {service} ನಲ್ಲಿ ನೀವೇ ದೂರು ಪೂರ್ಣಗೊಳಿಸಿ ಮತ್ತು ಅಧಿಕೃತ ಉಲ್ಲೇಖ ಸಂಖ್ಯೆಯನ್ನು ಉಳಿಸಿ.",
-    authority_disclaimer: "ಸ್ಥಳದ ಆಧಾರದ ಮೇಲೆ ಸೂಚಿಸಿದ ನಾಗರಿಕ ಸಂಸ್ಥೆ: {authority}. ರಸ್ತೆ ಮಾಲೀಕತ್ವ ದೃಢಪಟ್ಟಿಲ್ಲ; ಕಳುಹಿಸುವ ಮೊದಲು ಸ್ವೀಕರಿಸುವವರನ್ನು ಪರಿಶೀಲಿಸಿ.",
-    official_civic_disclaimer: "ಸೂಚಿಸಿದ ನಾಗರಿಕ ಸಂಸ್ಥೆ: {authority}. ಅದರ ವ್ಯಾಪ್ತಿಯನ್ನು ಪರಿಶೀಲಿಸಿ ಮತ್ತು {service} ನಲ್ಲಿ ಸರಿಯಾದ ಸಮಸ್ಯೆ ವರ್ಗವನ್ನು ಆಯ್ಕೆಮಾಡಿ. ಈ ಸ್ವತಂತ್ರ ಆ್ಯಪ್ ಸಾಕ್ಷ್ಯವನ್ನು ಮಾತ್ರ ಸಿದ್ಧಪಡಿಸುತ್ತದೆ; ನೀವೇ ದೂರು ಪೂರ್ಣಗೊಳಿಸಿ ಅಧಿಕೃತ ಉಲ್ಲೇಖ ಸಂಖ್ಯೆಯನ್ನು ಉಳಿಸಿ.",
-    authority_civic_disclaimer: "ಸ್ಥಳದ ಆಧಾರದ ಮೇಲೆ ಸೂಚಿಸಿದ ನಾಗರಿಕ ಸಂಸ್ಥೆ: {authority}. ಕಳುಹಿಸುವ ಮೊದಲು ಅದರ ವ್ಯಾಪ್ತಿ ಮತ್ತು ದೂರು ವರ್ಗವನ್ನು ಪರಿಶೀಲಿಸಿ.",
-    confirm_suggested_civic_email: "ಸ್ಥಳವು {authority} ಅನ್ನು ಸೂಚಿಸುತ್ತದೆ. {to} ಗೆ ಇಮೇಲ್ ತೆರೆಯುವ ಮೊದಲು ಅದರ ನಾಗರಿಕ ವ್ಯಾಪ್ತಿ ಮತ್ತು ವರ್ಗವನ್ನು ಪರಿಶೀಲಿಸಿ.",
-    routing_match: "ಮಾರ್ಗ ಸೂಚನೆ: {field} = {value}. ಸಲ್ಲಿಸುವ ಮೊದಲು ಪರಿಶೀಲಿಸಿ.",
-    alternate_handoff_btn: "{name} ತೆರೆಯಿರಿ",
-    confirm_official_handoff: "ಸಿದ್ಧಪಡಿಸಿದ ವಿವರಗಳನ್ನು ನಕಲಿಸಿ, ಸೂಚಿಸಿದ {authority} ಗಾಗಿ {service} ತೆರೆಯಬೇಕೆ? ಇಲ್ಲಿ ಹಸ್ತಾಂತರ ತೆರೆಯಲಾಗಿದೆ ಎಂದು ಮಾತ್ರ ದಾಖಲಾಗುತ್ತದೆ; ದೂರು ಸಲ್ಲಿಸಲಾಗಿದೆ ಎಂದು ಅಲ್ಲ.",
-    official_grievance_generic_label: "ಅಧಿಕೃತ ದೂರು/ಉಲ್ಲೇಖ ಸಂಖ್ಯೆ",
-    official_grievance_generic_placeholder: "ಅಧಿಕೃತ ಸೇವೆ ನೀಡಿದ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ",
-    chip_queued_official: "ಅಧಿಕೃತ ಹಸ್ತಾಂತರ ತೆರೆಯಲಾಗಿದೆ",
-    bmc_prepare_btn: "ಮುಂಬೈ ವರದಿ ಸಿದ್ಧಪಡಿಸಿ", bmc_share_btn: "ಸಾಕ್ಷ್ಯ ಹಂಚಿಕೊಳ್ಳಿ",
-    bmc_quickfix_btn: "Pothole QuickFix ತೆರೆಯಿರಿ", bmc_whatsapp_btn: "BMC WhatsApp ತೆರೆಯಿರಿ",
-    bmc_call_btn: "1916 ಗೆ ಕರೆ ಮಾಡಿ",
-    bmc_disclaimer: "ಈ ಸ್ವತಂತ್ರ ಆ್ಯಪ್ ಸಾಕ್ಷ್ಯವನ್ನು ಸಿದ್ಧಪಡಿಸುತ್ತದೆ; BMC ಗೆ ದೂರು ಸಲ್ಲಿಸುವುದಿಲ್ಲ. ಪರಿಶೀಲಿಸಿ ಅಧಿಕೃತ BMC ಮಾರ್ಗದಲ್ಲಿ ನೀವೇ ಸಲ್ಲಿಸಿ. ಅಧಿಕೃತ ದೂರು ಸಂಖ್ಯೆಯಿಲ್ಲದೆ ಸಲ್ಲಿಸಲಾಗಿದೆ ಎಂದು ಗುರುತಿಸಬೇಡಿ.",
-    bmc_ward: "ಸೂಚಿಸಿದ BMC ವಾರ್ಡ್: {ward} (OpenStreetMap ಆಧಾರಿತ; ಅಧಿಕೃತ ಆ್ಯಪ್‌ನಲ್ಲಿ ಪರಿಶೀಲಿಸಿ)",
-    complaint_title_label: "ದೂರು ಶೀರ್ಷಿಕೆ", complaint_body_label: "ದೂರು ವಿವರಗಳು (ಹಂಚುವ ಮೊದಲು ಪರಿಶೀಲಿಸಿ)",
-    official_grievance_label: "ಅಧಿಕೃತ BMC ದೂರು ಸಂಖ್ಯೆ", official_grievance_placeholder: "BMC ನೀಡಿದ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ",
-    mark_submitted_btn: "ಸಲ್ಲಿಸಲಾಗಿದೆ ಎಂದು ಗುರುತಿಸಿ", submitted_reference: "ಅಧಿಕೃತ ದೂರು ಸಂಖ್ಯೆ: {id}",
-    confirm_bmc_handoff: "BMC ಯ ಅಧಿಕೃತ Pothole QuickFix ಆ್ಯಪ್ ತೆರೆಯಬೇಕೆ? ಇಲ್ಲಿ ಮಾರ್ಗ ತೆರೆಯಲಾಗಿದೆ ಎಂದು ಮಾತ್ರ ದಾಖಲಾಗುತ್ತದೆ; ದೂರು ಸಲ್ಲಿಸಲಾಗಿದೆ ಎಂದು ಅಲ್ಲ.",
-    confirm_mark_submitted: "ನೀವು ಅಧಿಕೃತ ಮಾರ್ಗದಲ್ಲಿ ದೂರನ್ನು ಪೂರ್ಣವಾಗಿ ಸಲ್ಲಿಸಿದ್ದೀರಿ ಎಂದು ದೃಢಪಡಿಸುತ್ತೀರಾ?",
-    evidence_shared: "ಸಾಕ್ಷ್ಯ ಸಿದ್ಧವಾಗಿದೆ. ಹಂಚಿಕೆ ಪಟ್ಟಿಯಿಂದ ಅಧಿಕೃತ BMC ಮಾರ್ಗವನ್ನು ಆಯ್ಕೆಮಾಡಿ.",
-    confirm_delete: "ಈ ವರದಿ ಅಳಿಸಬೇಕೆ?",
-    confirm_wipe: "API ಕೀ, ಸೆಟ್ಟಿಂಗ್ಸ್, ವರದಿ, ಫೋಟೋ, ವಿಡಿಯೋ ಮತ್ತು ರಫ್ತು ಮಾಡಿದ ಡೀಬಗ್ ಫ್ರೇಮ್‌ಗಳೂ ಸೇರಿ ಈ ಫೋನ್‌ನಲ್ಲಿರುವ ಎಲ್ಲಾ ಆ್ಯಪ್ ಡೇಟಾವನ್ನು ಅಳಿಸಬೇಕೆ?",
-    camera_failed: "ಕ್ಯಾಮೆರಾ ಪ್ರವೇಶ ವಿಫಲ: ",
-    drive_stopped: "ಡ್ರೈವ್ ಮೋಡ್ ನಿಂತಿದೆ: ",
-    the_officer: "ಸಂಬಂಧಿತ ಅಧಿಕಾರಿ",
-  },
-  mr: {
-    sub: "फोटो घ्या. समस्या पडताळा. सुचवलेल्या कार्यालयासाठी तक्रारीचा मसुदा तयार करा.",
-    report_btn: "&#128247; &nbsp;फोटो",
-    issue_picker_title: "तक्रार",
-    issue_picker_hint: "सुरक्षितपणे थांबल्यावर समस्या निवडा आणि स्पष्ट फोटो घ्या.",
-    issue_road: "खड्डा", issue_garbage: "कचरा", issue_open_manhole: "मॅनहोल",
-    issue_road_damage: "खड्डा", issue_garbage_label: "कचरा",
-    issue_open_manhole_label: "उघडे / खराब मॅनहोल",
-    verdict_civic_prepared: "तुमच्या फोटोवरून {type} तक्रार तयार केली",
-    drive_btn: "&#128663; &nbsp;ड्राइव्ह",
-    your_reports: "तुमचे अहवाल",
-    no_reports: "अजून कोणतेही अहवाल नाहीत.",
-    settings_title: "सेटिंग्ज",
-    key_label: "OpenAI API की (येथे जतन होते; विनंतीचे प्रमाणीकरण करण्यासाठी OpenAI कडे पाठवली जाते)",
-    name_label: "तुमचे नाव (तक्रारीच्या ईमेलमध्ये वापरले जाईल)",
-    name_placeholder: "ईमेलसाठी वापरायचे नाव",
-    model_label: "फोटो मॉडेल",
-    detail_label: "फोटो तपशील",
-    accuracy_note: "Drive gpt-5.6/high वापरते; हे पर्याय फक्त Photo साठी आहेत.",
-    capture_source_label: "ड्राइव्ह व्हिडिओ स्रोत",
-    phone_camera_option: "फोन कॅमेरा",
-    dashcam_option: "डॅशकॅम",
-    capture_source_note: "निवडलेला स्रोत पुढील ड्राइव्ह सुरू झाल्यावर वापरला जाईल.",
-    dashcam_capture_source_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
-    dashcam_rtsp_label: "डॅशकॅम RTSP URL",
-    dashcam_rtsp_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
-    dashcam_rtsp_invalid: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
-    dashcam_native_only: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
-    debug_label: "डीबग मोड: विश्लेषणानंतरही ड्राइव्हचा व्हिडिओ जतन करा",
-    settings_note: "खड्ड्यांचे फोटो आणि व्हिडिओतील फ्रेम्स तपासणीसाठी OpenAI कडे पाठवल्या जातात; त्यात वाहन क्रमांक किंवा चेहरे असू शकतात. अचूक स्थान OpenStreetMap/Nominatim कडे पाठवले जाते; कर्नाटकासाठी Karnataka GIS आणि हैदराबादसाठी Telangana GIS वापरले जाते. पडताळलेला राज्य pack किंवा 2° राष्ट्रीय महामार्ग tile GitHub Pages वरून डाउनलोड होऊन या साधनावर जतन होतो; त्या विनंतीत राज्य किंवा अंदाजे tile व सामान्य कनेक्शन माहिती दिसते, अचूक स्थान नाही. API की फक्त OpenAI कडे जाते. अॅप तक्रार आपोआप सादर करत नाही.",
-    independent_note: "हे स्वतंत्र, अनधिकृत अॅप आहे. कोणत्याही सरकारी संस्थेशी संलग्न नाही किंवा तिची मान्यता नाही. सुचवलेले कार्यालय पाठवण्यापूर्वी तपासा.",
-    privacy_title: "कॅप्चर आणि स्थान वापरण्यापूर्वी",
-    privacy_permission: "अॅप अचूक स्थानाची आणि Phone camera निवडले असेल तेव्हाच कॅमेऱ्याची परवानगी मागते.",
-    privacy_source: "Drive Mode ऑडिओ वापरत नाही. ते या फोनचा कॅमेरा किंवा तुम्ही कॉन्फिगर केलेला dashcam RTSP stream, आणि या फोनचे स्थान—Maps किंवा कॉल स्क्रीन समोर असतानाही—पार्श्वभूमीत वापरते.",
-    privacy_body: "पुढे गेल्यास अॅप कॅमेरा आणि अचूक स्थान वापरण्याची परवानगी मागेल. ड्राइव्ह मोड सुरू असताना, अॅप दिसत नसले किंवा वापरात नसले—Maps किंवा कॉल स्क्रीन समोर असली तरी—रस्त्याच्या नुकसानीला स्थान व मार्ग देण्यासाठी अचूक स्थान गोळा केले जाते. खड्ड्यांचे फोटो किंवा ड्राइव्ह मोडमधील निवडक फ्रेम्स API कीसह OpenAI कडे पाठवल्या जातात. नंतरच्या अचूक लाइव्ह-ड्राइव्ह पुनर्भेटीत, जतन केलेला जुना नुकसान फोटो आणि सध्याची दृश्ये दुरुस्ती पडताळणीसाठी OpenAI कडे एकत्र पाठवली जाऊ शकतात. अचूक स्थान OpenStreetMap/Nominatim कडे जाते; कर्नाटकासाठी Karnataka GIS आणि हैदराबादसाठी Telangana GIS वापरले जाते. आवश्यक राज्य routing pack GitHub Pages वरून डाउनलोड होतो. प्रक्रिया भारताबाहेर होऊ शकते.",
-    privacy_local: "ड्राइव्ह मोडमध्ये ऑडिओ वापरला जात नाही. ड्राइव्ह मोड सक्रिय असताना, हे अॅप दिसत नसताना किंवा तुम्ही ते वापरत नसतानाही—Google Maps किंवा कॉल स्क्रीन समोर असली तरी—Android कॅमेरा आणि स्थान पार्श्वभूमीत वापरते. दिसणारी कायमची foreground-service सूचना हा वापर नेहमी दाखवते; अॅप किंवा सूचनेतून विराम द्या किंवा थांबवा. ड्राइव्ह मोड लाइव्ह विश्लेषणापूर्वी विरळ 720p पुरावा फ्रेम्स स्वतंत्रपणे अॅपच्या खाजगी साठवणीत ठेवतो, त्यामुळे खंडित किंवा ऑफलाइन कामाचे ड्राइव्हनंतर विश्लेषण करता येते. ऐच्छिक मूक व्हिडिओ डीफॉल्टने बंद असतो. अहवाल, फोटो, दुरुस्ती पुरावा, प्रत्यक्ष रस्त्याची स्थिती, व्हिडिओ, स्थान मार्ग, सेटिंग्ज, पडताळलेले राज्य packs आणि महामार्ग tiles हटवेपर्यंत साधनावर राहतात. प्रत्यक्ष रस्त्याची स्थिती अधिकृत तक्रार स्थितीपासून स्वतंत्रपणे नोंदवली जाते.",
-    privacy_government: "हे स्वतंत्र अॅप सरकारी सेवा नाही आणि तक्रार आपोआप सादर करत नाही. GitHub Pages ला तुमचा IP, वेळ, user agent आणि मागितलेला राज्य-pack किंवा 2° महामार्ग-tile मार्ग मिळतो; त्यामुळे राज्य किंवा अंदाजे tile समजू शकते, अचूक स्थान, फोटो किंवा अहवालाचा मजकूर नाही. वर सांगितल्याप्रमाणे कार्यक्षेत्र तपासण्यासाठी स्थान सरकारी GIS कडे जाऊ शकते. तुम्ही जाणीवपूर्वक handoff उघडता किंवा पूर्ण करता तेव्हाच तक्रारीचा मजकूर आणि फोटो अधिकृत तक्रार सेवेकडे जातात.",
-    privacy_link: "गोपनीयता धोरण", sources_link: "डेटा स्रोत आणि मर्यादा",
-    privacy_accept: "पुढे जा", privacy_decline: "आत्ता नको",
-    wipe_btn: "अॅपचा सर्व डेटा हटवा",
-    key_required: "पुढे जाण्यासाठी OpenAI API की जोडा.",
-    back: "मागे", save: "जतन करा", discard: "रद्द करा", del: "हटवा", email_btn: "ईमेल",
-    stop: "&#9632; थांबवा", working: "प्रक्रिया सुरू आहे...",
-    chip_draft: "मसुदा", chip_sent: "सादर केल्याची नोंद", chip_queued: "ईमेलमध्ये उघडले",
-    chip_queued_bmc: "BMC माध्यम उघडले", chip_rejected: "खड्डा: नाही",
-    chip_review: "पुनर्तपासणी आवश्यक", chip_unrouted: "मार्ग निश्चित नाही",
-    chip_fixed: "दुरुस्त", chip_repair_review: "दुरुस्तीची तपासणी आवश्यक",
-    verdict_fixed: "नंतरच्या ड्राइव्हमध्ये दुरुस्ती झाल्याची पडताळणी",
-    verdict_repair_review: "संभाव्य दुरुस्ती आढळली — दोन्ही फोटो तुलना करा",
-    repair_evidence_label: "नंतरची पुनर्भेट",
-    repair_review_help: "अॅपला त्याच ठिकाणी पूर्ण दुरुस्ती झाल्याची शक्यता आढळली, पण ती आपोआप दुरुस्त म्हणून चिन्हांकित केलेली नाही. जुन्या खड्ड्याचा भाग अखंड दुरुस्ती सामग्रीने स्पष्टपणे झाकलेला असेल तरच पुष्टी करा.",
-    fixed_local_note: "ही फक्त प्रत्यक्ष स्थिती आहे; अधिकृत तक्रार बंद झाल्याचा दावा नाही. आधीची सबमिशन स्थिती बदलत नाही.",
-    fixed_action_blocked: "हा खड्डा दुरुस्त झाल्याची पडताळणी झाली आहे, त्यामुळे जुनी तक्रार पुन्हा दाखल करता येणार नाही.",
-    confirm_fixed_btn: "दुरुस्तीची पुष्टी करा", reopen_btn: "पुन्हा उघडे म्हणून चिन्हांकित करा",
-    stat_fixed: "पडताळलेली दुरुस्ती",
-    no_location: "स्थान निश्चित करता आले नाही.",
-    location_uncertain: "संस्था निवडण्यासाठी GPS स्थान पुरेसे अचूक नाही.",
-    location_uncertain_help: "रस्त्याचे नुकसान निश्चित झाले, पण प्राप्तकर्ता निवडण्यासाठी फ्रेमचे स्थान पुरेसे अचूक नाही. नवीन GPS fix घेऊन पुन्हा फोटो घ्या; कॅलिब्रेशन नसलेल्या डॅशकॅमसाठी स्वयंचलित संस्था आणि टेंडर routing हवे असल्यास फोन कॅमेरा वापरा. हा अहवाल प्राप्तकर्त्याशिवाय जतन केला आहे.",
-    jurisdiction_unavailable: "पडताळलेला routing डेटा डाउनलोड किंवा वाचता आला नाही.",
-    jurisdiction_unavailable_help: "पडताळलेल्या राज्य pack शिवाय अॅप कोणतीही नागरी संस्था अंदाजाने निवडणार नाही. कनेक्शन तपासून पुन्हा प्रयत्न करा; अहवाल प्राप्तकर्त्याशिवाय जतन केला आहे.",
-    road_unknown: "हा रस्ता कोणाच्या अखत्यारीत आहे ते तपासता आले नाही",
-    road_unknown_help: "हा राष्ट्रीय महामार्ग आहे का हे तपासण्यासाठी अॅपला राज्याच्या रस्ते जाळ्याशी संपर्क करता आला नाही. नेटवर्क मिळाल्यावर पुन्हा प्रयत्न करा.",
-    nat_highway: "{road} हा राष्ट्रीय महामार्ग आहे",
-    nat_highway_help: "रस्ता सेवेनुसार हा राष्ट्रीय महामार्ग आहे, पण पडताळलेल्या राष्ट्रीय tile ने नकाशातील संदर्भ सुरक्षितपणे ओळखला नाही. नगरपालिका प्राप्तकर्ता निवडलेला नाही. Rajmargyatra किंवा 1033 वापरा आणि देखभाल करणारी संस्था तपासा.",
-    rural_road: "हा रस्ता {body} ग्रामपंचायतीत आहे; शहर किंवा नगर क्षेत्रात नाही.",
-    rural_road_help: "रस्त्याचे नुकसान निश्चित झाले आहे, पण हे ठिकाण नागरी स्थानिक संस्थांच्या बाहेर आहे. फोटो आणि स्थान जतन केले आहे.",
-    no_address: "{body} चा प्रकाशित पत्ता उपलब्ध नाही.",
-    no_address_help: "जबाबदार स्थानिक संस्था निश्चित झाली, पण तिचा अधिकृत ईमेल उपलब्ध नाही आणि अॅप अंदाजाने पत्ता वापरणार नाही. फोटो आणि स्थान जतन केले आहे.",
-    no_location_help: "रस्त्याचे नुकसान निश्चित झाले, पण GPS स्थानाशिवाय जबाबदार महानगरपालिका ओळखता येत नाही. फोटो जतन केला आहे.",
-    civic_no_location_help: "समस्या जतन झाली आहे, पण GPS स्थानाशिवाय अॅप नागरी संस्था निवडू शकत नाही. स्थान सुरू करून पुन्हा फोटो घ्या.",
-    civic_location_uncertain_help: "समस्या जतन झाली आहे, पण GPS अचूकतेची मर्यादा नागरी सीमा ओलांडू शकते. अधिक अचूक नवीन स्थानासह पुन्हा प्रयत्न करा.",
-    civic_jurisdiction_unavailable_help: "समस्या जतन झाली आहे, पण पडताळलेला नागरी routing डेटा वाचता आला नाही. कनेक्शन तपासा आणि पुन्हा प्रयत्न करा; अॅप संस्थेचा अंदाज करणार नाही.",
-    civic_rural: "हे स्थान {body} ग्रामपंचायतीत आहे आणि समर्थित शहरी क्षेत्राबाहेर आहे.",
-    civic_rural_help: "समस्या आणि स्थान जतन झाले आहेत, पण या ग्रामीण संस्थेसाठी पडताळलेला तक्रार मार्ग अजून उपलब्ध नाही.",
-    civic_no_address_help: "नागरी संस्था ओळखली आहे, पण तिचा पडताळलेला तक्रार पत्ता अॅपकडे नाही आणि अॅप अंदाज करणार नाही. फोटो आणि स्थान जतन झाले आहेत.",
-    civic_unsupported: "{body} साठी पडताळलेला {type} तक्रार मार्ग नाही.",
-    civic_unsupported_help: "समस्या आणि पुरावा जतन झाला आहे, पण सुचवलेला प्राप्तकर्ता हा प्रकार स्वीकारतो याची पडताळणी झालेली नाही; अॅप अंदाजाने तक्रार उघडणार नाही.",
-    civic_outside_coverage_help: "हे ठिकाण भारताच्या पडताळलेल्या राज्य/केंद्रशासित प्रदेश सीमांच्या बाहेर आहे किंवा अचूक मार्गदर्शन डेटा उपलब्ध नाही. फोटो आणि स्थान प्राप्तकर्त्याशिवाय जतन केले आहे.",
-    retry_routing_btn: "मार्ग पुन्हा तपासा",
-    retry_routing_unchanged: "मार्ग अजून उपलब्ध नाही. मूळ छायाचित्र आणि स्थान जतन आहेत; कनेक्शन किंवा मार्ग माहिती उपलब्ध झाल्यावर पुन्हा प्रयत्न करा.",
-    confirm_import_location: "या ब्राउझरने जुने छायाचित्र निवडले असू शकते. छायाचित्र तुम्ही सध्या जिथे आहात तेच ठिकाण दाखवत असेल तरच सध्याचे GPS स्थान जोडा.",
-    capture_provenance_camera: "अॅप कॅमेराने आत्ताच घेतलेले",
-    capture_provenance_import: "निवडलेले/आयात केलेले छायाचित्र · मूळ वेळ पडताळलेली नाही",
-    review_btn: "फ्रेम्स तपासा आणि लेबल करा", export_btn: "लेबल केलेला डेटासेट निर्यात करा",
-    dash_btn: "&#128506;&#65039; &nbsp;योगदान", dash_title: "तुमचे योगदान",
-    dash_range: "{days} चा अहवाल · पहिली नोंद {first}",
-    dash_empty: "अजून तक्रारी नाहीत. समस्या नोंदवल्यावर किंवा ड्राइव्ह केल्यावर नकाशा भरत जाईल.",
-    day_one: "1 दिवस", day_many: "{n} दिवस",
-    stat_found: "जतन केलेल्या तक्रारी", stat_reported: "पुष्टी केलेल्या नोंदी", stat_frames: "खड्ड्यांच्या तपासण्या",
-    stat_drives: "ड्राइव्ह", stat_footage: "MB व्हिडिओ", stat_km: "किमी तपासलेला रस्ता",
-    by_type: "तक्रारीच्या प्रकारानुसार", by_size: "खड्ड्याच्या आकारानुसार", by_area: "महानगरपालिकेनुसार",
-    map_pins: "{n} ठिकाणे", map_empty: "नकाशावर अजून खड्डे नाहीत.",
-    map_offline: "नकाशासाठी इंटरनेट आवश्यक आहे. ठिकाणे तरीही खाली दाखवली आहेत.",
-    zoom_hint: "झूमसाठी पिंच करा · हलवण्यासाठी ओढा · रीसेटसाठी दोनदा टॅप करा",
-    rec_suffix: "· रेकॉर्डिंग {mb} MB", rec_failed: "· रेकॉर्डिंग होत नाही",
-    net_trouble: "नेटवर्कची अडचण आहे; स्कॅन सुरू आहे ({n} फ्रेम्स प्रतीक्षेत)",
-    capture_failing: "कॅमेरा फ्रेम्स देत नाही. ड्राइव्ह थांबवून पुन्हा सुरू करा.",
-    camera_lost: "कॅमेरा थांबला आहे; कदाचित दुसरे अॅप तो वापरत आहे. स्कॅन आपोआप पुन्हा सुरू होईल.",
-    camera_low_quality: "कॅमेरा फक्त {width}px / {fps}fps", coverage_dropped: "रांगेतील घटना वगळल्या",
-    drive_end_failed: "नेटवर्कमुळे {n} फ्रेम्स तपासता आल्या नाहीत.",
-    footage_line: "व्हिडिओ: {mb} MB · {segments} क्लिप्स", analyse_btn: "व्हिडिओचे विश्लेषण करा",
-    delete_footage: "व्हिडिओ हटवा", analysing: "फ्रेम {i} पैकी {n} · {found} नवीन",
-    analyse_done: "व्हिडिओचे विश्लेषण पूर्ण: {n} फ्रेम्समधून {found} नवीन खड्डे.",
-    analyse_none: "या ड्राइव्हचा कोणताही व्हिडिओ जतन केलेला नाही.",
-    analysing_dup: "({n} आधीच नोंदवलेल्या)", analyse_dup: "त्यापैकी {n} घटना आधीच नोंदवल्या होत्या.",
-    already_one: "आधीच नोंदवलेली {n} घटना", already_many: "आधीच नोंदवलेल्या {n} घटना",
-    frames_no_permission: "फ्रेम्स जतन करण्याची परवानगी मिळाली नाही. त्या जतन न करता विश्लेषण करायचे का?",
-    analysing_failed: "· {n} अयशस्वी",
-    analyse_incomplete: "पूर्ण करता आले नाही: {n} पैकी {failed} फ्रेम्स तपासल्या गेल्या नाहीत ({err}). निष्कर्ष घोषित केलेला नाही आणि व्हिडिओ जतन केला आहे.",
-    debug_note: "चालू: विश्लेषणानंतरही व्हिडिओ राहतो. बंद: हानीच्या घटना काढल्यानंतर व्हिडिओ हटवला जातो.",
-    record_label: "ड्राइव्हदरम्यान स्थानिक व्हिडिओ रेकॉर्ड करा (ऑडिओ नाही; सुरुवातीला बंद)",
-    drive_limit_label: "ड्राइव्ह बॅटरी मर्यादा",
-    drive_limit_note: "फक्त सक्रिय वेळ मोजली जाते. वेळ संपल्यावर ड्राइव्ह आपोआप थांबते; विरामाची वेळ मोजली जात नाही.",
-    keep_frames_label: "विश्लेषित केलेली प्रत्येक फ्रेम साधनावर जतन करा",
-    keep_frames_note: "AI ने तपासलेली प्रत्येक फ्रेम आणि निष्कर्ष Documents/pothole-frames मध्ये लिहिला जातो. प्रत्येक फ्रेम साधारण 300 KB असू शकते.",
-    frames_saved: "{n} फ्रेम्स Documents/{dir} मध्ये लिहिल्या.", frames_failed: "फ्रेम्स साधनावर लिहिता आल्या नाहीत.",
-    footage_freed: "व्हिडिओ हटवला; {mb} MB जागा मोकळी झाली.", footage_kept: "व्हिडिओ जतन केला आहे (डीबग मोड).",
-    offer_analyse: "या ड्राइव्हच्या व्हिडिओचे आता विश्लेषण करायचे का? {clips} क्लिप्स, {mb} MB. आढळलेले खड्डे फोटो म्हणून ठेवले जातील.",
-    confirm_delete_footage: "या ड्राइव्हचा रेकॉर्ड केलेला व्हिडिओ हटवायचा का? अहवाल जतन राहतील.",
-    drive_group: "{date} · {found}{known} · {checked} थेट फ्रेम्स तपासल्या{video}",
-    drive_video_suffix: " · {n} व्हिडिओ फ्रेम्स तपासल्या", drive_group_partial: "{date} · {found} · {kept} जतन केले",
-    lbl_pothole: "रस्त्यातील खड्डा", lbl_no: "खड्डा नाही", lbl_skip: "वगळा", lbl_done: "पूर्ण",
-    review_empty: "लेबल करण्यासाठी काहीही उरलेले नाही. फ्रेम्स गोळा करण्यासाठी डीबग मोड सुरू ठेवून ड्राइव्ह करा.",
-    review_progress: "{n} लेबल करणे बाकी · आतापर्यंत {done} लेबल केले",
-    model_said: "अॅपचा निष्कर्ष: {verdict}",
-    export_ready: "{n} लेबल केलेल्या फ्रेम्स, {mb} MB. कुठे पाठवायचे ते निवडा.",
-    outside_coverage: "हे स्थान अॅपच्या कार्यक्षेत्राबाहेर आहे.",
-    outside_coverage_help: "हे ठिकाण भारताच्या पडताळलेल्या राज्य/केंद्रशासित प्रदेश व नकाशित राष्ट्रीय महामार्ग क्षेत्राबाहेर आहे किंवा अचूक मार्गदर्शन डेटा उपलब्ध नाही. फोटो आणि स्थान प्राप्तकर्त्याशिवाय जतन केले आहे.",
-    size_small: "लहान", size_medium: "मध्यम", size_large: "मोठे",
-    damage_pothole_cavity: "रस्त्यातील खड्डा", damage_failed_patch: "उखडलेली रस्ता दुरुस्ती",
-    damage_surface_breakup: "उखडलेला रस्ता पृष्ठभाग", damage_rut_or_depression: "रस्त्यावरील चर / खोलगट भाग",
-    damage_other_road_damage: "रस्त्याचे इतर नुकसान", damage_none: "नोंदवण्यायोग्य नुकसान नाही",
-    assessment_clear: "स्पष्ट", assessment_probable: "संभाव्य", assessment_uncertain: "अनिश्चित", assessment_absent: "आढळले नाही",
-    verdict_detected: "खड्डा: होय",
-    verdict_review: "संभाव्य {type} — नोंदवण्यापूर्वी पुन्हा फोटो घ्या किंवा तपासा",
-    verdict_rejected: "खड्डा: नाही",
-    early_yes: "खड्डा: होय. तक्रार तयार करत आहे...",
-    early_review: "रस्त्याचे संभाव्य नुकसान. अधिक स्पष्ट फोटो आवश्यक आहे.",
-    early_no: "खड्डा: नाही.",
-    verdict_sent: "सादर केल्याची नोंद", verdict_queued: "ईमेल अॅपमध्ये उघडले आहे; हे पाठवले असल्याचा पुरावा नाही.",
-    email_subject_label: "ईमेलचा विषय",
-    email_body_label: "ईमेलचा मजकूर (पाठवण्यापूर्वी तपासा)", routes_to: "यांच्याकडे पाठवले जाईल:",
-    getting_location: "तुमचे स्थान मिळवत आहे...", waiting_gps: "GPS ची प्रतीक्षा करत आहे...",
-    gps_30s: "30 सेकंदांनंतरही GPS स्थान मिळाले नाही. उच्च अचूकतेसह स्थान सेवा सुरू आहे का ते तपासा.",
-    gps_lost: "GPS सिग्नल हरवला; नवीन स्थानाची प्रतीक्षा करत आहे...",
-    holding: "स्थान स्थिर ({checked} तपासले, {found} आढळले)",
-    scanning: "स्कॅन सुरू ({mode})... {checked} तपासले{analyzing}", analyzing_suffix: ", {n} चे विश्लेषण सुरू",
-    potholes_one: "{n} खड्डा", potholes_many: "{n} खड्डे",
-    drive_tip: "वाहन सुरू करण्यापूर्वी कॅमेरा असा लावा की रस्ता नारिंगी मार्गदर्शकात भरलेला दिसेल. प्रत्येक तपासणीत तीन फ्रेम्स वापरल्या जातात. वाहन चालवताना फोन हाताळू नका.",
-    drive_end: "ड्राइव्ह पूर्ण: {found} आढळले, {checked} फ्रेम्स तपासल्या.",
-    drive_end_known: "ड्राइव्ह पूर्ण: नवीन अहवाल नाही; {already} पुन्हा दिसले, {checked} फ्रेम्स तपासल्या.",
-    drive_seen_suffix: " {already} पुन्हा दिसले.",
-    drive_end_zero: "या ड्राइव्हमध्ये खड्डे आढळले नाहीत ({checked} तपासण्या{debug}).",
-    debug_saved_suffix: ", डीबग फ्रेम्स पुनर्तपासणीसाठी जतन केल्या",
-    confirm_send: "{to} यांना उद्देशून तयार केलेली तक्रार तुमच्या ईमेल अॅपमध्ये उघडायची का?",
-    confirm_suggested_email: "स्थानावरून {authority} ही संस्था सुचते, पण यावरून रस्त्याची मालकी सिद्ध होत नाही. {to} यांना उद्देशून तक्रार ईमेल अॅपमध्ये उघडायची का?",
-    open_official_btn: "{name} उघडा", share_evidence_btn: "पुरावा शेअर करा",
-    copy_whatsapp_btn: "WhatsApp मजकूर कॉपी करा",
-    portal_fields_btn: "पोर्टल तपशील",
-    portal_fields_title: "पोर्टल तपशील",
-    portal_fields_hint: "हे तपशील अधिकृत तक्रार पोर्टलमध्ये कॉपी करा. अचूक रस्त्याची जबाबदारी पडताळल्यानंतरच कंत्राटाचे तपशील दिसतील.",
-    copy_all_btn: "सर्व कॉपी करा",
-    copied_message: "कॉपी झाले.",
-    official_whatsapp_btn: "अधिकृत WhatsApp", official_call_btn: "{number} वर कॉल करा",
-    confirm_whatsapp_share: "या अहवालाचा मजकूर आणि अचूक स्थान घेऊन {authority} चे अधिकृत WhatsApp उघडायचे का? WhatsApp मध्ये Send दाबेपर्यंत काहीही पाठवले जाणार नाही.",
-    official_disclaimer: "सुचवलेली नागरी संस्था: {authority}. यावरून त्या रस्त्याची मालकी सिद्ध होत नाही. हे स्वतंत्र अॅप फक्त पुरावा तयार करते; {service} मध्ये स्वतः तक्रार पूर्ण करा आणि अधिकृत संदर्भ क्रमांक जतन करा.",
-    authority_disclaimer: "स्थानावरून सुचवलेली नागरी संस्था: {authority}. रस्त्याची मालकी पडताळलेली नाही; पाठवण्यापूर्वी प्राप्तकर्ता तपासा.",
-    official_civic_disclaimer: "सुचवलेली नागरी संस्था: {authority}. तिचे कार्यक्षेत्र तपासा आणि {service} मध्ये योग्य समस्या वर्ग निवडा. हे स्वतंत्र अॅप फक्त पुरावा तयार करते; तक्रार स्वतः पूर्ण करा आणि अधिकृत संदर्भ क्रमांक जतन करा.",
-    authority_civic_disclaimer: "स्थानावरून सुचवलेली नागरी संस्था: {authority}. पाठवण्यापूर्वी तिचे कार्यक्षेत्र आणि तक्रारीचा वर्ग तपासा.",
-    confirm_suggested_civic_email: "स्थानावरून {authority} सुचवले आहे. {to} ला ईमेल उघडण्यापूर्वी नागरी कार्यक्षेत्र आणि वर्ग तपासा.",
-    routing_match: "मार्ग सूचक: {field} = {value}. सादर करण्यापूर्वी पडताळा करा.",
-    alternate_handoff_btn: "{name} उघडा",
-    confirm_official_handoff: "तयार तपशील कॉपी करून सुचवलेल्या {authority} साठी {service} उघडायचे का? येथे फक्त माध्यम उघडल्याची नोंद होईल; तक्रार सादर झाल्याची नाही.",
-    official_grievance_generic_label: "अधिकृत तक्रार/संदर्भ क्रमांक",
-    official_grievance_generic_placeholder: "अधिकृत सेवेकडून मिळालेला क्रमांक भरा",
-    chip_queued_official: "अधिकृत माध्यम उघडले",
-    bmc_prepare_btn: "मुंबईसाठी अहवाल तयार करा", bmc_share_btn: "पुरावा शेअर करा",
-    bmc_quickfix_btn: "Pothole QuickFix उघडा", bmc_whatsapp_btn: "BMC ला WhatsApp करा",
-    bmc_call_btn: "1916 वर कॉल करा",
-    bmc_disclaimer: "हे स्वतंत्र अॅप पुरावा तयार करते; BMC कडे तक्रार दाखल करत नाही. पुरावा तपासा आणि अधिकृत BMC माध्यमातून स्वतः नोंदवा. अधिकृत तक्रार क्रमांकाशिवाय सादर केल्याची नोंद करू नका.",
-    bmc_ward: "सुचवलेला BMC विभाग: {ward} (OpenStreetMap वरून; अधिकृत अॅपमध्ये पडताळा करा)",
-    complaint_title_label: "तक्रारीचे शीर्षक", complaint_body_label: "तक्रारीचा तपशील (शेअर करण्यापूर्वी तपासा)",
-    official_grievance_label: "अधिकृत BMC तक्रार क्रमांक", official_grievance_placeholder: "BMC कडून मिळालेला क्रमांक भरा",
-    mark_submitted_btn: "सादर केले असे नोंदवा", submitted_reference: "अधिकृत तक्रार क्रमांक: {id}",
-    confirm_bmc_handoff: "BMC चे अधिकृत Pothole QuickFix अॅप उघडायचे का? येथे फक्त माध्यम उघडल्याची नोंद होईल; तक्रार सादर झाल्याची नाही.",
-    confirm_mark_submitted: "तुम्ही अधिकृत माध्यमातून तक्रार पूर्णपणे सादर केली आहे याची खात्री आहे का?",
-    evidence_shared: "पुरावा तयार आहे. शेअर शीटमधून अधिकृत BMC माध्यम निवडा.",
-    confirm_delete: "हा अहवाल हटवायचा का?",
-    confirm_wipe: "API की, सेटिंग्ज, अहवाल, फोटो, व्हिडिओ आणि निर्यात केलेल्या डीबग फ्रेम्ससह या फोनवरील अॅपचा सर्व डेटा हटवायचा का?",
-    camera_failed: "कॅमेरा वापरता आला नाही: ", drive_stopped: "ड्राइव्ह मोड थांबला: ",
-    the_officer: "संबंधित अधिकारी",
-  },
-  bn: {
-    sub: "ছবি তুলুন। সমস্যাটি যাচাই করুন। প্রস্তাবিত দপ্তরের জন্য অভিযোগের খসড়া তৈরি করুন।",
-    report_btn: "&#128247; &nbsp;ছবি",
-    issue_picker_title: "অভিযোগ",
-    issue_picker_hint: "নিরাপদে থামার পরে সমস্যাটি বেছে নিয়ে একটি পরিষ্কার ছবি তুলুন।",
-    issue_road: "গর্ত", issue_garbage: "আবর্জনা", issue_open_manhole: "ম্যানহোল",
-    issue_road_damage: "রাস্তার গর্ত", issue_garbage_label: "আবর্জনা",
-    issue_open_manhole_label: "খোলা / ক্ষতিগ্রস্ত ম্যানহোল",
-    verdict_civic_prepared: "আপনার ছবি থেকে {type} অভিযোগ প্রস্তুত হয়েছে",
-    drive_btn: "&#128663; &nbsp;ড্রাইভ",
-    your_reports: "আপনার রিপোর্ট",
-    no_reports: "এখনও কোনও রিপোর্ট নেই।",
-    settings_title: "সেটিংস",
-    key_label: "OpenAI API key (এখানে সংরক্ষিত; অনুমোদনের পরিচয় হিসেবে OpenAI-তে পাঠানো হয়)",
-    name_label: "আপনার নাম (অভিযোগের ইমেলে ব্যবহৃত হবে)",
-    name_placeholder: "ইমেলের জন্য ব্যবহৃত নাম",
-    model_label: "ছবির মডেল",
-    detail_label: "ছবির বিশদতা",
-    accuracy_note: "Drive gpt-5.6/high ব্যবহার করে; এই বিকল্পগুলি শুধু Photo-র জন্য।",
-    capture_source_label: "ড্রাইভ ভিডিও উৎস",
-    phone_camera_option: "ফোন ক্যামেরা",
-    dashcam_option: "ড্যাশক্যাম",
-    capture_source_note: "পরবর্তী Drive শুরু হলে নির্বাচিত উৎসটি ব্যবহার করা হবে।",
-    dashcam_capture_source_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
-    dashcam_rtsp_label: "ড্যাশক্যাম RTSP URL",
-    dashcam_rtsp_note: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
-    dashcam_rtsp_invalid: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
-    dashcam_native_only: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
-    debug_label: "ডিবাগ মোড: বিশ্লেষণের পরেও ড্রাইভের ভিডিও রাখুন",
-    settings_note: "রাস্তার গর্তের ছবি ও ভিডিওর ফ্রেম শনাক্তকরণের জন্য OpenAI-তে পাঠানো হয়; তাতে নম্বরপ্লেট বা মুখ থাকতে পারে। সঠিক অবস্থান OpenStreetMap/Nominatim-এ পাঠানো হয়; কর্ণাটকের জন্য Karnataka GIS এবং হায়দরাবাদের জন্য Telangana GIS ব্যবহার করা হয়। যাচাই-করা রাজ্য pack বা 2° জাতীয় সড়ক tile GitHub Pages থেকে ডাউনলোড হয়ে ডিভাইসে থাকে; অনুরোধটি রাজ্য বা আনুমানিক tile ও সাধারণ সংযোগের তথ্য প্রকাশ করে, সঠিক অবস্থান নয়। API key কেবল OpenAI-তে যায়। অ্যাপ নিজে থেকে অভিযোগ জমা দেয় না।",
-    independent_note: "এটি একটি স্বাধীন, বেসরকারি অ্যাপ। কোনও সরকারি সংস্থার সঙ্গে এর সম্পর্ক নেই এবং কোনও সরকারি সংস্থা এটি অনুমোদন করেনি। প্রাপক নির্বাচন সর্বোত্তম প্রচেষ্টার ভিত্তিতে; পাঠানোর আগে যাচাই করুন।",
-    privacy_title: "ক্যাপচার ও অবস্থান ব্যবহারের আগে",
-    privacy_permission: "অ্যাপটি নির্ভুল অবস্থানের এবং Phone camera বাছা থাকলে তবেই ক্যামেরার অনুমতি চায়।",
-    privacy_source: "Drive Mode অডিও ব্যবহার করে না। এটি এই ফোনের ক্যামেরা বা আপনার কনফিগার করা dashcam RTSP stream, এবং এই ফোনের অবস্থান—Maps বা কল স্ক্রিন সামনে থাকলেও—ব্যাকগ্রাউন্ডে ব্যবহার করে।",
-    privacy_body: "এগিয়ে গেলে অ্যাপটি ক্যামেরা ও নির্ভুল অবস্থানের অনুমতি চাইবে। ড্রাইভ মোড চলার সময়, অ্যাপ দৃশ্যমান বা ব্যবহারে না থাকলেও—Maps বা কল স্ক্রিন সামনে থাকলেও—রাস্তার ক্ষতি ট্যাগ ও রুট করতে নির্ভুল অবস্থান সংগ্রহ করা হয়। রাস্তার গর্তের ছবি বা ড্রাইভ মোডের নির্বাচিত ফ্রেম API key-সহ OpenAI-তে পাঠানো হয়। পরবর্তী নির্ভুল লাইভ-ড্রাইভ পুনরায় যাওয়ার সময়, সংরক্ষিত আগের ক্ষতির ছবি এবং বর্তমান দৃশ্য মেরামত যাচাইয়ের জন্য একসঙ্গে OpenAI-তে পাঠানো হতে পারে। সঠিক স্থানাঙ্ক OpenStreetMap/Nominatim-এ যায়; কর্ণাটকের জন্য Karnataka GIS এবং হায়দরাবাদের জন্য Telangana GIS ব্যবহার করা হয়। প্রয়োজনীয় রাজ্য routing pack GitHub Pages থেকে ডাউনলোড হয়। তথ্য ভারতের বাইরেও প্রক্রিয়াকৃত হতে পারে।",
-    privacy_local: "ড্রাইভ মোডে অডিও ব্যবহার হয় না। ড্রাইভ মোড সক্রিয় থাকলে, এই অ্যাপটি দৃশ্যমান না থাকলেও বা আপনি ব্যবহার না করলেও—Google Maps বা কল স্ক্রিন সামনে থাকলেও—Android ক্যামেরা ও অবস্থান ব্যাকগ্রাউন্ডে ব্যবহার করে। দৃশ্যমান স্থায়ী foreground-service বিজ্ঞপ্তি এই ব্যবহার সব সময় দেখায়; অ্যাপ বা বিজ্ঞপ্তি থেকে বিরতি দিন বা বন্ধ করুন। ড্রাইভ মোড লাইভ বিশ্লেষণের আগে বিরল 720p প্রমাণ ফ্রেম আলাদাভাবে অ্যাপের ব্যক্তিগত স্টোরেজে রাখে, তাই বাধাগ্রস্ত বা অফলাইন কাজ ড্রাইভের পরে বিশ্লেষণ করা যায়। ঐচ্ছিক নীরব ভিডিও ডিফল্টভাবে বন্ধ থাকে। রিপোর্ট, ছবি, মেরামতের প্রমাণ, রাস্তার বাস্তব অবস্থা, ভিডিও, অবস্থানের ট্র্যাক, সেটিংস, যাচাই-করা রাজ্য pack ও জাতীয় সড়ক tile মুছে না ফেলা পর্যন্ত থাকে। রাস্তার বাস্তব অবস্থা সরকারি অভিযোগের অবস্থা থেকে আলাদাভাবে রাখা হয়।",
-    privacy_government: "এই স্বাধীন অ্যাপটি সরকারি পরিষেবা নয় এবং নিজে থেকে অভিযোগ জমা দেয় না। GitHub Pages আপনার IP, সময়, user agent ও চাওয়া রাজ্য-pack বা 2° জাতীয় সড়ক-tile পথ পায়; এতে রাজ্য বা আনুমানিক tile বোঝা যায়, সঠিক স্থানাঙ্ক, ছবি বা রিপোর্টের বিষয় নয়। উপরে জানানো নিয়মে এলাকা যাচাই করতে অবস্থান সরকারি GIS-এ পাঠানো হতে পারে। আপনি ইচ্ছাকৃতভাবে handoff খুললে বা সম্পূর্ণ করলেই অভিযোগের লেখা ও ছবি সরকারি অভিযোগ পরিষেবায় যায়।",
-    privacy_link: "গোপনীয়তা নীতি", sources_link: "তথ্যের উৎস ও সীমাবদ্ধতা",
-    privacy_accept: "এগিয়ে যান", privacy_decline: "এখন নয়",
-    wipe_btn: "অ্যাপের সব তথ্য মুছুন",
-    key_required: "এগিয়ে যেতে OpenAI API key যোগ করুন।",
-    back: "ফিরে যান", save: "সংরক্ষণ করুন", discard: "বাদ দিন", del: "মুছুন", email_btn: "ইমেল", stop: "&#9632; থামান", working: "কাজ চলছে...",
-    chip_draft: "খসড়া", chip_sent: "জমা হয়েছে বলে চিহ্নিত", chip_queued: "ইমেলে খোলা হয়েছে", chip_queued_bmc: "BMC পরিষেবা খোলা হয়েছে", chip_rejected: "রাস্তার গর্ত: না", chip_review: "যাচাই প্রয়োজন",
-    chip_unrouted: "প্রাপক নির্ধারিত নয়",
-    chip_fixed: "মেরামত হয়েছে", chip_repair_review: "মেরামত যাচাই দরকার",
-    verdict_fixed: "পরবর্তী ড্রাইভে মেরামত হয়েছে বলে যাচাই করা হয়েছে",
-    verdict_repair_review: "সম্ভাব্য মেরামত পাওয়া গেছে — দুটি ছবি তুলনা করুন",
-    repair_evidence_label: "পরবর্তী পুনরায় দেখা",
-    repair_review_help: "অ্যাপ একই স্থানে সম্ভাব্য সম্পূর্ণ মেরামত পেয়েছে, কিন্তু নিজে থেকে মেরামত হয়েছে বলে চিহ্নিত করেনি। পুরোনো গর্তের জায়গাটি অক্ষত মেরামতের উপাদানে স্পষ্টভাবে ঢাকা থাকলেই নিশ্চিত করুন।",
-    fixed_local_note: "এটি শুধু রাস্তার বাস্তব অবস্থা; সরকারি অভিযোগ বন্ধ হয়েছে—এমন দাবি নয়। আগের জমা দেওয়ার অবস্থা অপরিবর্তিত থাকে।",
-    fixed_action_blocked: "এই গর্তটি মেরামত হয়েছে বলে যাচাই করা হয়েছে, তাই পুরোনো অভিযোগটি আবার দায়ের করা যাবে না।",
-    confirm_fixed_btn: "মেরামত নিশ্চিত করুন", reopen_btn: "আবার খোলা হিসেবে চিহ্নিত করুন",
-    stat_fixed: "যাচাইকৃত মেরামত",
-    no_location: "অবস্থান নির্ধারণ করা যায়নি।",
-    location_uncertain: "কর্তৃপক্ষ বাছতে GPS যথেষ্ট নির্ভুল নয়।",
-    location_uncertain_help: "রাস্তার ক্ষতি নিশ্চিত হয়েছে, কিন্তু প্রাপক বাছার জন্য frame location যথেষ্ট নির্ভুল নয়। নতুন GPS fix নিয়ে আবার ছবি তুলুন; calibration না-করা dashcam stream-এ স্বয়ংক্রিয় authority ও tender routing দরকার হলে Phone camera ব্যবহার করুন। রিপোর্টটি প্রাপক ছাড়াই সংরক্ষিত হয়েছে।",
-    jurisdiction_unavailable: "যাচাই-করা routing data ডাউনলোড বা পড়া যায়নি।",
-    jurisdiction_unavailable_help: "যাচাই-করা রাজ্য pack ছাড়া অ্যাপটি কোনও কর্তৃপক্ষ অনুমান করবে না। সংযোগ দেখে আবার চেষ্টা করুন; রিপোর্টটি প্রাপক ছাড়াই সংরক্ষিত হয়েছে।",
-    road_unknown: "এই রাস্তার মালিকানা যাচাই করা যায়নি",
-    road_unknown_help: "রাস্তাটি জাতীয় সড়ক কি না দেখতে অ্যাপটি রাজ্যের সড়ক নেটওয়ার্কে পৌঁছতে পারেনি। অন্য সংস্থার রাস্তার জন্য কোনও পৌর আধিকারিকের নাম অনুমান করা হবে না। সংযোগ ফিরে এলে আবার চেষ্টা করুন।",
-    nat_highway: "{road} একটি জাতীয় সড়ক",
-    nat_highway_help: "একটি সড়ক পরিষেবা এটিকে জাতীয় সড়ক বলেছে, কিন্তু যাচাই-করা জাতীয় tile নিরাপদে মানচিত্রের রেফারেন্স শনাক্ত করতে পারেনি। কোনও পুর কর্তৃপক্ষকে প্রাপক করা হয়নি। Rajmargyatra বা 1033 ব্যবহার করে রক্ষণাবেক্ষণকারী সংস্থা যাচাই করুন।",
-    rural_road: "এই রাস্তা {body} গ্রাম পঞ্চায়েতের অন্তর্গত, কোনও শহর বা পুর এলাকার নয়।",
-    rural_road_help: "রাস্তার ক্ষতি নিশ্চিত হয়েছে, কিন্তু স্থানটি কোনও নগর স্থানীয় সংস্থার মধ্যে নয়। তাই এটি পুরসভার বদলে রাজ্য PWD বা পঞ্চায়েতের প্রকৌশল বিভাগের আওতায় পড়তে পারে। ওই দপ্তরগুলি এখনও ডিরেক্টরিতে নেই, তাই অভিযোগে কোনও প্রাপক দেওয়া হয়নি। ছবি ও অবস্থান সংরক্ষিত আছে।",
-    no_address: "{body}-এর কোনও প্রকাশিত যোগাযোগের ঠিকানা নেই।",
-    no_address_help: "রাস্তার ক্ষতি এবং সংশ্লিষ্ট স্থানীয় সংস্থা শনাক্ত হয়েছে, কিন্তু অ্যাপে তার কোনও সরকারি ইমেল নেই এবং অ্যাপটি ঠিকানা অনুমান করবে না। ছবি ও অবস্থান সংরক্ষিত আছে; যাচাই করা ঠিকানা পরে ডিরেক্টরিতে যোগ করা যাবে।",
-    no_location_help: "রাস্তার ক্ষতি নিশ্চিত হয়েছে, কিন্তু GPS অবস্থান ছাড়া কোন পৌরসংস্থা দায়িত্বে তা জানা যায় না। তাই অভিযোগে কোনও প্রাপক দেওয়া হয়নি। ছবিটি সংরক্ষিত আছে।",
-    civic_no_location_help: "সমস্যাটি সংরক্ষিত হয়েছে, কিন্তু GPS অবস্থান ছাড়া অ্যাপ কোনও পৌর কর্তৃপক্ষ বেছে নিতে পারে না। অবস্থান চালু করে আবার ছবি তুলুন।",
-    civic_location_uncertain_help: "সমস্যাটি সংরক্ষিত হয়েছে, কিন্তু GPS-এর নির্ভুলতার সীমা পৌরসীমা পেরোতে পারে। আরও নির্ভুল নতুন অবস্থান নিয়ে আবার চেষ্টা করুন।",
-    civic_jurisdiction_unavailable_help: "সমস্যাটি সংরক্ষিত হয়েছে, কিন্তু যাচাই-করা পৌর routing তথ্য পড়া যায়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন; অ্যাপ কর্তৃপক্ষ অনুমান করবে না।",
-    civic_rural: "এই স্থানটি {body} গ্রাম পঞ্চায়েতে এবং সমর্থিত নগর এলাকার বাইরে।",
-    civic_rural_help: "সমস্যা ও অবস্থান সংরক্ষিত আছে, কিন্তু এই গ্রামীণ সংস্থার জন্য যাচাই-করা অভিযোগের পথ এখনও নেই।",
-    civic_no_address_help: "পৌর সংস্থাটি শনাক্ত হয়েছে, কিন্তু অ্যাপে তার যাচাই-করা অভিযোগের ঠিকানা নেই এবং অ্যাপ অনুমান করবে না। ছবি ও অবস্থান সংরক্ষিত আছে।",
-    civic_unsupported: "{body}-এর জন্য যাচাই-করা {type} অভিযোগের পথ নেই।",
-    civic_unsupported_help: "সমস্যা ও প্রমাণ সংরক্ষিত হয়েছে, কিন্তু প্রস্তাবিত প্রাপক এই বিভাগটি নেয় কি না যাচাই করা হয়নি; অ্যাপ অনুমান করে অভিযোগ খুলবে না।",
-    civic_outside_coverage_help: "এই স্থানটি ভারতের যাচাই-করা রাজ্য/কেন্দ্রশাসিত অঞ্চলের সীমানার বাইরে, অথবা নির্ভুল রাউটিং তথ্য পাওয়া যায়নি। ছবি ও অবস্থান কোনও প্রাপক ছাড়াই সংরক্ষিত হয়েছে।",
-    retry_routing_btn: "রাউটিং আবার চেষ্টা করুন",
-    retry_routing_unchanged: "রাউটিং এখনও পাওয়া যাচ্ছে না। মূল ছবি ও অবস্থান সংরক্ষিত আছে; সংযোগ বা রাউটিং তথ্য পাওয়া গেলে আবার চেষ্টা করুন।",
-    confirm_import_location: "এই ব্রাউজারটি পুরনো ছবি ফিরিয়ে দিতে পারে। ছবিটি আপনি এখন যেখানে আছেন সেই স্থানটি দেখালেই কেবল বর্তমান GPS অবস্থান যুক্ত করুন।",
-    capture_provenance_camera: "অ্যাপ ক্যামেরায় এখন তোলা",
-    capture_provenance_import: "বেছে নেওয়া/আমদানি করা ছবি · আসল তোলার সময় যাচাই হয়নি",
-    review_btn: "ফ্রেম যাচাই করে লেবেল দিন", export_btn: "লেবেল দেওয়া ডেটাসেট এক্সপোর্ট করুন",
-    dash_btn: "&#128506;&#65039; &nbsp;অবদান", dash_title: "আপনার অবদান",
-    dash_range: "{days} ধরে রিপোর্ট · প্রথম রিপোর্ট {first}",
-    dash_empty: "এখনও কোনও রিপোর্ট নেই। সমস্যা রিপোর্ট করা বা ড্রাইভ করার সঙ্গে সঙ্গে মানচিত্র পূর্ণ হবে।",
-    day_one: "1 দিন", day_many: "{n} দিন",
-    stat_found: "সংরক্ষিত রিপোর্ট", stat_reported: "নিশ্চিতভাবে জমা দেওয়া অভিযোগ", stat_frames: "রাস্তার গর্ত পরীক্ষা",
-    stat_drives: "ড্রাইভ", stat_footage: "MB ভিডিও ফুটেজ", stat_km: "কিমি রাস্তা পর্যবেক্ষণ",
-    by_type: "রিপোর্টের ধরন অনুযায়ী", by_size: "রাস্তার গর্তের আকার অনুযায়ী", by_area: "পৌরসংস্থা অনুযায়ী", map_pins: "{n}টি পিন",
-    map_empty: "মানচিত্রে এখনও কোনও গর্ত নেই।",
-    map_offline: "মানচিত্রের টাইল দেখাতে ইন্টারনেট প্রয়োজন। অবস্থানগুলি নীচে তবুও দেখানো হচ্ছে।",
-    zoom_hint: "জুম করতে আঙুল ছড়ান · সরাতে টানুন · রিসেট করতে দু’বার ট্যাপ করুন",
-    rec_suffix: "· রেকর্ড হচ্ছে {mb} MB", rec_failed: "· রেকর্ড হচ্ছে না",
-    net_trouble: "সংযোগে সমস্যা; স্ক্যান চলছে ({n}টি ফ্রেম অপেক্ষায়)",
-    capture_failing: "ক্যামেরা থেকে ফ্রেম আসছে না। ড্রাইভ থামিয়ে আবার শুরু করুন।",
-    camera_lost: "ক্যামেরা সাময়িকভাবে থেমেছে—অন্য কোনও অ্যাপ এটি ব্যবহার করতে পারে। স্ক্যান নিজে থেকেই আবার শুরু হবে।",
-    camera_low_quality: "ক্যামেরা মাত্র {width}px / {fps}fps",
-    coverage_dropped: "সারিতে থাকা ঘটনা বাদ গেছে",
-    drive_end_failed: "সংযোগ সমস্যার কারণে {n}টি ফ্রেম পরীক্ষা করা যায়নি।",
-    footage_line: "ভিডিও: {mb} MB · {segments}টি ক্লিপ",
-    analyse_btn: "ভিডিও বিশ্লেষণ করুন", delete_footage: "ভিডিও মুছুন",
-    analysing: "ফ্রেম {i}/{n} · {found}টি নতুন",
-    analyse_done: "ভিডিও বিশ্লেষণ শেষ: {n}টি ফ্রেম থেকে {found}টি নতুন রাস্তার গর্ত পাওয়া গেছে।",
-    analyse_none: "এই ড্রাইভের কোনও ভিডিও সংরক্ষিত নেই।",
-    analysing_dup: "({n}টি আগেই রিপোর্ট করা)", analyse_dup: "এর মধ্যে {n}টি আগেই রিপোর্ট করা হয়েছিল।",
-    already_one: "আগেই রিপোর্ট করা {n}টি ঘটনা", already_many: "আগেই রিপোর্ট করা {n}টি ঘটনা",
-    frames_no_permission: "স্টোরেজে ফ্রেম সংরক্ষণের অনুমতি পাওয়া যায়নি। সংরক্ষণ না করেই বিশ্লেষণ করবেন?",
-    analysing_failed: "· {n}টি ব্যর্থ",
-    analyse_incomplete: "শেষ করা যায়নি: {n}টি ফ্রেমের মধ্যে {failed}টি পরীক্ষা করা হয়নি ({err})। তাই কোনও ফল দাবি করা হচ্ছে না এবং ভিডিওটি রেখে দেওয়া হয়েছে।",
-    debug_note: "চালু থাকলে: বিশ্লেষণের পরেও ভিডিও থাকে, ফলে ড্রাইভটি আবার পরীক্ষা করা বা উন্নত মডেল দিয়ে চালানো যায়। বন্ধ থাকলে: রাস্তার ক্ষতির ঘটনাগুলি ছবি হিসেবে নেওয়ার পর ভিডিও মুছে যায়।",
-    record_label: "ড্রাইভের সময় এই ডিভাইসে ভিডিও রেকর্ড করুন (অডিও নয়; ডিফল্টভাবে বন্ধ)",
-    drive_limit_label: "ড্রাইভ ব্যাটারি সীমা",
-    drive_limit_note: "শুধু সক্রিয় সময় গণনা হয়। সময় শেষ হলে ড্রাইভ নিজে থেকে থামে; বিরতির সময় গণনা হয় না।",
-    keep_frames_label: "বিশ্লেষণ করা প্রতিটি ফ্রেম ডিভাইসে সংরক্ষণ করুন",
-    keep_frames_note: "AI পরীক্ষা করা প্রতিটি ফ্রেম ও তার সিদ্ধান্ত এই ফোনের Documents/pothole-frames ফোল্ডারে লিখবে। Files অ্যাপে দেখা যাবে এবং মূল্যায়ন ডেটাসেট তৈরিতে ব্যবহার করা যাবে। জায়গা দ্রুত বাড়ে: প্রতি ফ্রেম প্রায় 300 KB।",
-    frames_saved: "{n}টি ফ্রেম Documents/{dir}-এ লেখা হয়েছে।",
-    frames_failed: "ডিভাইসে ফ্রেম লেখা যায়নি।",
-    footage_freed: "ভিডিও মুছে {mb} MB জায়গা খালি হয়েছে।",
-    footage_kept: "ভিডিও রাখা হয়েছে (ডিবাগ মোড)।",
-    offer_analyse: "এই ড্রাইভের ভিডিও এখন বিশ্লেষণ করবেন? {clips}টি ক্লিপ, {mb} MB। শনাক্ত রাস্তার গর্ত ছবি হিসেবে রাখা হবে; বাকিটা মুছে যাবে।",
-    confirm_delete_footage: "এই ড্রাইভের রেকর্ড করা ভিডিও মুছবেন? রিপোর্টগুলি থেকে যাবে।",
-    drive_group: "{date} · {found}{known} · {checked}টি লাইভ ফ্রেম পরীক্ষা{video}",
-    drive_video_suffix: " · {n}টি ভিডিও ফ্রেম পরীক্ষা",
-    drive_group_partial: "{date} · {found} · {kept}টি রাখা হয়েছে",
-    lbl_pothole: "রাস্তার গর্ত", lbl_no: "রাস্তার গর্ত নয়", lbl_skip: "এড়িয়ে যান", lbl_done: "শেষ",
-    review_empty: "লেবেল দেওয়ার মতো কিছু বাকি নেই। ফ্রেম সংগ্রহ করতে ডিবাগ মোড চালু রেখে ড্রাইভ করুন।",
-    review_progress: "{n}টি লেবেল দেওয়া বাকি · এখনও পর্যন্ত {done}টি সম্পন্ন",
-    model_said: "অ্যাপের সিদ্ধান্ত: {verdict}",
-    export_ready: "{n}টি লেবেল দেওয়া ফ্রেম, {mb} MB। কোথায় পাঠাবেন বেছে নিন।",
-    outside_coverage: "এই অবস্থানটি অ্যাপের আওতাভুক্ত এলাকার বাইরে।",
-    outside_coverage_help: "এই স্থানটি ভারতের যাচাই-করা রাজ্য/কেন্দ্রশাসিত অঞ্চল ও মানচিত্রভুক্ত জাতীয় সড়ক কভারেজের বাইরে, অথবা নির্ভুল রাউটিং তথ্য পাওয়া যায়নি। ছবি ও অবস্থান কোনও প্রাপক ছাড়াই সংরক্ষিত হয়েছে।",
-    size_small: "ছোট", size_medium: "মাঝারি", size_large: "বড়",
-    damage_pothole_cavity: "রাস্তার গর্ত", damage_failed_patch: "ভেঙে যাওয়া রাস্তা মেরামত",
-    damage_surface_breakup: "ভাঙা রাস্তার উপরিভাগ", damage_rut_or_depression: "চাকার খাঁজ / দেবে যাওয়া অংশ",
-    damage_other_road_damage: "রাস্তার অন্যান্য ক্ষতি", damage_none: "অভিযোগযোগ্য ক্ষতি নেই",
-    assessment_clear: "স্পষ্ট", assessment_probable: "সম্ভাব্য", assessment_uncertain: "অনিশ্চিত", assessment_absent: "নেই",
-    verdict_detected: "রাস্তার গর্ত: হ্যাঁ",
-    verdict_review: "সম্ভাব্য {type} — রিপোর্ট করার আগে আবার ছবি তুলুন বা যাচাই করুন",
-    verdict_rejected: "রাস্তার গর্ত: না",
-    early_yes: "রাস্তার গর্ত: হ্যাঁ। অভিযোগের খসড়া তৈরি হচ্ছে...",
-    early_review: "রাস্তার সম্ভাব্য ক্ষতি। আরও পরিষ্কার ছবি প্রয়োজন।",
-    early_no: "রাস্তার গর্ত: না।",
-    verdict_sent: "জমা হয়েছে বলে চিহ্নিত",
-    verdict_queued: "ইমেল অ্যাপে খোলা হয়েছে। পাঠিয়ে না থাকলে সম্পাদনা করে আবার পাঠান।",
-    email_subject_label: "ইমেলের বিষয়",
-    email_body_label: "ইমেলের বক্তব্য (পাঠানোর আগে যাচাই করুন)",
-    routes_to: "যে দপ্তরে যাবে:",
-    getting_location: "আপনার অবস্থান নেওয়া হচ্ছে...",
-    waiting_gps: "GPS-এর অপেক্ষা চলছে...",
-    gps_30s: "30 সেকেন্ড পরেও GPS অবস্থান পাওয়া যায়নি। উচ্চ নির্ভুলতাসহ লোকেশন চালু আছে কি না দেখুন।",
-    gps_lost: "GPS সংকেত হারিয়েছে; নতুন অবস্থানের অপেক্ষা চলছে...",
-    holding: "একই অবস্থানে ({checked}টি পরীক্ষা, {found}টি পাওয়া গেছে)",
-    scanning: "স্ক্যান চলছে ({mode})... {checked}টি পরীক্ষা{analyzing}",
-    analyzing_suffix: ", {n}টি বিশ্লেষণাধীন",
-    potholes_one: "{n}টি রাস্তার গর্ত", potholes_many: "{n}টি রাস্তার গর্ত",
-    drive_tip: "চলতে শুরু করার আগে ক্যামেরা এমনভাবে বসান যাতে কমলা নির্দেশকের মধ্যে চলার রাস্তা বেশি এবং আকাশ বা ড্যাশবোর্ড কম থাকে। প্রতিটি পরীক্ষায় পরপর তিনটি ফ্রেম নেওয়া হয়। ফিরে যাওয়ার বোতামেও ড্রাইভ বন্ধ হবে।",
-    drive_end: "ড্রাইভ শেষ: {found}টি পাওয়া গেছে, {checked}টি ফ্রেম পরীক্ষা করা হয়েছে।",
-    drive_end_known: "ড্রাইভ শেষ: নতুন রিপোর্ট নেই; {already} আবার দেখা গেছে, {checked}টি ফ্রেম পরীক্ষা করা হয়েছে।",
-    drive_seen_suffix: " {already} আবার দেখা গেছে।",
-    drive_end_zero: "এই ড্রাইভে রাস্তার গর্ত পাওয়া যায়নি ({checked}টি পরীক্ষা{debug})।",
-    debug_saved_suffix: ", যাচাইয়ের জন্য ডিবাগ ফ্রেম সংরক্ষিত",
-    confirm_send: "{to}-কে ঠিকানা দিয়ে অভিযোগটি ইমেল অ্যাপে খুলবেন?",
-    confirm_suggested_email: "অবস্থান অনুযায়ী {authority} প্রস্তাবিত, কিন্তু এতে রাস্তার মালিকানা প্রমাণিত নয়। {to}-কে ঠিকানা দিয়ে অভিযোগটি ইমেল অ্যাপে খুলবেন?",
-    open_official_btn: "{name} খুলুন", share_evidence_btn: "প্রমাণ শেয়ার করুন",
-    copy_whatsapp_btn: "WhatsApp বক্তব্য কপি করুন",
-    portal_fields_btn: "পোর্টালের তথ্য",
-    portal_fields_title: "পোর্টালের তথ্য",
-    portal_fields_hint: "এই তথ্য সরকারি অভিযোগ পোর্টালে কপি করুন। নির্দিষ্ট রাস্তার দায়িত্ব যাচাই হলেই কেবল চুক্তির তথ্য দেখানো হবে।",
-    copy_all_btn: "সব কপি করুন",
-    copied_message: "কপি হয়েছে।",
-    official_whatsapp_btn: "সরকারি WhatsApp", official_call_btn: "{number} নম্বরে কল করুন",
-    confirm_whatsapp_share: "{authority}-এর সরকারি WhatsApp-এ এই রিপোর্টের বক্তব্য ও সঠিক অবস্থান খুলবেন? WhatsApp-এ Send না চাপা পর্যন্ত কিছুই পাঠানো হবে না।",
-    official_disclaimer: "প্রস্তাবিত পৌর কর্তৃপক্ষ: {authority}। এতে রাস্তার মালিকানা প্রমাণিত হয় না। এই স্বাধীন অ্যাপটি কেবল প্রমাণ প্রস্তুত করে; {service}-এ নিজে অভিযোগ নথিভুক্ত করুন এবং সরকারি রেফারেন্স নম্বরটি সংরক্ষণ করুন।",
-    authority_disclaimer: "অবস্থানের ভিত্তিতে প্রস্তাবিত পৌর কর্তৃপক্ষ: {authority}। রাস্তার মালিকানা যাচাই করা হয়নি; পাঠানোর আগে প্রাপক পরীক্ষা করুন।",
-    official_civic_disclaimer: "প্রস্তাবিত পৌর কর্তৃপক্ষ: {authority}। তার আওতা যাচাই করুন এবং {service}-এ সঠিক সমস্যার বিভাগ বেছে নিন। এই স্বাধীন অ্যাপটি কেবল প্রমাণ প্রস্তুত করে; নিজে অভিযোগ সম্পূর্ণ করুন এবং সরকারি রেফারেন্স নম্বর সংরক্ষণ করুন।",
-    authority_civic_disclaimer: "অবস্থানের ভিত্তিতে প্রস্তাবিত পৌর কর্তৃপক্ষ: {authority}। পাঠানোর আগে তার আওতা ও অভিযোগের বিভাগ যাচাই করুন।",
-    confirm_suggested_civic_email: "অবস্থান অনুযায়ী {authority} প্রস্তাবিত। {to}-কে ইমেল খোলার আগে পৌর আওতা ও বিভাগ যাচাই করুন।",
-    routing_match: "প্রাপক নির্বাচনের সূত্র: {field} = {value}। জমা দেওয়ার আগে যাচাই করুন।",
-    alternate_handoff_btn: "{name} খুলুন",
-    confirm_official_handoff: "প্রস্তুত তথ্য কপি করে প্রস্তাবিত কর্তৃপক্ষ {authority}-এর জন্য {service} খুলবেন? এতে শুধু পরিষেবাটি খোলার তথ্য রাখা হবে—অভিযোগ জমা হয়েছে বলে ধরা হবে না।",
-    official_grievance_generic_label: "সরকারি অভিযোগ/রেফারেন্স নম্বর",
-    official_grievance_generic_placeholder: "সরকারি পরিষেবা থেকে পাওয়া নম্বর লিখুন",
-    chip_queued_official: "সরকারি পরিষেবা খোলা হয়েছে",
-    bmc_prepare_btn: "মুম্বই রিপোর্ট তৈরি করুন", bmc_share_btn: "প্রমাণ শেয়ার করুন",
-    bmc_quickfix_btn: "Pothole QuickFix খুলুন", bmc_whatsapp_btn: "BMC WhatsApp",
-    bmc_call_btn: "1916 নম্বরে কল করুন",
-    bmc_disclaimer: "এই স্বাধীন অ্যাপটি প্রমাণ প্রস্তুত করে, কিন্তু BMC-তে অভিযোগ জমা দেয় না। যাচাই করে BMC-র কোনও সরকারি মাধ্যমে নিজে অভিযোগ সম্পূর্ণ করুন। সরকারি অভিযোগ নম্বর ছাড়া জমা হয়েছে বলে চিহ্নিত করবেন না।",
-    bmc_ward: "প্রস্তাবিত BMC ওয়ার্ড: {ward} (OpenStreetMap থেকে; সরকারি অ্যাপে যাচাই করুন)",
-    complaint_title_label: "অভিযোগের শিরোনাম", complaint_body_label: "অভিযোগের বিবরণ (শেয়ার করার আগে যাচাই করুন)",
-    official_grievance_label: "সরকারি BMC অভিযোগ নম্বর", official_grievance_placeholder: "BMC থেকে পাওয়া নম্বর লিখুন",
-    mark_submitted_btn: "জমা হয়েছে বলে চিহ্নিত করুন", submitted_reference: "সরকারি অভিযোগ নম্বর: {id}",
-    confirm_bmc_handoff: "BMC-র সরকারি Pothole QuickFix অ্যাপে যাবেন? এতে শুধু পরিষেবাটি খোলার তথ্য রাখা হবে, অভিযোগ জমা হয়েছে বলে ধরা হবে না।",
-    confirm_mark_submitted: "আপনি কি কোনও সরকারি মাধ্যমে অভিযোগ জমা দেওয়া সম্পূর্ণ করেছেন?",
-    evidence_shared: "প্রমাণ প্রস্তুত। শেয়ার শিট থেকে BMC-র একটি সরকারি মাধ্যম বেছে নিন।",
-    confirm_delete: "এই রিপোর্টটি মুছবেন?",
-    confirm_wipe: "API key, সেটিংস, রিপোর্ট, ছবি, ভিডিও এবং এক্সপোর্ট করা ডিবাগ ফ্রেম-সহ এই ফোন থেকে অ্যাপের সব তথ্য মুছবেন?",
-    camera_failed: "ক্যামেরা ব্যবহার করা যায়নি: ", drive_stopped: "ড্রাইভ মোড বন্ধ হয়েছে: ",
-    the_officer: "সংশ্লিষ্ট আধিকারিক",
+  uz: {
+    manual_confirm: "Bu rasmni foydalanuvchi o'zi xabar qilgan chuqur sifatida saqlaysizmi? U AI tomonidan tasdiqlanmaydi va hech qayerga yuborilmaydi.",
+    manual_verdict: "Foydalanuvchi xabari · AI tasdiqlamagan",
+    manual_help: "Rasmni oflayn ko'rib chiqing yoki eksport qiling. Ixtiyoriy bulutli tahlil alohida natija yaratadi va bu hisobotni saqlab qoladi.",
+    cloud_optional: "Ixtiyoriy bulutli tahlil",
+    cloud_confirm: "Bu rasm ixtiyoriy tahlil uchun sozlangan AI xizmatiga yuborilsinmi? Internet kerak bo'ladi va mavjud AI limitingizdan foydalanadi. Qo'lda kiritilgan hisobotingiz saqlanib qoladi.",
+    sub: "Telefonni mahkamlang. Haydang. Chuqurlar avtomatik topiladi va xaritaga tushadi.",
+    report_btn: "&#128247; &nbsp;Rasm",
+    drive_btn: "&#128663; &nbsp;Haydash",
+    your_reports: "Sizning hisobotlaringiz",
+    no_reports: "Hozircha hisobot yo'q.",
+    evidence_confidence: "Kuzatuv ishonchliligi",
+    evidence_unknown: "Noma'lum / yetarli tasdiqlangan dalil yo'q",
+    evidence_single: "Bitta kuzatuv; tasdiqlovchi boshqa safar yo'q",
+    evidence_reobserved: "Turli safarlarda qayta kuzatilgan",
+    evidence_limits: "Turli safarlar mustaqil odamlarni yoki aniqlik ehtimolini isbotlamaydi. Bir safardagi takroriy ko'rinishlar bu toifani oshirmaydi.",
+    evidence_severity: "Ko'rinish bo'yicha og'irlik bahosi",
+    evidence_size_limits: "Saqlangan ko'rinish o'lchami sinfiga asoslangan; chuqurlik, yuza yoki xavfsizlik darajasi o'lchanmagan.",
+    evidence_manual: "Foydalanuvchi xabari; AI kuzatuv ishonchliligi va og'irligi noma'lum.",
+    evidence_fixed: "Tarixiy kuzatuv dalili; hozirgi holati ta'mirlangan.",
+    trip_distance: "Taxminiy o'lchangan km",
+    trip_moving: "Taxminiy harakat daqiqalari",
+    trip_average: "Taxminiy o'rtacha km/soat",
+    trip_peak: "Eng yuqori o'lchangan km/soat (shaxsiy)",
+    trip_unknown: "Mavjud emas",
+    trip_limits: "Aniqligi va sakrashlari filtrlangan GPS namunalaridan olingan shaxsiy taxminlar. Bo'shliqlar va noaniq harakat chiqarib tashlangan; bu umumiy yo'l masofasi yoki o'lchangan maksimal tezlik emas. Marshrut ko'rsatilmaydi va yuklanmaydi.",
+    trip_partial: "GPS qamrovi to'liq emas yoki hisoblash chegarasiga yetildi.",
+    banner_setup: "Rasm rejimi kalitsiz ham oflayn ishlaydi. OpenAI API kaliti bulutli tahlil va Haydash uchun ixtiyoriy.",
+    settings_title: "Sozlamalar",
+    key_label: "OpenAI API kaliti (OpenAI'ga hisob ma'lumoti sifatida yuboriladi)",
+    credential_storage_native: "Android saqlangan ma'lumotlarni eksport qilib bo'lmaydigan Keystore kaliti bilan shifrlaydi. Saqlangan kalit bu yerda hech qachon ko'rsatilmaydi; joriy qiymatni saqlash uchun maydonni bo'sh qoldiring.",
+    credential_storage_browser: "Bu brauzer API kalitini sahifa yopilguncha yoki yangilanguncha faqat xotirada saqlaydi. U brauzer xotirasiga yozilmaydi.",
+    model_label: "Rasm modeli",
+    detail_label: "Rasm tafsiloti",
+    accuracy_note: "Haydash gpt-5.6/high ishlatadi; bu tanlovlar faqat Rasm rejimiga tegishli.",
+    capture_source_label: "Haydash video manbai",
+    phone_camera_option: "Telefon kamerasi",
+    dashcam_option: "Videoregistrator",
+    capture_source_note: "Tanlangan manba Haydash keyingi safar boshlanganda ishlatiladi.",
+    dashcam_capture_source_note: "Videoregistrator o'chirilgan: ilova xavfsiz RTSP (rtsps://) ni ta'minlay olmaydi. Telefon kamerasini tanlang.",
+    dashcam_rtsp_label: "Videoregistrator RTSP manzili",
+    dashcam_rtsp_note: "Videoregistrator o'chirilgan: ilova xavfsiz RTSP (rtsps://) ni ta'minlay olmaydi. Telefon kamerasini tanlang.",
+    dashcam_rtsp_invalid: "Videoregistrator o'chirilgan: ilova xavfsiz RTSP (rtsps://) ni ta'minlay olmaydi. Telefon kamerasini tanlang.",
+    dashcam_native_only: "Videoregistrator o'chirilgan: ilova xavfsiz RTSP (rtsps://) ni ta'minlay olmaydi. Telefon kamerasini tanlang.",
+    debug_label: "Nosozliklarni tuzatish rejimi: tahlildan keyin ham haydash videosini saqlash",
+    settings_note: "Chuqur rasmlari va videodan olingan kadrlar aniqlash uchun OpenAI'ga yuboriladi va ularda davlat raqamlari yoki yuzlar bo'lishi mumkin. Aniq joylashuv ko'cha nomini topish uchun OpenStreetMap/Nominatim'ga yuboriladi. API kalitingiz faqat OpenAI'ga yuboriladi. Hisobotlar shu telefonda qoladi va ilova ularni hech qaysi idoraga yubormaydi.",
+    independent_note: "Mustaqil, norasmiy ilova. U hech qanday davlat organiga bog'liq emas va ular tomonidan tasdiqlanmagan.",
+    privacy_title: "Suratga olish va joylashuvga ruxsatdan oldin",
+    privacy_permission: "Ilova Aniq joylashuvni va faqat Telefon kamerasi tanlanganda Kamerani so'raydi.",
+    privacy_source: "Haydash rejimi audio ishlatmaydi. U shu telefonning kamerasi yoki siz sozlagan videoregistrator RTSP oqimidan hamda shu telefonning joylashuvidan fonda ham foydalanadi — Xarita yoki qo'ng'iroq ekranda turganda ham.",
+    privacy_body: "Davom etsangiz, ilova Aniq joylashuvni va faqat Telefon kamerasi tanlanganda Kamerani so'raydi. Haydash rejimi ishlayotganda yo'l shikastlarini belgilash uchun aniq joylashuv, ilova ko'rinmasa yoki ishlatilmasa ham, jumladan Xarita yoki qo'ng'iroq ekranda turganda ham yig'iladi. Chuqur rasmlari — yoki tanlangan Haydash video manbaidan olingan to'liq kadrlar — API kalitingiz bilan aniqlash uchun OpenAI'ga yuboriladi. Keyingi aniq jonli qayta o'tishda avval saqlangan shikast rasmi va joriy ko'rinishlar ta'mirni tekshirish uchun birga yuborilishi mumkin. Aniq koordinatalar ko'cha nomini topish uchun OpenStreetMap/Nominatim'ga yuboriladi. Ishlov O'zbekiston tashqarisida bo'lishi mumkin.",
+    privacy_local: "Haydash rejimi audio ishlatmaydi. U shu telefonning kamerasi yoki siz sozlagan videoregistrator RTSP oqimidan hamda shu telefonning joylashuvidan fonda ham foydalanadi — ilova ko'rinmasa va Xarita yoki qo'ng'iroq ekranda turganda ham. Ko'rinib turuvchi doimiy bildirishnoma bu foydalanishni har doim ko'rsatadi; uni ilovadan yoki bildirishnomadan to'xtatib turish yoki to'xtatish mumkin. Android'da RTSP manzili, ma'lumotlari va OpenAI kaliti eksport qilib bo'lmaydigan Android Keystore kaliti bilan shifrlanadi va WebView'ga hech qachon qaytarilmaydi; mahalliy RTSP odatda shifrlanmagan, shuning uchun faqat ishonchli videoregistrator Wi-Fi'sidan foydalaning. Brauzer OpenAI kalitini sahifa yopilguncha yoki yangilanguncha faqat xotirada saqlaydi. Tanlangan to'liq kadrlar tahlildan oldin saqlanadi; videoregistratorning butun oqimi yuklanmaydi. Ixtiyoriy ovozsiz mahalliy video yozish sukut bo'yicha o'chiq va faqat Telefon kamerasi uchun mavjud. Video va saqlangan kadrlar 4 GB umumiy chegaraga ega; hisobot va ta'mir dalillari uchun alohida 512 MB chegara bor. Bo'sh joy 500 MB dan kamaymasdan oldin yozish to'xtaydi. Haydash tanlangan faol vaqt batareya chegarasidan keyin to'xtaydi va 15 daqiqa uzluksiz pauzada tursa to'liq to'xtaydi. Hisobotlar, rasmlar, ta'mir dalillari, videolar, namunaviy kadrlar, joylashuv izlari va sozlamalar o'chirilmaguncha shu qurilmada qoladi.",
+    privacy_government: "Bu mustaqil ilova davlat xizmati emas va hisobotlarni o'zi hech qaysi idoraga yubormaydi. Joylashuvingiz ko'cha nomini topish uchun OpenStreetMap/Nominatim'ga, rasmlar esa aniqlash uchun OpenAI'ga yuboriladi, bu yuqorida ko'rsatilgan.",
+    privacy_link: "Maxfiylik siyosati",
+    privacy_accept: "Davom etish",
+    privacy_decline: "Hozir emas",
+    wipe_btn: "Barcha ilova ma'lumotlarini o'chirish",
+    welcome_hint: "Shaxsiy Rasm hisobotlarini kalitsiz oflayn saqlang. OpenAI API kalitini faqat ixtiyoriy bulutli tahlil yoki Haydash uchun qo'shing. Kalit OpenAI'ga faqat so'rov hisob ma'lumoti sifatida yuboriladi.",
+    back: "Orqaga",
+    save: "Saqlash",
+    del: "O'chirish",
+    stop: "&#9632; To'xtatish",
+    working: "Ishlanmoqda...",
+    chip_draft: "Saqlangan",
+    chip_rejected: "Chuqur: YO'Q",
+    chip_review: "Ko'rib chiqish kerak",
+    chip_fixed: "Ta'mirlangan",
+    chip_repair_review: "Ta'mir tekshiruvi kerak",
+    fixed_action_blocked: "Bu chuqur ta'mirlangani tasdiqlangan, shuning uchun eski dalilni ulashib bo'lmaydi.",
+    verdict_fixed: "Keyingi safarda ta'mirlangani tasdiqlangan",
+    verdict_repair_review: "Ta'mir qilingan bo'lishi mumkin — ikkala rasmni solishtiring",
+    repair_evidence_label: "Keyingi qayta o'tish",
+    repair_review_help: "Ilova shu joyda tugallangan ta'mir bo'lishi mumkinligini topdi, lekin uni avtomatik ravishda ta'mirlangan deb belgilamadi. Faqat eski chuqur o'rni butun ta'mir materiali bilan aniq yopilgan bo'lsagina tasdiqlang.",
+    fixed_local_note: "Faqat jismoniy holat: u keyingi safar shu joyda nima ko'rilganini aks ettiradi.",
+    confirm_fixed_btn: "Ta'mirlangan deb tasdiqlash",
+    reopen_btn: "Ochiq deb belgilash",
+    stat_fixed: "ta'mirlangani tasdiqlangan",
+    no_location: "Joylashuvni aniqlab bo'lmadi.",
+    confirm_import_location: "Brauzer mavjud rasmni qaytargan bo'lishi mumkin. Joriy GPS joylashuvini faqat rasm hozir turgan joyingizni ko'rsatsagina biriktiring.",
+    capture_provenance_camera: "Ilova kamerasi bilan hozir olingan",
+    capture_provenance_import: "Tanlangan/import qilingan rasm · asl olingan vaqt tasdiqlanmagan",
+    review_btn: "Kadrlarni ko'rib chiqish va belgilash",
+    export_btn: "Belgilangan ma'lumotlar to'plamini eksport qilish",
+    dash_btn: "&#128506;&#65039; &nbsp;Hissam",
+    dash_title: "Sizning hissangiz",
+    dash_range: "{days} hisobot · birinchisi {first}",
+    dash_empty: "Hozircha hisobot yo'q. Xarita siz hisobot yuborganingiz yoki haydaganingiz sari to'ladi.",
+    day_one: "1 kun",
+    day_many: "{n} kun",
+    stat_found: "hisobot saqlangan",
+    stat_frames: "chuqur tekshiruvlari",
+    stat_drives: "safarlar",
+    stat_footage: "MB video",
+    by_type: "Hisobot turi bo'yicha",
+    by_size: "Chuqur o'lchami bo'yicha",
+    by_street: "Ko'cha bo'yicha",
+    map_pins: "{n} ta belgilangan",
+    map_empty: "Xaritada hali chuqur yo'q.",
+    map_offline: "Xarita plitkalari uchun internet kerak. Nuqtalar quyida baribir ko'rsatiladi.",
+    zoom_hint: "Kattalashtirish uchun chimchilang · surish uchun suring · asliga qaytarish uchun ikki marta bosing",
+    rec_suffix: "· yozilmoqda {mb} MB",
+    rec_failed: "· yozilmayapti",
+    net_trouble: "Ulanishda muammo, skanerlash davom etmoqda ({n} ta kadr kutmoqda)",
+    capture_failing: "Kamera kadr qaytarmayapti. Haydashni to'xtatib, qayta boshlang.",
+    camera_lost: "Kamera to'xtatildi (boshqa ilova ishlatayotgan bo'lishi mumkin). Skanerlash avtomatik davom etadi.",
+    camera_low_quality: "kamera faqat {width}px / {fps}fps",
+    coverage_dropped: "navbatdagi hodisalar tashlab yuborildi",
+    drive_end_failed: "{n} ta kadr ulanish sababli tekshirilmadi.",
+    footage_line: "Video: {mb} MB · {segments} ta bo'lak",
+    analyse_btn: "Videoni tahlil qilish",
+    delete_footage: "Videoni o'chirish",
+    analysing: "{n} ta kadrdan {i}-si · {found} ta yangi",
+    analyse_done: "Video tahlil qilindi: {n} ta kadrdan {found} ta yangi chuqur.",
+    analyse_none: "Bu safar uchun video saqlanmagan.",
+    analysing_dup: "({n} tasi allaqachon xabar qilingan)",
+    analyse_dup: "Ulardan {n} tasi allaqachon xabar qilingan edi.",
+    already_one: "{n} ta allaqachon xabar qilingan hodisa",
+    already_many: "{n} ta allaqachon xabar qilingan hodisa",
+    frames_no_permission: "Kadrlarni xotiraga saqlashga ruxsat berilmadi. Ularni saqlamasdan baribir tahlil qilaymi?",
+    analysing_failed: "· {n} tasi xato",
+    analyse_incomplete: "Tugatib bo'lmadi: {n} ta kadrdan {failed} tasi tekshirilmadi ({err}) Shu sababli hech qanday natija da'vo qilinmaydi, video saqlab qolindi.",
+    debug_note: "Yoqilgan: video tahlildan keyin saqlanadi, shuning uchun safarni qayta ko'rib chiqish yoki yaxshiroq modelda qayta ishga tushirish mumkin. O'chiq: aniqlangan chuqurlar ajratib olingach, video o'chiriladi.",
+    record_label: "Haydash vaqtida mahalliy video yozish (ovozsiz; sukut bo'yicha o'chiq)",
+    drive_limit_label: "Haydash batareya chegarasi",
+    drive_limit_note: "Haydash faol vaqt chegarasida yoki 15 daqiqa uzluksiz pauzadan keyin to'xtaydi.",
+    keep_frames_label: "Har bir tahlil qilingan kadrni qurilmaga saqlash",
+    keep_frames_note: "AI tekshirgan har bir kadrni uning xulosasi bilan shu telefondagi Documents/pothole-frames papkasiga yozadi. Fayllar ilovasida ko'rinadi va baholash to'plamini yig'ish uchun xom material bo'ladi. Tez to'ladi: kadr uchun taxminan 300 KB.",
+    frames_saved: "{n} ta kadr Documents/{dir} ga yozildi.",
+    frames_failed: "Kadrlarni qurilmaga yozib bo'lmadi.",
+    footage_freed: "Video o'chirildi, {mb} MB bo'shatildi.",
+    footage_kept: "Video saqlab qolindi (nosozliklarni tuzatish rejimi).",
+    offer_analyse: "Bu safarning videosini hozir tahlil qilaymi? {clips} ta bo'lak, {mb} MB. Aniqlangan chuqurlar rasm sifatida saqlanadi, qolgani tashlab yuboriladi.",
+    confirm_delete_footage: "Bu safar uchun yozilgan videoni o'chiraymi? Hisobotlar qoladi.",
+    drive_group: "{date} · {found}{known} · {checked} ta jonli kadr tekshirildi{video}",
+    drive_video_suffix: " · {n} ta video kadr tekshirildi",
+    drive_group_partial: "{date} · {found} · {kept} ta saqlangan",
+    lbl_pothole: "Chuqur",
+    lbl_no: "Chuqur emas",
+    lbl_skip: "O'tkazib yuborish",
+    lbl_done: "Tayyor",
+    review_empty: "Belgilash uchun hech narsa qolmadi. Kadrlarni yig'ish uchun nosozliklarni tuzatish rejimini yoqib haydang.",
+    review_progress: "Belgilash uchun {n} ta qoldi · hozircha {done} ta belgilandi",
+    model_said: "Ilova aytdi: {verdict}",
+    export_ready: "{n} ta belgilangan kadr, {mb} MB. Qayerga yuborishni tanlang.",
+    size_small: "kichik",
+    size_medium: "o'rta",
+    size_large: "katta",
+    damage_pothole_cavity: "chuqur",
+    damage_failed_patch: "muvaffaqiyatsiz yo'l ta'miri",
+    damage_surface_breakup: "buzilgan yo'l yuzasi",
+    damage_rut_or_depression: "yo'l o'yig'i / cho'kish",
+    damage_other_road_damage: "boshqa yo'l shikasti",
+    damage_none: "xabar qilinadigan shikast yo'q",
+    assessment_clear: "aniq",
+    assessment_probable: "ehtimoliy",
+    assessment_uncertain: "noaniq",
+    assessment_absent: "yo'q",
+    verdict_detected: "Chuqur: HA",
+    verdict_review: "Ehtimol {type} — xabar qilishdan oldin qayta oling yoki ko'rib chiqing",
+    verdict_rejected: "Chuqur: YO'Q",
+    early_yes: "Chuqur: HA. Hisobot saqlanmoqda...",
+    early_review: "Yo'l shikasti bo'lishi mumkin. Aniqroq rasm kerak.",
+    early_no: "Chuqur: YO'Q.",
+    getting_location: "Joylashuvingiz aniqlanmoqda...",
+    waiting_gps: "GPS kutilmoqda...",
+    gps_30s: "30 soniyadan keyin ham GPS signali yo'q. Joylashuv yuqori aniqlikda yoqilganini tekshiring.",
+    gps_lost: "GPS signali yo'qoldi, yangi signal kutilmoqda...",
+    holding: "Joyida turibdi ({checked} ta tekshirildi, {found} ta topildi)",
+    scanning: "Skanerlanmoqda ({mode})... {checked} ta tekshirildi{analyzing}",
+    analyzing_suffix: ", {n} ta tahlil qilinmoqda",
+    potholes_one: "{n} ta chuqur",
+    potholes_many: "{n} ta chuqur",
+    drive_tip: "Harakatlanishdan oldin kamerani shunday yo'naltiring: bosib o'tiladigan yo'l to'q sariq yo'riqnomani to'ldirsin, osmon yoki panel kam bo'lsin. Har bir tekshiruv uchta so'nggi kadrdan foydalanadi. Orqaga bu ekranni yashiradi; Haydash siz ilovada yoki bildirishnomada To'xtatishni bosmaguningizcha davom etadi.",
+    drive_end: "Haydash tugadi: {found} ta topildi, {checked} ta kadr tekshirildi.",
+    drive_end_known: "Haydash tugadi: yangi hisobot yo'q; {already} ta qayta ko'rildi, {checked} ta kadr tekshirildi.",
+    drive_seen_suffix: " {already} ta qayta ko'rildi.",
+    drive_end_zero: "Bu safarda chuqur topilmadi ({checked} ta hodisa tekshirildi{debug}).",
+    debug_saved_suffix: ", ko'rib chiqish uchun tuzatish kadrlari saqlandi",
+    share_evidence_btn: "Dalilni ulashish",
+    confirm_delete: "Bu hisobot o'chirilsinmi?",
+    confirm_wipe: "Bu telefondagi BARCHA ilova ma'lumotlari, jumladan API kaliti, sozlamalar, hisobotlar, rasmlar, videolar va eksport qilingan tuzatish kadrlari o'chirilsinmi?",
+    camera_failed: "Kameraga kirish muvaffaqiyatsiz: ",
   },
 };
+
 const savedLang = localStorage.getItem("app_lang");
-let LANG = savedLang === "kn" || savedLang === "mr" || savedLang === "bn" ? savedLang : "en";
+let LANG = savedLang === "uz" ? "uz" : "en";
 document.documentElement.lang = LANG;
 const t = (k, p) => {
   let s = (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
@@ -1151,18 +673,9 @@ const t = (k, p) => {
   return s;
 };
 const tSize = (s) => (s ? t("size_" + s) : "");
-const issueType = (r) => r && ["road_damage", "garbage", "open_manhole"].includes(r.issue_type)
-  ? r.issue_type : "road_damage";
-const isRoadReport = (r) => issueType(r) === "road_damage";
-const tIssue = (value) => {
-  const type = typeof value === "string" ? value : issueType(value);
-  if (type === "garbage") return t("issue_garbage_label");
-  if (type === "open_manhole") return t("issue_open_manhole_label");
-  return t("issue_road_damage");
-};
 const damageType = (r) => (r && r.damage_type) || (r && r.is_pothole ? "pothole_cavity" : "none");
 const assessment = (r) => (r && r.assessment) || (r && r.is_pothole ? "clear" : "absent");
-const tDamage = (value) => value && value.report_origin === "user_reported" && isRoadReport(value)
+const tDamage = (value) => value && value.report_origin === "user_reported"
   ? t("manual_verdict") : t("damage_" + (typeof value === "string" ? value : damageType(value)));
 const tAssessment = (value) => t("assessment_" + (typeof value === "string" ? value : assessment(value)));
 const eventCountText = (n) => n === 1 ? t("potholes_one", { n }) : t("potholes_many", { n });
@@ -1176,7 +689,7 @@ const safePhotoSrc = (value) => {
   return /^(?:blob:|data:image\/(?:jpeg|jpg|png|webp|gif);base64,)/i.test(src)
     ? escapeAttr(src) : "";
 };
-let health = { ai_configured: true, email_configured: false, delivery: "gmail_draft" };
+let health = { ai_configured: true };
 let nativePreviewGeneration = 0;
 let nativePreviewAttached = false;
 let nativePreviewAttachPending = false;
@@ -1208,7 +721,7 @@ function show(screen) {
       (nativePreviewAttached || document.documentElement.classList.contains("native-preview-active"))) {
     stopNativePreview();
   }
-  for (const s of ["home", "progress", "detail", "portalCopy", "drive", "settings", "review", "dash", "dataConsent"]) {
+  for (const s of ["home", "progress", "detail", "drive", "settings", "review", "dash", "dataConsent"]) {
     $(s).classList.toggle("hidden", s !== screen);
   }
   window.scrollTo(0, 0);
@@ -1217,41 +730,19 @@ function show(screen) {
 
 function fmtDate(ts) { return new Date(ts * 1000).toLocaleString([], {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"}); }
 
-const isOfficialHandoffReport = (r) => !!r
-  && (r.delivery_channel === "official_handoff" || r.delivery_channel === "bmc_quickfix");
-const officialServiceName = (r) => (LANG === "bn" && r && r.authority_id === "wb-kmc"
-  ? "KMC অভিযোগ প্রতিবিধান (Grievance 2.0)"
-  : LANG === "bn" && r && r.authority_id === "wb-statewide-unverified"
-    ? "West Bengal PGRS" : r && r.handoff_name)
-  || (r && r.delivery_channel === "bmc_quickfix" ? "BMC Pothole QuickFix" : "official service");
-const displayAuthorityName = (r) => LANG === "bn" && r && r.authority_id === "wb-kmc"
-  ? "কলকাতা পৌরসংস্থা (KMC)"
-  : LANG === "bn" && r && r.authority_id === "wb-statewide-unverified"
-    ? "পশ্চিমবঙ্গ PGRS — জেলা বা দপ্তর নির্বাচন করুন"
-    : (r && r.authority_name) || t("the_officer");
-const displayRouteName = (r) => LANG === "bn" && r
-  && r.authority_id === "wb-statewide-unverified"
-  ? "পশ্চিমবঙ্গ PGRS — জেলা বা দপ্তর নির্বাচন করুন"
-  : r && r.officer_name;
-const sendLabel = (r) => isOfficialHandoffReport(r)
-  ? t("open_official_btn", { name: officialServiceName(r) }) : t("email_btn");
-
-function chip(status, report) {
-  const labels = { draft: t("chip_draft"), sent: t("chip_sent"), queued: t("chip_queued"),
-                   rejected: t("chip_rejected"), review: t("chip_review"),
-                   unrouted: t("chip_unrouted") };
-  if (status === "queued" && isOfficialHandoffReport(report)) {
-    labels.queued = t("chip_queued_official");
-  }
-  const css = Object.prototype.hasOwnProperty.call(labels, status) ? status : "review";
-  return `<span class="chip ${css}">${escapeHtml(labels[status] || status)}</span>`;
+function chip(status) {
+  // Accepted reports are kept on the phone; "queued" and "sent" are legacy values.
+  const saved = status === "draft" || status === "queued" || status === "sent";
+  const labels = { draft: t("chip_draft"), rejected: t("chip_rejected"), review: t("chip_review") };
+  const key = saved ? "draft" : Object.prototype.hasOwnProperty.call(labels, status) ? status : "review";
+  return `<span class="chip ${key}">${escapeHtml(labels[key])}</span>`;
 }
 
 const physicalCondition = (report) => report && report.condition_status === "fixed"
   ? "fixed" : report && report.condition_status === "repair_review" ? "repair_review" : "open";
 function conditionChip(report) {
   const condition = physicalCondition(report);
-  if (!isRoadReport(report) || condition === "open") return "";
+  if (condition === "open") return "";
   const css = condition === "fixed" ? "fixed" : "repair-review";
   const label = condition === "fixed" ? t("chip_fixed") : t("chip_repair_review");
   return `<span class="chip ${css}">${escapeHtml(label)}</span>`;
@@ -1299,8 +790,6 @@ function applyLang() {
   $("keyLabel").textContent = t("key_label");
   $("credentialStorageNote").textContent = window.CredentialBroker.isNative()
     ? t("credential_storage_native") : t("credential_storage_browser");
-  $("nameLabel").textContent = t("name_label");
-  $("setName").placeholder = t("name_placeholder");
   $("modelLabel").textContent = t("model_label");
   $("detailLabel").textContent = t("detail_label");
   $("accuracyNote").textContent = t("accuracy_note");
@@ -1328,9 +817,7 @@ function applyLang() {
   ].filter(Boolean).join(" ");
   $("privacyGovernment").textContent = t("privacy_government");
   $("privacyLink").textContent = t("privacy_link");
-  $("sourcesLink").textContent = t("sources_link");
   $("consentPrivacyLink").textContent = t("privacy_link");
-  $("consentSourcesLink").textContent = t("sources_link");
   $("privacyAccept").textContent = t("privacy_accept");
   $("privacyDecline").textContent = t("privacy_decline");
   $("wipeBtn").textContent = t("wipe_btn");
@@ -1455,19 +942,7 @@ async function getNativeDriveHistory(options = {}) {
 
 async function openReportDetail(r, items) {
   if (!r) return;
-  let current = r;
-  if (physicalCondition(r) !== "fixed" && isOfficialHandoffReport(r)) {
-    try { current = await api(`/api/reports/${r.id}/handoff`); }
-    catch (_) { /* keep evidence accessible; every launch path revalidates again */ }
-  }
-  const replace = (list) => {
-    if (!Array.isArray(list)) return;
-    const index = list.findIndex((item) => item && item.id === current.id);
-    if (index >= 0) list[index] = current;
-  };
-  replace(items);
-  replace(loadReports.latest);
-  openDetail(current, items);
+  openDetail(r, items);
 }
 
 function wireCards(root, items) {
@@ -1540,9 +1015,8 @@ async function renderReports() {
     <div class="card row" data-id="${escapeAttr(r.id)}" style="cursor:pointer">
       <img class="thumb" src="${safePhotoSrc(photoSrc(r))}" alt="" loading="lazy" decoding="async">
       <div style="min-width:0">
-        <div>${chip(r.status, r)} ${conditionChip(r)} ${isRoadReport(r)
-          ? (damageType(r) !== "none" ? `<span class="chip" style="background:#26272c;color:#cfcfd4">${escapeHtml(tDamage(r))}</span>` : "")
-          : `<span class="chip" style="background:#26272c;color:#cfcfd4">${escapeHtml(tIssue(r))}</span>`} ${r.size ? `<span class="chip" style="background:#26272c;color:#cfcfd4">${escapeHtml(tSize(r.size))}</span>` : ""}</div>
+        <div>${chip(r.status)} ${conditionChip(r)} ${damageType(r) !== "none"
+          ? `<span class="chip" style="background:#26272c;color:#cfcfd4">${escapeHtml(tDamage(r))}</span>` : ""} ${r.size ? `<span class="chip" style="background:#26272c;color:#cfcfd4">${escapeHtml(tSize(r.size))}</span>` : ""}</div>
         <div class="meta">${escapeHtml(fmtDate(r.created_at))}${r.address ? " · " + escapeHtml(String(r.address).split(",").slice(0, 2).join(", ")) : ""}</div>
       </div>
     </div>`;
@@ -1579,7 +1053,7 @@ async function renderReports() {
   // Inside a drive, what you actually want is the potholes, not the frames that were
   // checked and dismissed. Confirmed ones sit on top, rejects below, each still newest
   // first, so a drive with 3 finds among 200 frames does not bury them.
-  const FOUND = ["draft", "queued", "sent", "unrouted"];
+  const FOUND = ["draft", "queued", "sent"];
   for (const g of groups) {
     if (!g.driveId) continue;
     g.items.sort((a, b) => (FOUND.includes(b.status) ? 1 : 0) - (FOUND.includes(a.status) ? 1 : 0) || b.id - a.id);
@@ -1889,53 +1363,8 @@ function step(delta) {
   openReportDetail(detailList[i], detailList);
 }
 
-// Four distinct reasons a confirmed pothole cannot be addressed, each needing its own
-// explanation: no GPS fix, a road no municipality owns, a body whose official address we
-// do not hold, or genuinely outside the state. Collapsing them told a Mysuru user their
-// city was "outside coverage", which was wrong and unhelpful.
-function unroutedTitle(r) {
-  if (r.unrouted_reason === "private_manual") return t("manual_saved");
-  if (r.unrouted_reason === "no_location") return t("no_location");
-  if (r.unrouted_reason === "location_uncertain") return t("location_uncertain");
-  if (r.unrouted_reason === "jurisdiction_unavailable") return t("jurisdiction_unavailable");
-  if (r.unrouted_reason === "road_class_unknown") return t("road_unknown");
-  if (r.unrouted_reason === "national_highway") return t("nat_highway", { road: r.unrouted_body || "" });
-  if (!isRoadReport(r) && r.unrouted_reason === "rural_road") {
-    return t("civic_rural", { body: r.unrouted_body || "a" });
-  }
-  if (!isRoadReport(r) && r.unrouted_reason === "unsupported_issue_type") {
-    return t("civic_unsupported", {
-      type: tIssue(r), body: r.unrouted_body || t("the_officer"),
-    });
-  }
-  if (r.unrouted_reason === "rural_road") return t("rural_road", { body: r.unrouted_body || "a" });
-  if (r.unrouted_reason === "no_address_for_body") return t("no_address", { body: r.unrouted_body || "" });
-  return t("outside_coverage");
-}
-function unroutedHelp(r) {
-  if (r.unrouted_reason === "private_manual") return t("manual_help");
-  if (!isRoadReport(r)) {
-    if (r.unrouted_reason === "no_location") return t("civic_no_location_help");
-    if (r.unrouted_reason === "location_uncertain") return t("civic_location_uncertain_help");
-    if (r.unrouted_reason === "jurisdiction_unavailable") return t("civic_jurisdiction_unavailable_help");
-    if (r.unrouted_reason === "rural_road") return t("civic_rural_help");
-    if (r.unrouted_reason === "no_address_for_body") return t("civic_no_address_help");
-    if (r.unrouted_reason === "unsupported_issue_type") return t("civic_unsupported_help");
-    return t("civic_outside_coverage_help");
-  }
-  if (r.unrouted_reason === "no_location") return t("no_location_help");
-  if (r.unrouted_reason === "location_uncertain") return t("location_uncertain_help");
-  if (r.unrouted_reason === "jurisdiction_unavailable") return t("jurisdiction_unavailable_help");
-  if (r.unrouted_reason === "road_class_unknown") return t("road_unknown_help");
-  if (r.unrouted_reason === "national_highway") return t("nat_highway_help");
-  if (r.unrouted_reason === "rural_road") return t("rural_road_help");
-  if (r.unrouted_reason === "no_address_for_body") return t("no_address_help");
-  return t("outside_coverage_help");
-}
-
 function detectionVerdict(r) {
-  if (r.report_origin === "user_reported" && isRoadReport(r)) return t("manual_verdict");
-  if (!isRoadReport(r)) return t("verdict_civic_prepared", { type: tIssue(r) });
+  if (r.report_origin === "user_reported") return t("manual_verdict");
   if (physicalCondition(r) === "fixed") return t("verdict_fixed");
   if (physicalCondition(r) === "repair_review") return t("verdict_repair_review");
   if (r.status === "review") return t("verdict_review", { type: tDamage(r) });
@@ -1979,71 +1408,7 @@ function wireConditionActions(r) {
   if (reopen) reopen.onclick = () => change("open");
 }
 
-function canRetryRouting(r) {
-  if (!Number.isFinite(r.lat) || !Number.isFinite(r.lng)) return false;
-  const reasons = isRoadReport(r)
-    ? ["jurisdiction_unavailable", "road_class_unknown", "no_address_for_body"]
-    : ["jurisdiction_unavailable", "no_address_for_body"];
-  return reasons.includes(r.unrouted_reason);
-}
-
-async function copyTextValue(value) {
-  const text = String(value || "");
-  if (!text) throw new Error("Nothing to copy.");
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-  const area = document.createElement("textarea");
-  area.value = text;
-  area.setAttribute("readonly", "");
-  area.style.position = "fixed";
-  area.style.opacity = "0";
-  document.body.appendChild(area);
-  area.select();
-  const copied = document.execCommand("copy");
-  area.remove();
-  if (!copied) throw new Error("Copy failed. Select the text manually.");
-}
-
-function roadComplaintOutputs(r) {
-  try {
-    return StandaloneAPI.__pure.complaintOutputsForRecord(r);
-  } catch (_) {
-    // Stored text is not a safe fallback: an older draft may contain an unverified
-    // tender or contractor. If current code cannot validate/sanitise the record, expose
-    // no copyable output and ask the user to retry instead of reviving stale allegations.
-    return null;
-  }
-}
-
-let portalReturnReport = null;
-function openPortalFields(r) {
-  const output = roadComplaintOutputs(r);
-  if (!output || !output.portal_copy_text) {
-    alert("Portal fields are unavailable for this saved report.");
-    return;
-  }
-  portalReturnReport = r;
-  $("portalCopyTitle").textContent = t("portal_fields_title");
-  $("portalCopyHint").textContent = t("portal_fields_hint");
-  $("portalCopyText").value = output.portal_copy_text;
-  $("portalCopyAll").textContent = t("copy_all_btn");
-  $("portalCopyBack").textContent = t("back");
-  show("portalCopy");
-}
-
-$("portalCopyBack").onclick = () => portalReturnReport ? openDetail(portalReturnReport) : show("home");
-$("portalCopyAll").onclick = async () => {
-  try {
-    await copyTextValue($("portalCopyText").value);
-    $("portalCopyAll").textContent = t("copied_message");
-    setTimeout(() => { $("portalCopyAll").textContent = t("copy_all_btn"); }, 1200);
-  } catch (e) { alert(e.message || e); }
-};
-
 function hazardEvidenceHtml(r) {
-  if (!isRoadReport(r)) return "";
   const evidence = HazardModel.deriveHazardEvidence(r);
   const confidenceKey = evidence.confidence === "independent_reobservation"
     ? "evidence_reobserved" : evidence.confidence === "single_observation"
@@ -2064,41 +1429,15 @@ function openDetail(r, list) {
   else if (!detailList.some((x) => x.id === r.id)) { detailList = [r]; detailIdx = 0; }
   else detailIdx = detailList.findIndex((x) => x.id === r.id);
   const d = $("detail");
-  if (r.status === "unrouted") {
-    // A confirmed pothole the app cannot address. It says so rather than sending the
-    // complaint to a body with no jurisdiction there.
-    d.innerHTML = `
-      <div class="card">
-        ${photoBlock(r)}
-        ${captureProvenanceHtml(r)}
-        ${hazardEvidenceHtml(r)}
-        <div class="verdict" style="color:var(--accent)">
-          ${escapeHtml(detectionVerdict(r))}
-        </div>
-        <div>${chip(r.status, r)} ${conditionChip(r)}</div>
-        ${r.address ? `<div class="meta">&#128205; ${escapeHtml(r.address)}</div>` : ""}
-        <div class="meta" style="color:var(--bad)">&#9888; ${escapeHtml(unroutedTitle(r))}</div>
-        <div class="meta">${escapeHtml(unroutedHelp(r))}</div>
-        ${repairEvidenceHtml(r)}
-        ${r.unrouted_reason === "private_manual" ? `<div class="btn-row">
-          <button class="ghost" id="shareEvidenceBtn">${t("share_evidence_btn")}</button>
-          <button class="ghost" id="cloudAnalysisBtn">${t("cloud_optional")}</button>
-        </div>` : ""}
-        ${physicalCondition(r) !== "fixed" && canRetryRouting(r)
-          ? `<button class="send" id="retryRoutingBtn" style="width:100%;margin-top:12px">${t("retry_routing_btn")}</button>` : ""}
-        <div class="btn-row">
-          <button class="ghost" id="backBtn">${t("back")}</button>
-          <button class="ghost danger" id="discardBtn">${t("del")}</button>
-        </div>
-      </div>`;
-  } else if (r.status === "rejected" || r.status === "review") {
+  const rejected = r.status === "rejected" || r.status === "review";
+  if (rejected) {
     d.innerHTML = `
       <div class="card">
         ${photoBlock(r)}
         ${captureProvenanceHtml(r)}
         ${hazardEvidenceHtml(r)}
         <div class="verdict" style="color:${r.status === "review" ? "var(--accent)" : "var(--bad)"}">${escapeHtml(detectionVerdict(r))}</div>
-        <div>${chip(r.status, r)} ${conditionChip(r)}</div>
+        <div>${chip(r.status)} ${conditionChip(r)}</div>
         <div class="meta">${escapeHtml(r.description || "")}</div>
         ${r.status === "review" ? `<div class="meta">${escapeHtml(tDamage(r))} · ${escapeHtml(tAssessment(r))}${r.image_quality ? ` · ${escapeHtml(r.image_quality)}` : ""}</div>` : ""}
         ${repairEvidenceHtml(r)}
@@ -2108,110 +1447,37 @@ function openDetail(r, list) {
         </div>
       </div>`;
   } else {
-    // "queued" means only that an external handoff was opened. It stays editable and
-    // never becomes a user-marked submission until the citizen says so and records the
-    // official reference returned by an app/portal when that channel provides one.
-    const sent = r.status === "sent";
     const fixed = physicalCondition(r) === "fixed";
-    const locked = sent || fixed;
-    const handoff = isOfficialHandoffReport(r);
-    const legacyBmc = r.delivery_channel === "bmc_quickfix";
-    const service = officialServiceName(r);
-    const authority = displayAuthorityName(r);
-    const hasWhatsapp = !!r.whatsapp_url || legacyBmc;
-    const helpline = r.helpline || (legacyBmc ? "1916" : null);
-    const verdictText = r.status === "sent" ? t("verdict_sent")
-      : r.status === "queued"
-      ? (handoff ? t("chip_queued_official") : t("verdict_queued"))
-      : detectionVerdict(r);
-    const subjectLabel = handoff ? t("complaint_title_label") : t("email_subject_label");
-    const bodyLabel = handoff ? t("complaint_body_label") : t("email_body_label");
-    const showAuthorityWarning = handoff || !!r.ownership_unverified;
-    const roadCopyTools = isRoadReport(r) && !fixed ? `
-        <div class="btn-row">
-          <button class="ghost" id="copyWhatsAppBtn">${t("copy_whatsapp_btn")}</button>
-          <button class="ghost" id="portalFieldsBtn">${t("portal_fields_btn")}</button>
-        </div>` : "";
-    const officialTools = showAuthorityWarning && !fixed ? `
-        <div class="meta" style="margin-top:10px;color:#ffd9a8">${escapeHtml(handoff
-          ? t(isRoadReport(r) ? "official_disclaimer" : "official_civic_disclaimer", { authority, service })
-          : t(isRoadReport(r) ? "authority_disclaimer" : "authority_civic_disclaimer", { authority }))}</div>
-        ${r.ward_code ? `<div class="meta">${escapeHtml(t("bmc_ward", { ward: r.ward_code }))}</div>` : ""}
-        ${r.routing_match_field && r.routing_match_value ? `<div class="meta">${escapeHtml(t("routing_match", { field: r.routing_match_field, value: r.routing_match_value }))}</div>` : ""}
-        <div class="btn-row">
-          <button class="ghost" id="shareEvidenceBtn">${t("share_evidence_btn")}</button>
-          ${handoff && hasWhatsapp ? `<button class="ghost" id="officialWhatsAppBtn">${t("official_whatsapp_btn")}</button>` : ""}
-        </div>
-        ${helpline || r.alternate_handoff_url ? `<div class="btn-row">
-          ${helpline ? `<button class="ghost" id="officialCallBtn">${escapeHtml(t("official_call_btn", { number: helpline }))}</button>` : ""}
-          ${handoff && r.alternate_handoff_url ? `<button class="ghost" id="alternateHandoffBtn">${escapeHtml(t("alternate_handoff_btn", { name: r.alternate_handoff_name || "official fallback" }))}</button>` : ""}
-        </div>` : ""}` : "";
-    const confirmation = fixed ? "" : sent
-      ? (r.official_grievance_id
-          ? `<div class="meta" style="color:var(--ok);margin-top:10px">${escapeHtml(t("submitted_reference", { id: r.official_grievance_id }))}</div>`
-          : "")
-      : handoff
-        ? `<label>${t("official_grievance_generic_label")}</label>
-           <input type="text" id="grievanceId" placeholder="${escapeAttr(t("official_grievance_generic_placeholder"))}" value="">
-           <button class="send" id="markSubmittedBtn" style="width:100%;margin-top:10px">${t("mark_submitted_btn")}</button>`
-        : r.status === "queued"
-          ? `<button class="send" id="markSubmittedBtn" style="width:100%;margin-top:10px">${t("mark_submitted_btn")}</button>`
-          : "";
+    const manual = r.report_origin === "user_reported";
+    const hasPlace = Number.isFinite(r.lat) && Number.isFinite(r.lng);
+    const place = r.address
+      || (hasPlace ? `${Number(r.lat).toFixed(5)}, ${Number(r.lng).toFixed(5)}` : "");
     d.innerHTML = `
       <div class="card">
         ${photoBlock(r)}
         ${captureProvenanceHtml(r)}
         ${hazardEvidenceHtml(r)}
-        <div class="verdict" style="color:${sent || fixed ? "var(--ok)" : "var(--accent)"}">
-          ${escapeHtml(verdictText)}
+        <div class="verdict" style="color:${fixed ? "var(--ok)" : "var(--accent)"}">
+          ${escapeHtml(detectionVerdict(r))}
         </div>
-        <div>${chip(r.status, r)} ${conditionChip(r)}</div>
-        ${r.address ? `<div class="meta">&#128205; ${escapeHtml(r.address)}</div>` : ""}
-        ${r.officer_name ? `<div class="meta">&#128231; ${escapeHtml(t("routes_to"))} ${escapeHtml(displayRouteName(r))}</div>` : ""}
-        ${r.tender_note ? `<div class="meta">&#128209; ${escapeHtml(r.tender_note)}</div>` : ""}
+        <div>${chip(r.status)} ${conditionChip(r)}</div>
+        ${place ? `<div class="meta">&#128205; ${escapeHtml(place)}${Number.isFinite(r.gps_accuracy) ? ` (±${Math.round(r.gps_accuracy)} m)` : ""}</div>` : `<div class="meta" style="color:var(--bad)">&#9888; ${escapeHtml(t("no_location"))}</div>`}
+        ${manual ? `<div class="meta">${escapeHtml(t("manual_help"))}</div>` : `<div class="meta">${escapeHtml(r.description || "")}</div>`}
         ${repairEvidenceHtml(r)}
-        ${officialTools}
-        ${roadCopyTools}
-        <label>${subjectLabel}</label>
-        <input type="text" id="subj" value="" ${locked ? "disabled" : ""}>
-        <label>${bodyLabel}</label>
-        <textarea id="body" ${locked ? "disabled" : ""}></textarea>
+        ${fixed ? "" : `<div class="btn-row">
+          <button class="ghost" id="shareEvidenceBtn">${t("share_evidence_btn")}</button>
+          ${manual ? `<button class="ghost" id="cloudAnalysisBtn">${t("cloud_optional")}</button>` : ""}
+        </div>`}
         <div class="btn-row">
           <button class="ghost" id="backBtn">${t("back")}</button>
-          ${locked ? "" : `<button class="ghost danger" id="discardBtn">${t("discard")}</button>
-          <button class="send" id="sendBtn">${escapeHtml(sendLabel(r))}</button>`}
+          <button class="ghost danger" id="discardBtn">${t("del")}</button>
         </div>
-        ${confirmation}
       </div>`;
-    $("subj").value = r.email_subject || "";
-    $("body").value = r.email_body || "";
-    if (!locked) $("sendBtn").onclick = () => sendReport(r);
     const share = $("shareEvidenceBtn");
     if (share) share.onclick = () => shareEvidence(r);
-    const whatsapp = $("officialWhatsAppBtn");
-    if (whatsapp) whatsapp.onclick = () => openOfficialWhatsApp(r);
-    const copyWhatsapp = $("copyWhatsAppBtn");
-    if (copyWhatsapp) copyWhatsapp.onclick = async () => {
-      const output = roadComplaintOutputs(r);
-      try {
-        await copyTextValue(output && output.whatsapp_text);
-        copyWhatsapp.textContent = t("copied_message");
-        setTimeout(() => { copyWhatsapp.textContent = t("copy_whatsapp_btn"); }, 1200);
-      } catch (e) { alert(e.message || e); }
-    };
-    const portalFields = $("portalFieldsBtn");
-    if (portalFields) portalFields.onclick = () => openPortalFields(r);
-    const call = $("officialCallBtn");
-    if (call) call.onclick = () => openOfficialCall(r);
-    const alternate = $("alternateHandoffBtn");
-    if (alternate) alternate.onclick = () => openAlternateHandoff(r);
-    const mark = $("markSubmittedBtn");
-    if (mark) mark.onclick = () => markSubmitted(r);
   }
   wireConditionActions(r);
   wireDetailChrome(r);
-  const manualShare = $("shareEvidenceBtn");
-  if (r.unrouted_reason === "private_manual" && manualShare) manualShare.onclick = () => shareEvidence(r);
   const cloudAnalysis = $("cloudAnalysisBtn");
   if (cloudAnalysis) cloudAnalysis.onclick = async () => {
     if (!confirm(t("cloud_confirm"))) return;
@@ -2223,21 +1489,6 @@ function openDetail(r, list) {
       await loadReports(); openDetail(analyzed);
     } catch (e) { alert(e.message); }
     finally { cloudAnalysis.disabled = false; }
-  };
-  const retryRouting = $("retryRoutingBtn");
-  if (retryRouting) retryRouting.onclick = async () => {
-    retryRouting.disabled = true;
-    retryRouting.textContent = t("working");
-    try {
-      const updated = await api(`/api/reports/${r.id}/retry-routing`, { method: "POST" });
-      await loadReports();
-      if (updated.status === "unrouted") alert(t("retry_routing_unchanged"));
-      openDetail(updated, loadReports.latest || [updated]);
-    } catch (e) {
-      alert(e.message);
-      retryRouting.disabled = false;
-      retryRouting.textContent = t("retry_routing_btn");
-    }
   };
   $("backBtn").onclick = () => { show("home"); loadReports(); };
   const discard = $("discardBtn");
@@ -2258,72 +1509,6 @@ function openDetail(r, list) {
     }
   };
   show("detail");
-}
-
-async function sendReport(r) {
-  // Nothing auto-sends. Verified handoff routes open an official app/portal; Karnataka
-  // email routes open an addressed composer. "queued" means only that
-  // the external handoff opened, never that the complaint was submitted.
-  if (physicalCondition(r) === "fixed") { alert(t("fixed_action_blocked")); return; }
-  const handoff = isOfficialHandoffReport(r);
-  const to = r.officer_email || t("the_officer");
-  const confirmation = handoff
-    ? t("confirm_official_handoff", {
-        service: officialServiceName(r), authority: displayAuthorityName(r),
-      })
-    : r.ownership_unverified
-      ? t(isRoadReport(r) ? "confirm_suggested_email" : "confirm_suggested_civic_email", {
-          authority: r.authority_name || t("the_officer"), to,
-        })
-      : t("confirm_send", { to });
-  if (!confirm(confirmation)) return;
-  const btn = $("sendBtn");
-  btn.disabled = true; btn.textContent = t("working");
-  try {
-    await api(`/api/reports/${r.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email_subject: $("subj").value, email_body: $("body").value }),
-    });
-    let updated = await api(`/api/reports/${r.id}/send`, { method: "POST" });
-    if (handoff && updated.handoff_url) {
-      // Official portals cannot receive structured fields directly. Put the freshly
-      // regenerated, send-time-verified fields on the clipboard before switching apps,
-      // saving the user a separate copy/back/open sequence. Clipboard denial never
-      // blocks the official route itself.
-      const output = roadComplaintOutputs(updated);
-      if (output && output.portal_copy_text) {
-        try { await copyTextValue(output.portal_copy_text); } catch (_) {}
-      }
-      const opened = await openExternalUrl(updated.handoff_url,
-        updated.handoff_package || null);
-      if (!opened) throw new Error(`Could not open ${updated.handoff_name || officialServiceName(r)}. Try Share evidence or another official channel.`);
-      updated = await api(`/api/reports/${r.id}/handoff-opened`, { method: "POST" });
-    }
-    await loadReports();
-    openDetail(updated);
-  } catch (e) {
-    alert(e.message);
-    btn.disabled = false; btn.textContent = sendLabel(r);
-  }
-}
-
-async function markSubmitted(r) {
-  if (physicalCondition(r) === "fixed") { alert(t("fixed_action_blocked")); return; }
-  if (!confirm(t("confirm_mark_submitted"))) return;
-  const input = $("grievanceId");
-  const reference = input ? input.value.trim() : "";
-  const btn = $("markSubmittedBtn");
-  btn.disabled = true; btn.textContent = t("working");
-  try {
-    const updated = await api(`/api/reports/${r.id}/submitted`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ official_grievance_id: reference }),
-    });
-    await loadReports(); openDetail(updated);
-  } catch (e) {
-    alert(e.message); btn.disabled = false; btn.textContent = t("mark_submitted_btn");
-  }
 }
 
 async function openExternalUrl(url, packageName = null) {
@@ -2349,60 +1534,6 @@ async function openExternalUrl(url, packageName = null) {
     return true;
   }
   return false;
-}
-
-async function openOfficialWhatsApp(r) {
-  if (physicalCondition(r) === "fixed") { alert(t("fixed_action_blocked")); return; }
-  let verified;
-  try { verified = await api(`/api/reports/${r.id}/handoff`); }
-  catch (e) { alert(e.message); return; }
-  const base = verified.whatsapp_url;
-  if (!base || !String(base).startsWith("https://wa.me/")) {
-    alert("This saved report has no verified official WhatsApp route.");
-    return;
-  }
-  if (!confirm(t("confirm_whatsapp_share", {
-    authority: displayAuthorityName(verified || r),
-  }))) return;
-  const output = roadComplaintOutputs(verified);
-  const text = (output && output.whatsapp_text
-    ? output.whatsapp_text
-    : `${verified.email_subject || `${tIssue(verified)} report`}\n\n${verified.email_body || ""}`).slice(0, 4000);
-  const opened = await openExternalUrl(`${base}${base.includes("?") ? "&" : "?"}text=${encodeURIComponent(text)}`);
-  if (!opened) alert("Could not open the official WhatsApp route. Try Share evidence or another official channel.");
-}
-
-async function openOfficialCall(r) {
-  if (physicalCondition(r) === "fixed") { alert(t("fixed_action_blocked")); return; }
-  let verified;
-  try { verified = await api(`/api/reports/${r.id}/handoff`); }
-  catch (e) { alert(e.message); return; }
-  const number = String(verified.helpline || "").replace(/[^0-9+]/g, "");
-  if (!number) { alert("This saved report has no verified official helpline."); return; }
-  location.href = `tel:${number}`;
-}
-
-async function openAlternateHandoff(r) {
-  if (physicalCondition(r) === "fixed") { alert(t("fixed_action_blocked")); return; }
-  let verified;
-  try { verified = await api(`/api/reports/${r.id}/handoff`); }
-  catch (e) { alert(e.message); return; }
-  const url = String(verified.alternate_handoff_url || "");
-  if (!url.startsWith("https://")) {
-    alert("This saved report has no verified alternate handoff.");
-    return;
-  }
-  const opened = await openExternalUrl(url);
-  if (!opened) {
-    alert(`Could not open ${verified.alternate_handoff_name || "the official fallback"}.`);
-    return;
-  }
-  if (r.status === "draft" || r.status === "queued") {
-    try {
-      const updated = await api(`/api/reports/${r.id}/handoff-opened`, { method: "POST" });
-      await loadReports(); openDetail(updated);
-    } catch (e) { alert(e.message); }
-  }
 }
 
 async function shareEvidence(r) {
@@ -4577,7 +3708,7 @@ const expandedDrives = new Set();
 
 async function startReview() {
   const all = await api("/api/reports");
-  const roadReports = all.filter(isRoadReport);
+  const roadReports = all;
   reviewQueue = roadReports.filter((r) => !r.human_label && r.photo_url);
   reviewDone = roadReports.length - reviewQueue.length;
   if (!reviewQueue.length) { alert(t("review_empty")); return; }
@@ -5504,13 +4635,10 @@ async function openDash() {
     api("/api/reports"), api("/api/drives").catch(() => []), api("/api/footage").catch(() => []),
   ]);
   await mergeNativeDriveHistory(drives, footage);
-  const FOUND = ["draft", "queued", "sent", "unrouted"];
+  const FOUND = ["draft", "queued", "sent"];
   const holes = reports.filter((r) => FOUND.includes(r.status));
   const fixedCount = holes.filter((r) => physicalCondition(r) === "fixed").length;
-  const roadReports = reports.filter(isRoadReport);
-  // Opening an email app or BMC channel proves only that a handoff was opened. Count a
-  // submission after the citizen explicitly confirms it (and Mumbai has a grievance ID).
-  const sent = reports.filter((r) => r.status === "sent").length;
+  const roadReports = reports;
   const frames = drives.reduce((n, d) => n + (d.checked || 0), 0) || roadReports.length;
   const mb = footage.reduce((n, f) => n + f.bytes, 0) / 1048576;
   const trip = TripStats.summarizeDrives(drives);
@@ -5527,7 +4655,7 @@ async function openDash() {
       <div class="verdict" style="font-size:22px;margin:0">${n}</div>
       <div class="meta">${label}</div></div>`;
   $("dashStats").innerHTML =
-    tile(holes.length, t("stat_found")) + tile(sent, t("stat_reported")) +
+    tile(holes.length, t("stat_found")) +
     tile(fixedCount, t("stat_fixed")) +
     tile(frames, t("stat_frames")) + tile(drives.length, t("stat_drives")) +
     tile(tripValue(trip.distance_m, 0.001), t("trip_distance")) + tile(mb.toFixed(0), t("stat_footage")) +
@@ -5549,14 +4677,15 @@ async function openDash() {
   };
   const byType = {}, bySize = {}, byArea = {};
   for (const r of holes) {
-    const reportType = isRoadReport(r) ? tDamage(r) : tIssue(r);
+    const reportType = tDamage(r);
     byType[reportType] = (byType[reportType] || 0) + 1;
-    if (isRoadReport(r) && r.size) bySize[tSize(r.size)] = (bySize[tSize(r.size)] || 0) + 1;
-    const area = (r.officer_name || "").replace(/^Commissioner,\s*/, "") || "—";
+    if (r.size) bySize[tSize(r.size)] = (bySize[tSize(r.size)] || 0) + 1;
+    // The street is the first part of the saved address; the rest is locality and city.
+    const area = String(r.address || "").split(",")[0].trim() || "—";
     byArea[area] = (byArea[area] || 0) + 1;
   }
   $("dashBreak").innerHTML = bars(t("by_type"), byType) + `<div style="height:14px"></div>`
-    + bars(t("by_size"), bySize) + `<div style="height:14px"></div>` + bars(t("by_area"), byArea);
+    + bars(t("by_size"), bySize) + `<div style="height:14px"></div>` + bars(t("by_street"), byArea);
 
   show("dash");
   drawMap(holes.map((report) => ({
@@ -5736,10 +4865,6 @@ window.handleAppBack = () => {
   if (driveFinalizing) return true;
   if (!$("dataConsent").classList.contains("hidden")) { finishDataConsent(false); return true; }
   if (!$("viewer").classList.contains("hidden")) { closeViewer(); return true; }
-  if (!$("portalCopy").classList.contains("hidden")) {
-    if (portalReturnReport) openDetail(portalReturnReport); else show("home");
-    return true;
-  }
   if (initialSettingsActive && !$("settings").classList.contains("hidden")) return true;
   for (const s of ["detail", "settings", "progress", "drive", "review", "dash"]) {
     if (!$(s).classList.contains("hidden")) { show("home"); loadReports(); return true; }
@@ -5755,7 +4880,6 @@ window.openSettings = (showWelcome = false, requireCompletion = false) => {
   $("setKey").placeholder = window.CredentialBroker.hasOpenAi()
     ? (window.CredentialBroker.isNative() ? "Stored securely — leave blank to keep"
       : "Configured for this page — leave blank to keep") : "sk-...";
-  $("setName").value = localStorage.getItem("sender_name") || "";
   $("setModel").value = ["gpt-5-mini", "gpt-5.6"].includes(localStorage.getItem("detection_model"))
     ? localStorage.getItem("detection_model") : "gpt-5-mini";
   $("setDetail").value = ["high", "original"].includes(localStorage.getItem("image_detail"))
@@ -5831,7 +4955,6 @@ $("setSave").onclick = async () => {
         updateNativeDriveHud(updated);
       }
     }
-    localStorage.setItem("sender_name", $("setName").value.trim());
     localStorage.setItem("detection_model", selectedModel);
     localStorage.setItem("image_detail", selectedDetail);
     localStorage.setItem(CAPTURE_SOURCE_KEY, selectedCaptureSource);
