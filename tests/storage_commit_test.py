@@ -10,7 +10,7 @@ with sync_playwright() as p:
     b = p.chromium.launch(args=["--disable-web-security"])
     pg = b.new_context(viewport={"width":390,"height":844}).new_page()
     pg.goto("http://localhost:8765/"); pg.wait_for_load_state("networkidle")
-    pg.wait_for_function("typeof StandaloneAPI !== 'undefined'", timeout=30000)
+    pg.wait_for_function("() => typeof StandaloneAPI !== 'undefined'", timeout=30000)
     r = pg.evaluate("""(async () => {
       // Abort the transaction from the request's success handler: this is the shape
       // Chrome produces when the device is out of storage. The request succeeds; the

@@ -154,7 +154,6 @@ try:
         for root in (static, www, docs, packaged):
             write(root / "app.js", b"app")
         write(docs / "privacy.html", b"hosted")
-        write(docs / "packs/v1/sample.json", b"pack")
         for generated in verifier.CORDOVA_GENERATED_ASSETS:
             write(packaged / generated, b"generated")
         verifier.verify_source_trees(static, www, docs, packaged)

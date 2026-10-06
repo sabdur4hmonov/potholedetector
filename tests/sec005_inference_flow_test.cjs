@@ -8,7 +8,9 @@ const root = path.resolve(__dirname, '..');
     ...(process.env.POTHOLE_TEST_CHROME ? { executablePath: process.env.POTHOLE_TEST_CHROME } : {}) });
   let scenarios = 0;
   try {
-    for (const native of [false, true]) {
+    // Browser builds refuse paid inference outright (SEC-006, covered by the SEC006 flow test),
+    // so the response-hardening scenarios exercise the native gateway path only.
+    for (const native of [true]) {
       const context = await browser.newContext();
       await context.addInitScript(native => {
         window.__inferenceFixture = { text: '', cancelled: 0, requests: 0 };
@@ -45,14 +47,14 @@ const root = path.resolve(__dirname, '..');
       const result = await page.evaluate(async () => {
         const event = value => `data: ${JSON.stringify(value)}\n\n`;
         __inferenceFixture.text = event({ type: 'response.output_text.delta', delta: '{"ok":true}' }) + 'data: [DONE]\n\n';
-        return __sec005.oaiStream({}, null, false);
+        return __sec005.oaiStream({ model: 'gpt-5-mini' }, null, false);
       });
       assert.equal(result.ok, true); scenarios++;
       for (const text of ['data: ' + 'x'.repeat(32768), 'data: {bad}\n\n',
         'data: {"type":"response.output_text.delta","delta":1}\n\n']) {
         const rejected = await page.evaluate(async text => {
           __inferenceFixture.text = text;
-          try { await __sec005.oaiStream({}, null, false); return false; }
+          try { await __sec005.oaiStream({ model: 'gpt-5-mini' }, null, false); return false; }
           catch (error) { return error.inferenceSafety === true; }
         }, text);
         assert.equal(rejected, true); scenarios++;

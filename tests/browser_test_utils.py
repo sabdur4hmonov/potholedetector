@@ -56,3 +56,35 @@ def open_app(page, key):
     page.evaluate("key => localStorage.setItem('openai_key', key)", key)
     page.reload()
     page.wait_for_load_state("networkidle")
+
+
+# The browser build deliberately refuses paid AI calls (SEC-006): the only authoritative
+# usage ledger lives in the Android bridge. Tests that exercise detection, deduplication
+# and repair logic therefore run the page as a native app whose single fixed OpenAI
+# operation is answered by the test's own mocked window.fetch. No real service is reached.
+NATIVE_PLATFORM_STUB = r"""
+(() => {
+  if (!window.Capacitor) {
+    Object.defineProperty(window, "Capacitor", {configurable: true, writable: true, value: {
+      isNativePlatform: () => true,
+      Plugins: {},
+    }});
+  }
+})();
+"""
+
+NATIVE_OPENAI_BRIDGE = r"""
+(() => {
+  const plugin = window.Capacitor && window.Capacitor.Plugins
+    && window.Capacitor.Plugins.SecureCredentials;
+  if (!plugin) return;
+  plugin.openAiRequest = async (envelope) => {
+    const response = await window.fetch("https://api.openai.com/v1/responses", {
+      method: "POST", body: envelope.body,
+    });
+    return {status: response.status, ok: response.ok, body: await response.text()};
+  };
+})();
+"""
+
+NATIVE_AI_PAGE_SCRIPT = NATIVE_PLATFORM_STUB + SECURE_CREDENTIALS_MOCK + NATIVE_OPENAI_BRIDGE

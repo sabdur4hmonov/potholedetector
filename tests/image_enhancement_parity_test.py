@@ -60,7 +60,7 @@ with sync_playwright() as playwright:
     page = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
     page.goto("http://localhost:8765/")
     page.wait_for_load_state("networkidle")
-    page.wait_for_function("typeof StandaloneAPI !== 'undefined' && StandaloneAPI.__pure",
+    page.wait_for_function("() => typeof StandaloneAPI !== 'undefined' && StandaloneAPI.__pure",
                            timeout=30000)
     browser_results = page.evaluate(
         """fixtures => fixtures.map((fixture) => {

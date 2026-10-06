@@ -15,7 +15,8 @@ native_engine = (native_dir / "NativeInferenceEngine.kt").read_text()
 native_contract = (native_dir / "NativeDetectionContract.kt").read_text()
 native_request = (native_dir / "NativeInferenceRequest.kt").read_text()
 native_verdict = (native_dir / "NativeDetectionVerdict.kt").read_text()
-native = "\n".join((native_engine, native_contract, native_request, native_verdict))
+native_diagnostics = (native_dir / "NativeDetectionDiagnostics.kt").read_text()
+native = "\n".join((native_engine, native_contract, native_request, native_verdict, native_diagnostics))
 entities = (ROOT / "android-app" / "android" / "app" / "src" / "main" / "java" /
             "dev" / "aiengg" / "potholereporter" / "db" / "Entities.kt").read_text()
 database = (ROOT / "android-app" / "android" / "app" / "src" / "main" / "java" /
@@ -70,7 +71,7 @@ def image_preprocessing_always_releases_resources():
     return ("let c = null;" in to_data_url_source
             and "return c.toDataURL(\"image/jpeg\", quality);" in to_data_url_source
             and re.search(
-                r"finally\s*\{\s*try\s*\{\s*if \(bmp\.close\) bmp\.close\(\);\s*\}"
+                r"finally\s*\{\s*try\s*\{\s*if \(bmp && bmp\.close\) bmp\.close\(\);\s*\}"
                 r"\s*finally\s*\{.*?c\.width = 0; c\.height = 0;.*?\}",
                 to_data_url_source,
                 re.DOTALL,
@@ -289,7 +290,7 @@ check("manual evaluator does not inherit the native Drive token ceiling",
       "max_output_tokens" not in road_eval.build_request(
           ["one"], "P", "gpt-5.6", "high", mode="manual"))
 check("native Drive fails closed outside the bounded production burst",
-      "burstFrames.size !in NativeFrameBurstContract.MIN_INFERENCE_FRAMES.." in native
+      "frameCount !in NativeFrameBurstContract.MIN_INFERENCE_FRAMES.." in native
       and "NativeRollingBurstWindow.OUTPUT_COUNT" in native)
 check("prompt once and last", len([x for x in content if x["type"] == "input_text"]) == 1
       and content[-1]["type"] == "input_text")

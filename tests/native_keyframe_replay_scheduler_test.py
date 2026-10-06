@@ -28,6 +28,7 @@ let drive = null;
 let driveStarting = false;
 const document = { visibilityState: "visible", querySelectorAll: () => [] };
 const navigator = { onLine: true };
+const window = { CredentialBroker: { hasOpenAi: () => true } };
 const localStorage = { getItem: (key) => key === "openai_key" ? "test-key" : null };
 const nativeDrivePlugin = () => currentPlugin;
 const invalidateNativeDriveHistory = () => { invalidations++; };

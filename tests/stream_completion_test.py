@@ -4,20 +4,21 @@ import os
 import pathlib
 import sys
 
-from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 
-from browser_test_utils import open_app
+from browser_test_utils import NATIVE_AI_PAGE_SCRIPT, open_app
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env")
-KEY = os.environ["OPENAI_API_KEY"]
+# The page runs as a native app whose OpenAI bridge is answered by the mocked fetch below
+# (browser builds refuse paid AI calls). No real key is used and nothing is transmitted.
+KEY = "test-key-never-sent"
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(args=["--disable-web-security"])
-    page = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    context.add_init_script(NATIVE_AI_PAGE_SCRIPT)
+    page = context.new_page()
     open_app(page, KEY)
-    page.wait_for_function("typeof StandaloneAPI !== 'undefined'", timeout=30000)
+    page.wait_for_function("() => typeof StandaloneAPI !== 'undefined'", timeout=30000)
     result = page.evaluate("""async () => {
       const verdict = JSON.stringify({
         is_pothole: true,

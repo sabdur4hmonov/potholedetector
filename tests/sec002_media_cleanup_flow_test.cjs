@@ -123,7 +123,7 @@ const assert = require('node:assert/strict');
         local: localStorage.length, session: sessionStorage.length, remaining, caches: await caches.keys() };
     });
     assert.deepEqual(overlap, { failed: true, retained: 'test-only', cleared: true, local: 0, session: 0,
-      remaining: [0, 0, 0, 0], caches: [] }); scenarios++;
+      remaining: [0, 0, 0], caches: [] }); scenarios++;
     const failure = await page.evaluate(async () => {
       nativeWipeInProgress = false;
       __media.wipeFail = true;

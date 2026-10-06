@@ -40,7 +40,7 @@ const server = http.createServer((req, res) => {
         await context.route('**/*', route => { attempts++; return route.abort(); });
         const results = await page.evaluate(fixture => fixture.cases.map((row, index) => {
           const report = { ...fixture.defaults, ...row.report, id: index + 1,
-            issue_type: 'road_damage', status: 'unrouted', unrouted_reason: 'private_manual',
+            issue_type: 'road_damage', status: 'draft',
             photo_url: null };
           const before = JSON.stringify(report);
           openDetail(report);
@@ -59,7 +59,6 @@ const server = http.createServer((req, res) => {
         assert.match(text('manual_private'), /User-reported.*remain unknown/);
         assert.match(text('conflicting_binary_gate'), /Unknown \/ insufficient/);
         assert.match(text('fixed_historical'), /Historical observation evidence/);
-        assert.equal(await page.evaluate(() => hazardEvidenceHtml({ issue_type: 'garbage' })), '');
         // All three detail branches consume the same policy, including review/rejected.
         for (const status of ['review', 'rejected', 'draft']) {
           await page.evaluate(status => openDetail({ id: 100, issue_type: 'road_damage',

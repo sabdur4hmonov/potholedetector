@@ -51,8 +51,10 @@ for removed_id in ("issuePicker", "issueRoad", "issueGarbage", "issueManhole", "
           f"removed Photo category control is still shipped: {removed_id}", failures)
 check('fd.append("issue_type", "road_damage")' in INDEX,
       "Photo FormData is not pinned to road_damage", failures)
-check('api("/api/report", { method: "POST", body: fd })' in INDEX,
-      "Photo no longer submits through the verified pothole endpoint", failures)
+check('api("/api/manual-report", { method: "POST", body: fd })' in INDEX,
+      "Photo no longer submits through the manual pothole endpoint", failures)
+check('api("/api/report"' not in INDEX,
+      "the current UI still exposes the removed AI-verified photo endpoint", failures)
 check('api("/api/civic-report"' not in INDEX,
       "the current UI still exposes the unverified civic-report endpoint", failures)
 
@@ -77,7 +79,7 @@ with sync_playwright() as playwright:
     page.goto(APP)
     page.wait_for_load_state("networkidle")
     page.wait_for_function(
-        "typeof StandaloneAPI !== 'undefined' && typeof DATA_NOTICE_VERSION === 'string'"
+        "() => typeof StandaloneAPI !== 'undefined' && typeof DATA_NOTICE_VERSION === 'string'"
     )
     page.evaluate(
         """() => {
@@ -91,7 +93,7 @@ with sync_playwright() as playwright:
         }"""
     )
     page.locator("#captureBtn").click()
-    page.wait_for_function("window.__photoProbe.events.includes('get_photo')")
+    page.wait_for_function("() => window.__photoProbe.events.includes('get_photo')")
     page.wait_for_timeout(100)
     native = page.evaluate(
         """() => ({
@@ -103,7 +105,7 @@ with sync_playwright() as playwright:
         })"""
     )
     check(native["events"] == [
-        "camera_permission", "location_permission", "prewarm", "get_photo"
+        "camera_permission", "location_permission", "get_photo"
     ], f"one Photo tap did not go straight to the native camera: {native}", failures)
     check(native["fileClicks"] == 0,
           f"native camera error incorrectly fell back to a file picker: {native}", failures)
@@ -124,12 +126,12 @@ with sync_playwright() as playwright:
     page = context.new_page()
     page.goto(APP)
     page.wait_for_load_state("networkidle")
-    page.wait_for_function("typeof handleFile === 'function'")
+    page.wait_for_function("() => typeof handleFile === 'function'")
     submitted = page.evaluate(
         """async () => {
           const captured = [];
           StandaloneAPI.handle = async (path, options = {}) => {
-            if (path === "/api/report" || path === "/api/civic-report") {
+            if (path === "/api/manual-report" || path === "/api/report" || path === "/api/civic-report") {
               const body = options.body;
               captured.push({
                 path,
@@ -141,16 +143,24 @@ with sync_playwright() as playwright:
             }
             throw new Error(`unexpected test API call: ${path}`);
           };
-          handleFile(new File(["fake-jpeg"], "pothole.jpg", {type: "image/jpeg"}), {
+          localStorage.setItem("data_notice_version", DATA_NOTICE_VERSION);
+          window.confirm = () => true;
+          const canvas = document.createElement("canvas");
+          canvas.width = 64; canvas.height = 48;
+          canvas.getContext("2d").fillRect(0, 0, 64, 48);
+          const jpeg = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+          handleFile(new File([jpeg], "pothole.jpg", {type: "image/jpeg"}), {
             captureSource: "manual_import",
             locationConfirmed: false,
           });
-          await Promise.resolve();
+          for (let i = 0; i < 100 && !captured.length; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
           return captured;
         }"""
     )
     check(submitted == [{
-        "path": "/api/report", "method": "POST",
+        "path": "/api/manual-report", "method": "POST",
         "issueType": "road_damage", "captureSource": "manual_import",
     }], f"Photo submission escaped the pothole-only endpoint/issue type: {submitted}", failures)
 

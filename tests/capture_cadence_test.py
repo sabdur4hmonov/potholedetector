@@ -82,7 +82,7 @@ with sync_playwright() as p:
         # leak across runs, which made a correct build look broken.
         pg = ctx.new_page()
         open_app(pg, KEY)
-        pg.wait_for_function("typeof startDrive === 'function'", timeout=30000)
+        pg.wait_for_function("() => typeof startDrive === 'function'", timeout=30000)
         # Decline the post-drive footage offer: this test counts live three-frame bursts,
         # not the separate one-frame video reanalysis that Stop now correctly awaits.
         pg.evaluate("window.alert = () => {}; window.confirm = () => false;")

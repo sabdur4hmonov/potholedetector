@@ -57,7 +57,7 @@ with sync_playwright() as p:
 
     t0 = time.time()
     pg.evaluate("analyseFootage('9001', {gps_track:[]})")
-    pg.wait_for_function("window.__alert !== undefined", timeout=180000)
+    pg.wait_for_function("() => window.__alert !== undefined", timeout=180000)
     secs = time.time() - t0
     seen = pg.evaluate("window.__seen")
     msg = pg.evaluate("window.__alert")

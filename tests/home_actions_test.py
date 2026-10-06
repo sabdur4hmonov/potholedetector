@@ -40,9 +40,7 @@ SCENARIO = r"""
 
   const expected = {
     en: ["Drive", "Photo", "Contribution"],
-    kn: ["ಡ್ರೈವ್", "ಫೋಟೋ", "ಕೊಡುಗೆ"],
-    mr: ["ड्राइव्ह", "फोटो", "योगदान"],
-    bn: ["ড্রাইভ", "ছবি", "অবদান"],
+    uz: ["Haydash", "Rasm", "Hissam"],
   };
   for (const [language, labels] of Object.entries(expected)) {
     const actual = [I18N[language].drive_btn, I18N[language].report_btn,
@@ -73,7 +71,7 @@ def main():
         page.goto(APP)
         page.wait_for_load_state("networkidle")
         page.wait_for_function(
-            "typeof I18N !== 'undefined' && document.getElementById('driveBtn')",
+            "() => typeof I18N !== 'undefined' && document.getElementById('driveBtn')",
             timeout=30000,
         )
         results = page.evaluate(SCENARIO)

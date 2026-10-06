@@ -109,7 +109,7 @@ def wait_ready(page):
     page.goto(APP)
     page.wait_for_load_state("networkidle")
     page.wait_for_function(
-        "typeof validateDashcamRtspUrl === 'function' && !nativeInitialRestorePending",
+        "() => typeof validateDashcamRtspUrl === 'function' && !nativeInitialRestorePending",
         timeout=30_000,
     )
     page.locator("#home").wait_for(state="visible")
@@ -174,7 +174,7 @@ with sync_playwright() as playwright:
     wait_ready(page)
     page.locator("#driveBtn").click()
     page.locator("#nativeDrivePanel").wait_for(state="visible")
-    page.wait_for_function("__captureSourceProbe.startArgs.length === 1 && __captureSourceProbe.attach > 0")
+    page.wait_for_function("() => __captureSourceProbe.startArgs.length === 1 && __captureSourceProbe.attach > 0")
     phone = page.evaluate(
         """() => {
           const permission = __captureSourceProbe.permissionArgs[0] || {};

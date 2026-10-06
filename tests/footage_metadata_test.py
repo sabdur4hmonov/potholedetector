@@ -36,7 +36,7 @@ with sync_playwright() as p:
     page = context.new_page()
     page.goto(APP)
     page.wait_for_load_state("networkidle")
-    page.wait_for_function("typeof StandaloneAPI !== 'undefined'", timeout=30000)
+    page.wait_for_function("() => typeof StandaloneAPI !== 'undefined'", timeout=30000)
 
     result = page.evaluate("""async () => {
       await StandaloneAPI.handle("/api/reports", { method: "DELETE" });

@@ -100,7 +100,7 @@ def main():
         page.goto(APP)
         page.wait_for_load_state("networkidle")
         page.wait_for_function(
-            "typeof StandaloneAPI !== 'undefined' && typeof openDash === 'function'"
+            "() => typeof StandaloneAPI !== 'undefined' && typeof openDash === 'function'"
         )
 
         page.evaluate(

@@ -28,6 +28,7 @@ INFERENCE = "\n".join(
         "NativeInferenceRequest.kt",
         "NativeInferenceTransport.kt",
         "NativeDetectionContract.kt",
+        "NativeDetectionDiagnostics.kt",
     )
 )
 REPORT_STORAGE = (ROOT / "android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeReportEvidenceStorage.kt").read_text()
@@ -83,7 +84,7 @@ check("native detection requires at least two real source frames",
       and "NativeRollingBurstWindow.CAPACITY" in CAMERA
       and "NativeRollingBurstWindow.disposition(" in CAMERA
       and "burstFrames.size < NativeFrameBurstContract.MIN_INFERENCE_FRAMES" in CAMERA
-      and "burstFrames.size !in NativeFrameBurstContract.MIN_INFERENCE_FRAMES.." in INFERENCE
+      and "frameCount !in NativeFrameBurstContract.MIN_INFERENCE_FRAMES.." in INFERENCE
       and "NativeRollingBurstWindow.OUTPUT_COUNT" in INFERENCE)
 check("native capture samples a bounded three-frame source burst only when due",
       "const val CAPACITY = 3" in (ROOT / "android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeRollingBurstWindow.kt").read_text()

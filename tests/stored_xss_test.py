@@ -21,18 +21,10 @@ ADDRESS = (
     'ADDRESS_XSS_MARKER</div><img src="xss-address-missing" '
     f'data-stored-xss="address-event" onerror="{HOOK}"><div>'
 )
-OFFICER = (
-    'OFFICER_XSS_MARKER</div><svg data-stored-xss="officer-event" '
-    f'onload="{HOOK}"></svg><div>'
-)
 MODEL = (
     'MODEL_XSS_MARKER</div><script data-stored-xss="model-script">'
     f"{HOOK}</script><img src=\"xss-model-missing\" "
     f'data-stored-xss="model-event" onerror="{HOOK}"><div>'
-)
-HANDOFF = (
-    'HANDOFF_XSS_MARKER</button><img src="xss-handoff-missing" '
-    f'data-stored-xss="handoff-event" onerror="{HOOK}"><button>'
 )
 
 SEED = r"""
@@ -51,13 +43,8 @@ async ({overrides, secretKey, secret, pixel}) => {
     size: "medium",
     description: "ordinary model description",
     address: "ordinary address",
-    officer_name: "ordinary officer",
-    officer_email: "road-officer@example.invalid",
-    tender_note: "",
-    email_subject: "Road damage report",
-    email_body: "Please inspect this damage.",
-    lat: 12.9115,
-    lng: 77.6427,
+    lat: 41.3111,
+    lng: 69.2797,
     photo: pixel,
     photo_full: pixel,
     ...overrides,
@@ -90,7 +77,7 @@ def run_surface(browser, name, overrides, render, markers):
     page.goto(APP)
     page.wait_for_load_state("networkidle")
     page.wait_for_function(
-        "typeof StandaloneAPI !== 'undefined' && typeof loadReports === 'function'"
+        "() => typeof StandaloneAPI !== 'undefined' && typeof loadReports === 'function'"
     )
     report = page.evaluate(
         SEED,
@@ -145,10 +132,10 @@ with sync_playwright() as playwright:
         ),
         run_surface(
             browser,
-            "detail/address+officer",
-            {"address": ADDRESS, "officer_name": OFFICER},
+            "detail/address",
+            {"address": ADDRESS},
             "detail",
-            ["ADDRESS_XSS_MARKER", "OFFICER_XSS_MARKER"],
+            ["ADDRESS_XSS_MARKER"],
         ),
         run_surface(
             browser,
@@ -159,25 +146,17 @@ with sync_playwright() as playwright:
         ),
         run_surface(
             browser,
-            "detail/handoff-name",
-            {
-                "delivery_channel": "official_handoff",
-                "officer_email": None,
-                "authority_name": "Test Municipal Corporation",
-                "handoff_name": HANDOFF,
-                "handoff_url": "https://example.invalid/official",
-                "ownership_unverified": True,
-                "requires_official_reference": True,
-            },
+            "detail/manual-description",
+            {"report_origin": "user_reported", "description": MODEL},
             "detail",
-            ["HANDOFF_XSS_MARKER"],
+            [],
         ),
         run_surface(
             browser,
-            "dashboard/officer-name",
-            {"officer_name": OFFICER},
+            "dashboard/street-name",
+            {"address": ADDRESS},
             "dashboard",
-            ["OFFICER_XSS_MARKER"],
+            ["ADDRESS_XSS_MARKER"],
         ),
     ]
     browser.close()

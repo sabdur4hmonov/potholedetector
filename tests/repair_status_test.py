@@ -4,6 +4,7 @@ import json
 import pathlib
 
 from playwright.sync_api import sync_playwright
+from browser_test_utils import NATIVE_AI_PAGE_SCRIPT
 
 
 APP = "http://localhost:8765/"
@@ -90,12 +91,9 @@ INIT = r"""
       return answer(queue.shift(), !!body.stream);
     }
     if (target.includes("nominatim.openstreetmap.org")) {
-      return new Response(JSON.stringify({ display_name: "Test Road, Bengaluru, Karnataka, India",
-        address: { road: "Test Road", city: "Bengaluru", state: "Karnataka", country: "India" } }),
+      return new Response(JSON.stringify({ display_name: "Test Road, Tashkent, Uzbekistan",
+        address: { road: "Test Road", city: "Tashkent", country: "Uzbekistan" } }),
         { status: 200, headers: { "content-type": "application/json" } });
-    }
-    if (target.includes("kgis.ksrsac.in")) {
-      return new Response('{"features":[]}', { status: 200, headers: { "content-type": "application/json" } });
     }
     return realFetch(url, init);
   };
@@ -159,9 +157,10 @@ with sync_playwright() as p:
 
     context.route("**/*", route_request)
     context.add_init_script(f"({INIT})({json.dumps({'accepted': ACCEPTED})});")
+    context.add_init_script(NATIVE_AI_PAGE_SCRIPT)
     page = context.new_page()
     page.goto(APP)
-    page.wait_for_function("typeof StandaloneAPI !== 'undefined'", timeout=30000)
+    page.wait_for_function("() => typeof StandaloneAPI !== 'undefined'", timeout=30000)
     result = page.evaluate("""async (f) => {
       eval(f.helpers);
       await StandaloneAPI.handle("/api/reports", { method: "DELETE" });
@@ -228,12 +227,7 @@ with sync_playwright() as p:
       });
       const fixedGates = {};
       const attempts = {
-        send: ["/send", {method:"POST"}],
         evidence: ["/evidence", {method:"GET"}],
-        handoff: ["/handoff", {method:"GET"}],
-        submitted: ["/submitted", {method:"POST", body:"{}"}],
-        handoffOpened: ["/handoff-opened", {method:"POST"}],
-        patch: ["", {method:"PATCH", body:JSON.stringify({email_subject:"stale", email_body:"stale"})}],
       };
       for (const [name, [suffix, options]] of Object.entries(attempts)) {
         try { await StandaloneAPI.handle(`/api/reports/${after[0].id}${suffix}`, options); fixedGates[name] = false; }

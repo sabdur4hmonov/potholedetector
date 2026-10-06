@@ -36,7 +36,7 @@ with sync_playwright() as playwright:
     page = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
     page.goto(APP)
     page.wait_for_load_state("networkidle")
-    page.wait_for_function("typeof analyseFootage === 'function'", timeout=30000)
+    page.wait_for_function("() => typeof analyseFootage === 'function'", timeout=30000)
 
     result = page.evaluate("""async () => {
       localStorage.removeItem("debug_mode");

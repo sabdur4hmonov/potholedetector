@@ -10,7 +10,7 @@ const script = fs.readFileSync(path.join(root, 'static/standalone.js'), 'utf8');
 const syncStart = html.indexOf('const NATIVE_IMAGE_BATCH_SIZE = 2;');
 const syncEnd = html.indexOf('function refreshNativeRepairData(', syncStart);
 const importStart = script.indexOf('  async function importNativeReport(native)');
-const importEnd = script.indexOf('  async function verifiedDirectEmailRoute(', importStart);
+const importEnd = script.indexOf('  async function evidenceForReport(', importStart);
 const matchStart = script.indexOf('  function addReportUnlessDuplicate(rec, dedupe)');
 const matchEnd = script.indexOf('  // SEC-010: bound encoded bytes', matchStart);
 assert.ok(syncStart >= 0 && syncEnd > syncStart);

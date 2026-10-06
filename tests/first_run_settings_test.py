@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""A fresh install must complete Settings before Home can be used."""
+"""A fresh install must complete Settings (language, privacy) before Home can be used."""
 
 import os
 import sys
@@ -64,16 +64,33 @@ with sync_playwright() as playwright:
     if not handled or not after_back["settingsVisible"] or after_back["homeVisible"]:
         failures.append(f"Android Back escaped mandatory Settings: {after_back}")
 
+    # A key is optional: manual reports and the on-device flow work without one, so a blank
+    # key completes onboarding without storing or configuring anything.
     page.locator("#setKey").fill("   ")
     page.locator("#setSave").click()
-    page.wait_for_function("window.__firstRunAlerts.length === 1")
+    page.locator("#home").wait_for(state="visible", timeout=30_000)
     blank = ui_state(page)
-    if not blank["settingsVisible"] or blank["homeVisible"] or blank["setup"] is not None:
-        failures.append(f"blank key completed first-run Settings: {blank}")
-    if not blank["alerts"] or "key" not in blank["alerts"][0].lower():
-        failures.append(f"blank key did not explain the requirement: {blank}")
+    if blank["settingsVisible"] or not blank["homeVisible"] or blank["setup"] != "1":
+        failures.append(f"blank-key Save did not complete first-run Settings: {blank}")
+    if blank["key"] is not None or blank["configured"]:
+        failures.append(f"blank-key Save stored or configured a credential: {blank}")
+    if blank["required"] or blank["active"]:
+        failures.append(f"blank-key Save left first-run guards active: {blank}")
+
+    page.reload()
+    wait_until_ready(page)
+    page.locator("#home").wait_for(state="visible", timeout=30_000)
+    again = ui_state(page)
+    if again["settingsVisible"] or not again["homeVisible"]:
+        failures.append(f"completed onboarding was shown again after reload: {again}")
+    context.close()
 
     # Saving a key completes onboarding, but the browser key is memory-only.
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    page.goto(APP)
+    wait_until_ready(page)
+    page.locator("#settings").wait_for(state="visible")
     page.locator("#setKey").fill("test-key-never-sent")
     page.locator("#setSave").click()
     page.locator("#home").wait_for(state="visible", timeout=30_000)

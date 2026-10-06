@@ -10,6 +10,7 @@ import pathlib
 import sys
 
 from playwright.sync_api import sync_playwright
+from browser_test_utils import NATIVE_AI_PAGE_SCRIPT
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -107,16 +108,9 @@ INIT = r"""
     }
     if (target.includes("nominatim.openstreetmap.org")) {
       return new Response(JSON.stringify({
-        display_name: "Test Road, Karnataka, India",
+        display_name: "Test Road, Tashkent, Uzbekistan",
         address: { road: "Test Road", city: "Test City", postcode: "560001" },
       }), { status: 200, headers: { "content-type": "application/json" } });
-    }
-    if (target.includes("kgis.ksrsac.in")) {
-      // A valid empty state-GIS answer leaves the accepted detection unrouted.  That is
-      // enough for this test and avoids contract matching or a second model request.
-      return new Response('{"features":[]}', {
-        status: 200, headers: { "content-type": "application/json" },
-      });
     }
     return realFetch(url, init);
   };
@@ -213,10 +207,11 @@ with sync_playwright() as p:
 
     context.route("**/*", block_real_remote)
     context.add_init_script(f"({INIT})({json.dumps(ACCEPTED)});")
+    context.add_init_script(NATIVE_AI_PAGE_SCRIPT)
     page = context.new_page()
     page.goto(APP)
     page.wait_for_load_state("networkidle")
-    page.wait_for_function("typeof StandaloneAPI !== 'undefined'", timeout=30000)
+    page.wait_for_function("() => typeof StandaloneAPI !== 'undefined'", timeout=30000)
 
     first = page.evaluate("""async () => {
       %s

@@ -128,7 +128,7 @@ with sync_playwright() as playwright:
     page.evaluate("localStorage.setItem('data_notice_version', DATA_NOTICE_VERSION); window.alert = () => {}")
     page.locator("#driveBtn").click()
     page.locator("#nativeDrivePanel").wait_for(state="visible")
-    page.wait_for_function("__nativeDriveProbe.attach >= 1")
+    page.wait_for_function("() => __nativeDriveProbe.attach >= 1")
 
     initial = page.evaluate("""() => ({
       start: __nativeDriveProbe.start,
@@ -176,7 +176,7 @@ with sync_playwright() as playwright:
       });
       document.dispatchEvent(new Event("visibilitychange"));
     }""")
-    page.wait_for_function("__nativeDriveProbe.detach >= 1")
+    page.wait_for_function("() => __nativeDriveProbe.detach >= 1")
     background = page.evaluate("""() => ({
       stop: __nativeDriveProbe.stop, detach: __nativeDriveProbe.detach,
       running: __nativeDriveProbe.status.isRunning,
@@ -188,16 +188,16 @@ with sync_playwright() as playwright:
       window.__testVisibility = "visible";
       document.dispatchEvent(new Event("visibilitychange"));
     }""")
-    page.wait_for_function(f"__nativeDriveProbe.attach > {initial['attach']}")
+    page.wait_for_function(f"() => __nativeDriveProbe.attach > {initial['attach']}")
     page.locator("#nativeDrivePanel").wait_for(state="visible")
 
     # Capacitor's native Activity signal is the authoritative fallback on WebViews that
     # omit or delay document.visibilityState transitions. It detaches only the preview;
     # the same foreground camera session continues while Maps/chat owns the screen.
-    page.wait_for_function("!!__nativeDriveProbe.appListeners.appStateChange")
+    page.wait_for_function("() => !!__nativeDriveProbe.appListeners.appStateChange")
     native_detach_before = page.evaluate("__nativeDriveProbe.detach")
     page.evaluate("__nativeDriveProbe.appListeners.appStateChange({isActive: false})")
-    page.wait_for_function(f"__nativeDriveProbe.detach > {native_detach_before}")
+    page.wait_for_function(f"() => __nativeDriveProbe.detach > {native_detach_before}")
     inactive = page.evaluate("""() => ({
       start: __nativeDriveProbe.start, stop: __nativeDriveProbe.stop,
       running: __nativeDriveProbe.status.isRunning,
@@ -207,15 +207,15 @@ with sync_playwright() as playwright:
         failures.append(f"native app backgrounding changed the camera session: {inactive}")
     native_attach_before = page.evaluate("__nativeDriveProbe.attach")
     page.evaluate("__nativeDriveProbe.appListeners.appStateChange({isActive: true})")
-    page.wait_for_function(f"__nativeDriveProbe.attach > {native_attach_before}")
+    page.wait_for_function(f"() => __nativeDriveProbe.attach > {native_attach_before}")
 
     # Hardware Back is navigation, not Stop: hide the preview but keep the foreground
     # capture service alive so Maps/calls can remain the foreground app.
-    page.wait_for_function("!!__nativeDriveProbe.appListeners.backButton")
+    page.wait_for_function("() => !!__nativeDriveProbe.appListeners.backButton")
     detach_before_back = page.evaluate("__nativeDriveProbe.detach")
     page.evaluate("__nativeDriveProbe.appListeners.backButton()")
     page.locator("#home").wait_for(state="visible")
-    page.wait_for_function(f"__nativeDriveProbe.detach > {detach_before_back}")
+    page.wait_for_function(f"() => __nativeDriveProbe.detach > {detach_before_back}")
     after_back = page.evaluate("""() => ({
       start: __nativeDriveProbe.start, stop: __nativeDriveProbe.stop,
       exit: __nativeDriveProbe.exit, running: __nativeDriveProbe.status.isRunning,
@@ -228,7 +228,7 @@ with sync_playwright() as playwright:
     attach_before_reentry = page.evaluate("__nativeDriveProbe.attach")
     page.locator("#driveBtn").click()
     page.locator("#nativeDrivePanel").wait_for(state="visible")
-    page.wait_for_function(f"__nativeDriveProbe.attach > {attach_before_reentry}")
+    page.wait_for_function(f"() => __nativeDriveProbe.attach > {attach_before_reentry}")
     reentered = page.evaluate("""() => ({
       start: __nativeDriveProbe.start, stop: __nativeDriveProbe.stop,
       running: __nativeDriveProbe.status.isRunning,
@@ -239,7 +239,7 @@ with sync_playwright() as playwright:
     # The opt-in is explicit, and every visible label must follow native recording
     # truth: video is opt-in, while sparse evidence frames are always saved.
     page.locator("#nativeRecordBtn").click()
-    page.wait_for_function("__nativeDriveProbe.status.isRecording === true")
+    page.wait_for_function("() => __nativeDriveProbe.status.isRecording === true")
     video_on = page.evaluate("""() => ({
       calls: __nativeDriveProbe.setVideo,
       enabled: __nativeDriveProbe.status.recordingEnabled,
@@ -267,7 +267,7 @@ with sync_playwright() as playwright:
     }""", interruption)
     attach_before_interrupted_return = page.evaluate("__nativeDriveProbe.attach")
     page.evaluate("__nativeDriveProbe.appListeners.appStateChange({isActive: true})")
-    page.wait_for_function(f"__nativeDriveProbe.attach > {attach_before_interrupted_return}")
+    page.wait_for_function(f"() => __nativeDriveProbe.attach > {attach_before_interrupted_return}")
     interrupted_ui = page.evaluate("""() => ({
       start: __nativeDriveProbe.start, stop: __nativeDriveProbe.stop,
       running: __nativeDriveProbe.status.isRunning,
@@ -291,7 +291,7 @@ with sync_playwright() as playwright:
       (__nativeDriveProbe.listeners.driveStatusChange || []).forEach((fn) =>
         fn({...__nativeDriveProbe.status}));
     }""")
-    page.wait_for_function("__nativeDriveProbe.status.isRecording === true")
+    page.wait_for_function("() => __nativeDriveProbe.status.isRecording === true")
     recovered = page.evaluate("""() => ({
       start: __nativeDriveProbe.start, stop: __nativeDriveProbe.stop,
       sessionId: __nativeDriveProbe.status.sessionId,
@@ -306,7 +306,7 @@ with sync_playwright() as playwright:
         failures.append(f"camera did not resume in the same Drive session: {recovered}")
 
     page.locator("#nativeRecordBtn").click()
-    page.wait_for_function("__nativeDriveProbe.status.recordingEnabled === false")
+    page.wait_for_function("() => __nativeDriveProbe.status.recordingEnabled === false")
     video_off = page.evaluate("""() => ({
       calls: __nativeDriveProbe.setVideo,
       recording: __nativeDriveProbe.status.isRecording,
@@ -321,11 +321,11 @@ with sync_playwright() as playwright:
 
     page.locator("#openMapsBtn").click()
     page.locator("#nativePauseBtn").click()
-    page.wait_for_function("__nativeDriveProbe.pause === 1")
+    page.wait_for_function("() => __nativeDriveProbe.pause === 1")
     page.locator("#nativePauseBtn").click()
-    page.wait_for_function("__nativeDriveProbe.resume === 1")
+    page.wait_for_function("() => __nativeDriveProbe.resume === 1")
     page.locator("#nativeDriveStop").click()
-    page.wait_for_function("__nativeDriveProbe.stop === 1")
+    page.wait_for_function("() => __nativeDriveProbe.stop === 1")
 
     # Before CameraX confirms closure, Stop remains on the transparent Drive screen.
     # In particular, neither a double event nor App.exitApp may imply that capture ended.
@@ -398,7 +398,7 @@ with sync_playwright() as playwright:
         failures.append(f"recreated or stale Stop state regressed camera-off truth: {monotonic}")
 
     page.evaluate("__nativeDriveProbe.completeStop()")
-    page.wait_for_function("__nativeDriveProbe.stopCompleted === 1")
+    page.wait_for_function("() => __nativeDriveProbe.stopCompleted === 1")
     page.locator("#home").wait_for(state="visible")
     final = page.evaluate("""() => ({
       start: __nativeDriveProbe.start, maps: __nativeDriveProbe.maps,
@@ -969,8 +969,8 @@ with sync_playwright() as playwright:
                     "pothole-binary-v10", "pothole-binary-v12", "pothole-binary-v13",
                     "pothole-binary-v15", "pothole-binary-v16"):
         report = reports_by_version.get(version)
-        if not report or not report.get("authority_id") or report.get("status") != "draft":
-            failures.append(f"{version} native report did not use the existing authority router: {imported}")
+        if not report or report.get("status") != "draft" or report.get("authority_id"):
+            failures.append(f"{version} native report was not saved as a local draft without routing: {imported}")
     if imported["ignored"].get("ignored") is not True or imported["count"] != 8:
         failures.append(f"obsolete non-binary native report was imported: {imported}")
     if any(result.get("ignored") is not True for result in imported["invalidResults"]):

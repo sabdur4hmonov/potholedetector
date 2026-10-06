@@ -327,33 +327,6 @@ CASES = r"""
   eq("repair: fixed history does not suppress a recurrence",
      P.roadEventMatch(revisit, {...repairPrior, condition_status:"fixed"}), null);
 
-  // ---- tender scope: a road name is not proof that the road is the work ----
-  ok("tender scope: cited drain/footpath tender is excluded",
-     !P.tenderCoversCarriageway("Construction of drain and footpath at Binny Cresent cross road, link road Benson town and surrounding area in Ward No 127 Jayamahal",
-       "BBMP/2023-24/OW/WORK_INDENT2505"));
-  ok("tender scope: road and drain mixed work is eligible",
-     P.tenderCoversCarriageway("Improvements to roads and drains in Byrasandra surroundings in Ward no 112"));
-  ok("tender scope: drain and CC road reverse mixed work is eligible",
-     P.tenderCoversCarriageway("Construction of cc drain and cc road at ward no 4"));
-  ok("tender scope: road used as a pipeline location is excluded",
-     !P.tenderCoversCarriageway("Providing and laying water supply HDPE pipeline at burial ground road"));
-  ok("tender scope: project-management consultancy is not physical road work",
-     !P.tenderCoversCarriageway("Project Management Consultancy Services for construction and strengthening of roads in Mumbai"));
-  ok("tender scope: DPR consultancy is not physical road work",
-     !P.tenderCoversCarriageway("Consultancy services for preparation of detailed project report DPR for widening of NH 66"));
-  ok("tender scope: authority engineer is not physical road work",
-     !P.tenderCoversCarriageway("Appointment of Authority Engineer for supervision of rehabilitation and upgradation of NH 48"));
-  ok("tender scope: survey and investigation is not physical road work",
-     !P.tenderCoversCarriageway("Survey and investigation for construction of concrete road from Rampur to Sitapur"));
-  ok("tender scope: third-party quality monitoring is not physical road work",
-     !P.tenderCoversCarriageway("Third party quality monitoring of PMGSY road maintenance works"));
-  ok("tender scope: commercial facility beside an NH is not road work",
-     !P.tenderCoversCarriageway("Development of commercial facility at Auhar on NH 154 under PPP mode"));
-  ok("tender scope: utility shifting for widening is not the widening work",
-     !P.tenderCoversCarriageway("Utility shifting work as part of widening and strengthening of a route connecting NH123"));
-  ok("tender scope: EPC road works are not mistaken for consultancy",
-     P.tenderCoversCarriageway("Engineering procurement and construction for widening and strengthening of NH 48"));
-
   // ---- multimodal request builder and capability-safe settings ----
   const req = P.buildDetectionRequest(["a","b",null,"c","d","e"], "PROMPT", "gpt-5.6", "original");
   const content = req.input[0].content;
@@ -433,24 +406,12 @@ CASES = r"""
   eq("quality: ties keep earliest frame", bestBurstIndex([
     {quality:{score:7}}, {quality:{score:7}}, {quality:{score:3}}]), 0);
 
-  // ---- contract truth: publication date never establishes award or DLP ----
-  const contract = P.contractVerificationFor({tender_number:"T/1", title:"Road resurfacing",
-    published:"20-02-2026"});
-  ok("contract: carriageway scope is explicit", contract.scope_verified === true, contract);
-  ok("contract: segment remains unverified", contract.segment_verified === false, contract);
-  ok("contract: award remains unverified", contract.award_verified === false, contract);
-  ok("contract: DLP remains unverified regardless of recent publication",
-     contract.dlp_status === "unverified" && contract.dlp_verified === false, contract);
-
   // ---- listDict: the list must never carry the full-size evidence photo ----
   const rec = {id:1, photo:"P", photo_full:"F", status:"draft"};
   ok("listDict: omits the evidence copy", P.listDict(rec).photo_full === undefined, P.listDict(rec));
   ok("listDict: keeps the thumbnail", P.listDict(rec).photo_url === "P");
   ok("toDict: the detail form keeps both",
      P.toDict(rec).photo_full === "F" && P.toDict(rec).photo_url === "P");
-
-  // ---- inCoverage: only ever gates speculation, never routing ----
-  ok("inCoverage: no location is not covered", P.inCoverage(null, null, null) === false);
 
   return out;
 })()
@@ -462,7 +423,7 @@ def main():
         b = p.chromium.launch(args=["--disable-web-security"])
         pg = b.new_context(viewport={"width": 390, "height": 844}).new_page()
         pg.goto("http://localhost:8765/"); pg.wait_for_load_state("networkidle")
-        pg.wait_for_function("typeof StandaloneAPI !== 'undefined' && StandaloneAPI.__pure", timeout=30000)
+        pg.wait_for_function("() => typeof StandaloneAPI !== 'undefined' && StandaloneAPI.__pure", timeout=30000)
         results = pg.evaluate(CASES)
         b.close()
     for name, passed, got, want in results:

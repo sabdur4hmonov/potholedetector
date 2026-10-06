@@ -47,7 +47,7 @@ def open_native_page(browser):
     page.goto(APP)
     page.wait_for_load_state("networkidle")
     page.wait_for_function(
-        "typeof StandaloneAPI !== 'undefined' && typeof ensureDataConsent === 'function'"
+        "() => typeof StandaloneAPI !== 'undefined' && typeof ensureDataConsent === 'function'"
     )
     page.evaluate(
         """() => {
@@ -123,9 +123,9 @@ with sync_playwright() as playwright:
     disclosure = disclosed["disclosure"].lower()
     if not all(term in disclosure for term in (
         "camera", "location", "background", "not visible", "recording",
-        "openai", "government", "github pages", "state", "ip"
+        "openai", "not a government service", "nominatim", "uzbekistan"
     )):
-        failures.append("capture: visible disclosure omits a core data-use/government fact")
+        failures.append("capture: visible disclosure omits a core data-use fact")
     if not disclosed["privacyHref"].startswith("https://"):
         failures.append("capture: visible disclosure has no HTTPS privacy-policy link")
 
@@ -193,7 +193,7 @@ with sync_playwright() as playwright:
     if drive_disclosed["events"]:
         failures.append(f"drive: permission/camera work began before acceptance: {drive_disclosed}")
     page.locator("#privacyDecline").click()
-    page.wait_for_function("driveStarting === false")
+    page.wait_for_function("() => driveStarting === false")
     drive_declined = snapshot(page)
     if drive_declined["version"] is not None or drive_declined["drivePresent"]:
         failures.append(f"drive: Decline persisted or left Drive state behind: {drive_declined}")
@@ -205,7 +205,7 @@ with sync_playwright() as playwright:
     wait_for_event(page, "location")
     release_permission(page, "location")
     wait_for_event(page, "media")
-    page.wait_for_function("driveStarting === false")
+    page.wait_for_function("() => driveStarting === false")
     drive_accepted = snapshot(page)
     expected_prefix = ["camera", "location", "media"]
     capture_order = [event for event in drive_accepted["events"] if event in expected_prefix]
