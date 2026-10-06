@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-06 Uzbekistan refocus
+
+India-specific code, data, tests and UI are removed on branch `remove-india` (merged to main after CI is green). English and Uzbek UI, 7/30-day freshness chips and 30-day GPS-track retention are implemented and covered by `freshness_policy_test.py` and `track_retention_test.py` plus a JVM `TrackRetentionPolicyTest`. Not done: the on-device detector (needs training data and a GPU, see NEXT_STEPS), Uzbekistan hazards/speed cameras, physical-device verification of any of this. The Uzbek strings have not been reviewed by a native speaker. The privacy page needs GitHub Pages enabled and a contact address from the owner; the Android application ID is still the upstream `dev.aiengg.potholereporter`.
+
 ## 2026-10-01 TRIP-001 private sampled statistics
 
 TRIP-001's display-only slice is COMPLETE at source/Node/browser level. The existing dashboard now shows bounded filtered sampled distance, moving minutes, time-weighted average moving speed and private peak sampled speed from existing tracks, with unavailable/partial coverage and explicit uncertainty. No new persistence, route UI, native computation, sharing or upload. See [TRIP_STATISTICS.md](TRIP_STATISTICS.md) and the worklog for contract, bounds and validation. This independently executable Phase 1 slice was explicitly authorized while blocked tasks remain deferred. Exact next task: TRIP-002 only after human D1 retention/opt-out/minimization approval. FRESH-001 remains BLOCKED on human policy approval; REPORT-LOCAL-001 remains PARTIALLY COMPLETE and DEFERRED/BLOCKED on physical Android validation. NEW-002, release/signing and device evidence are untouched. No build/device/field-calibration claim.

@@ -1,5 +1,12 @@
 # Next steps from the preserved tree
 
+## 2026-10-06 next actions after the Uzbekistan refocus
+
+1. Human: decide how to get the on-device detector trained. It needs labelled Uzbek road frames and a GPU, which the cloud session does not have. The app's "save every analysed frame" option plus dataset export already collects frames labelled by the cloud model.
+2. Human: have Uzbek speakers review the O'zbekcha strings; supply a privacy contact address; enable GitHub Pages; decide whether to rename the application ID before any store upload.
+3. Run the debug APK on a real phone and exercise Photo, Drive, deduplication, freshness chips, track deletion and Delete-all-data (nothing here has been device-verified).
+4. Later: Uzbekistan hazard and speed-camera data from authoritative sources, heatmap, repair confirmation, road-health score, offline-first sync.
+
 ## 2026-10-01 TRIP-001 display-only package complete
 
 The authorized independent TRIP-001 private dashboard slice is complete at source/Node/browser level; [TRIP_STATISTICS.md](TRIP_STATISTICS.md) documents its versioned bounds and limits. The exact next trip work package is **TRIP-002**, BLOCKED until the human records D1 retention/opt-out/minimization policy. Obtain D1 before implementation; no route history, new retained fields or defaults are authorized. FRESH-001 independently remains BLOCKED on the [freshness decision](FRESHNESS_DECISION.md). REPORT-LOCAL-001 remains PARTIALLY COMPLETE and DEFERRED/BLOCKED on physical validation. NEW-002 stays separate. Earlier checkpoint sequencing below is historical; this cycle authorized only one independent implementation package.

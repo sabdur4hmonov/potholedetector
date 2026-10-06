@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-06 — Uzbekistan refocus (branch `remove-india`)
+
+Removed every India-specific route, authority pack, tender/complaint flow, handoff endpoint and the Kannada/Marathi/Bengali UI; the app now saves accepted detections as local drafts with photo, coordinates and street name, and offers English and O'zbekcha. Added the 7/30-day freshness chips (FRESH-001), 30-day GPS-track retention with per-drive deletion and opt-out (TRIP-002), a sync tool for the mirrored web assets, and rewrote the README, privacy policy, store-listing draft and demo notes. Tests were brought in line; AI-path browser tests now run the page as a native app with a mocked OpenAI bridge because browser builds refuse paid calls (SEC-006).
+
 ## 2026-10-01 — TRIP-001
 
 Added bounded pure sampled GPS statistics and a private offline dashboard consumer with unavailable/partial coverage and uncertainty labels. No persistence, route display, upload, speed gamification or native/scoring change. Added numerical/unit and real-browser/IndexedDB checks; synchronized hosted/Android mirrors, CSP hashes and script inventory. TRIP-002 remains blocked on D1; FRESH-001 and physical REPORT-LOCAL-001 gates remain open. No NEW-002, build/release or device work.

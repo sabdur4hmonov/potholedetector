@@ -1,5 +1,12 @@
 # Product decisions
 
+## 2026-10-06 — Uzbekistan refocus decisions (human-approved in chat)
+
+- **India removed.** All India routing, authority packs, tender matching, complaint/handoff flows and the Kannada/Marathi/Bengali UI are removed. Languages: **English and Uzbek (Latin)**; Russian may come later. Accepted detections are saved as local drafts; nothing is sent to any authority.
+- **D0 reopened — on-device detection.** The human chose a detector that runs inside the phone. The earlier "no on-device integration at this stage" line of D0 is superseded. Constraints stay: full-frame input (no crop/tile/mask/ROI), license-compatible model (no AGPL weights/code), commit-before-native-ack, and no accuracy claim without validation on real roads. Cloud/BYOK remains an optional second opinion until the on-device model is validated.
+- **FRESH-001 approved:** fresh 0–7 days after last seen, aging 8–30 days, stale after 30 days. Stale potholes are never deleted; "fixed" still requires separate before/after evidence. Implemented as display chips and a dashboard summary (the existing scoring model and its Kotlin parity are unchanged).
+- **TRIP-002 / D1 approved:** raw GPS tracks are deleted automatically after 30 days, any single drive's track can be deleted, and the user can turn track keeping off. Pothole reports keep their own coordinates.
+
 ## FRESH-001 freshness policy — pending human decision (2026-10-01)
 
 **NOT APPROVED.** [FRESHNESS_DECISION.md](FRESHNESS_DECISION.md) prepares the required fresh/aging cutoffs and planned expired-state choice, evidence, consequences and contracts. No product freshness window or expiry semantics have been selected. Existing one-day/seven-day fixture values remain test parameters. This pending entry does not change D0, manual-first eligibility, condition/repair rules or authorize FRESH-001 implementation.
