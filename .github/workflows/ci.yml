@@ -1,0 +1,223 @@
+name: CI
+
+# Runs the repository's existing test suite (including the real-Chromium browser tests) and
+# builds a debug APK on GitHub-hosted runners. It never builds or signs a release, never
+# reads release signing values, and never contacts a paid AI service (live tests stay off).
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Unspecified permissions are denied; each job grants only what it needs.
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  LC_ALL: C.UTF-8
+  PYTHONDONTWRITEBYTECODE: "1"
+  TZ: UTC
+
+jobs:
+  web-and-contract-tests:
+    name: Web, contract and browser tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the commit without credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Install Python test tooling and Chromium
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m playwright install --only-shell chromium
+
+      - name: Install Node test tooling and Chromium
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/pwnode" --no-audit --no-fund playwright
+          "$RUNNER_TEMP/pwnode/node_modules/.bin/playwright" install --only-shell chromium
+
+      - name: Install locked Android web dependencies and generate packaged inputs
+        working-directory: android-app
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npx cap sync android
+
+      - name: Create placeholder test settings
+        run: |
+          set -euo pipefail
+          # Mocked checks read a placeholder from .env (git-ignored). It is not a real key and
+          # RUN_LIVE_TESTS stays unset, so no live service is contacted.
+          printf 'OPENAI_API_KEY=ci-placeholder-not-a-real-key\n' > .env
+
+      - name: Run tests/run-all.sh
+        id: runall
+        run: |
+          set -uo pipefail
+          bash tests/run-all.sh 2>&1 | tee "$RUNNER_TEMP/run-all.log"
+          echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Run Node browser and flow tests
+        id: cjs
+        run: |
+          set -uo pipefail
+          nohup python3 tests/serve_app.py --port 8765 > "$RUNNER_TEMP/serve.log" 2>&1 &
+          for _ in $(seq 1 20); do
+            curl -s -o /dev/null http://localhost:8765/index.html && break
+            sleep 0.5
+          done
+          export NODE_PATH="$RUNNER_TEMP/pwnode/node_modules"
+          failed=0
+          : > "$RUNNER_TEMP/cjs.log"
+          for test_file in tests/*.cjs; do
+            name=$(basename "$test_file" .cjs)
+            if out=$(timeout 300 node "$test_file" 2>&1); then
+              printf '%-40s PASS\n' "$name" >> "$RUNNER_TEMP/cjs.log"
+            else
+              failed=1
+              printf '%-40s FAIL\n' "$name" >> "$RUNNER_TEMP/cjs.log"
+              echo "$out" | tail -12 | sed 's/^/    /' >> "$RUNNER_TEMP/cjs.log"
+            fi
+          done
+          cat "$RUNNER_TEMP/cjs.log"
+          echo "code=$failed" >> "$GITHUB_OUTPUT"
+
+      - name: Annotate failures
+        if: ${{ !cancelled() }}
+        run: |
+          set -uo pipefail
+          [ -f "$RUNNER_TEMP/run-all.log" ] && python3 tools/ci_annotate.py run-all "$RUNNER_TEMP/run-all.log"
+          [ -f "$RUNNER_TEMP/cjs.log" ] && python3 tools/ci_annotate.py run-all "$RUNNER_TEMP/cjs.log"
+          exit 0
+
+      - name: Fail when any test failed
+        if: ${{ !cancelled() }}
+        env:
+          RUN_ALL_CODE: ${{ steps.runall.outputs.code }}
+          CJS_CODE: ${{ steps.cjs.outputs.code }}
+        run: |
+          set -euo pipefail
+          echo "run-all.sh exit code: ${RUN_ALL_CODE:-missing}"
+          echo "node tests failed flag: ${CJS_CODE:-missing}"
+          [ "${RUN_ALL_CODE:-1}" = "0" ] && [ "${CJS_CODE:-1}" = "0" ]
+
+  android-debug-build:
+    name: Android debug build and JVM unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the commit without credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Set up Java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install locked web dependencies and generate Capacitor inputs
+        working-directory: android-app
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npx cap sync android
+
+      - name: Check generated inputs against the locked Capacitor CLI
+        continue-on-error: true
+        run: python3 tools/verify-android-generated-inputs.py
+
+      - name: Install Android SDK packages
+        run: |
+          set -uo pipefail
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses > /dev/null 2>&1 || true
+          "$sdkmanager" "platforms;android-36" "build-tools;36.0.0" "build-tools;35.0.0" "platform-tools" > "$RUNNER_TEMP/sdk.log" 2>&1
+          code=$?
+          tail -5 "$RUNNER_TEMP/sdk.log"
+          exit $code
+
+      - name: Assemble debug APK
+        id: assemble
+        working-directory: android-app/android
+        run: |
+          set -uo pipefail
+          ./gradlew --no-daemon --console=plain :app:assembleDebug 2>&1 | tee "$RUNNER_TEMP/assemble.log"
+          echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Run JVM unit tests
+        id: unit
+        working-directory: android-app/android
+        run: |
+          set -uo pipefail
+          ./gradlew --no-daemon --console=plain --continue :app:testDebugUnitTest 2>&1 | tee "$RUNNER_TEMP/unit.log"
+          echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Annotate failures
+        if: ${{ !cancelled() }}
+        run: |
+          set -uo pipefail
+          if [ "${ASSEMBLE_CODE:-0}" != "0" ] && [ -f "$RUNNER_TEMP/assemble.log" ]; then
+            python3 tools/ci_annotate.py plain "$RUNNER_TEMP/assemble.log" "assembleDebug failed" 60
+          fi
+          if [ "${UNIT_CODE:-0}" != "0" ] && [ -f "$RUNNER_TEMP/unit.log" ]; then
+            python3 tools/ci_annotate.py plain "$RUNNER_TEMP/unit.log" "JVM unit tests failed" 80
+          fi
+          exit 0
+        env:
+          ASSEMBLE_CODE: ${{ steps.assemble.outputs.code }}
+          UNIT_CODE: ${{ steps.unit.outputs.code }}
+
+      - name: Upload debug APK
+        if: ${{ !cancelled() && steps.assemble.outputs.code == '0' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pothole-reporter-debug-apk
+          path: android-app/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Fail when the build or unit tests failed
+        if: ${{ !cancelled() }}
+        env:
+          ASSEMBLE_CODE: ${{ steps.assemble.outputs.code }}
+          UNIT_CODE: ${{ steps.unit.outputs.code }}
+        run: |
+          set -euo pipefail
+          echo "assembleDebug exit code: ${ASSEMBLE_CODE:-missing}"
+          echo "testDebugUnitTest exit code: ${UNIT_CODE:-missing}"
+          [ "${ASSEMBLE_CODE:-1}" = "0" ] && [ "${UNIT_CODE:-1}" = "0" ]
