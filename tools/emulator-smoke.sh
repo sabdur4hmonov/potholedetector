@@ -29,7 +29,7 @@ try:
     tabs = json.load(urllib.request.urlopen("http://localhost:9222/json", timeout=10))
     res.append("targets: " + ", ".join(t.get("url", "?") for t in tabs))
     page = [t for t in tabs if t.get("type") == "page"][0]
-    ws = websocket.create_connection(page["webSocketDebuggerUrl"], timeout=15)
+    ws = websocket.create_connection(page["webSocketDebuggerUrl"], timeout=15, suppress_origin=True)
     def ev(expr, i):
         ws.send(json.dumps({"id": i, "method": "Runtime.evaluate", "params": {"expression": expr, "returnByValue": True}}))
         while True:
