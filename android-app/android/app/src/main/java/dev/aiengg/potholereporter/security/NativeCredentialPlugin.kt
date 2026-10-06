@@ -22,6 +22,21 @@ import okio.Buffer
 import org.json.JSONObject
 
 internal object NativeBridgeAuthorization {
+    /**
+     * WebView.getUrl() may only run on the main thread; Capacitor calls plugin methods on a
+     * background thread, where it throws and takes the whole app down. Read the URL on the
+     * main thread and fail closed (null) if that does not finish quickly.
+     */
+    fun mainDocumentUrl(webView: android.webkit.WebView): String? {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) return webView.url
+        val result = java.util.concurrent.atomic.AtomicReference<String?>(null)
+        val done = java.util.concurrent.CountDownLatch(1)
+        webView.post {
+            try { result.set(webView.url) } finally { done.countDown() }
+        }
+        return if (done.await(2, TimeUnit.SECONDS)) result.get() else null
+    }
+
     fun isTrustedMainDocument(url: String?): Boolean {
         val parsed = runCatching { URI(url ?: return false) }.getOrNull() ?: return false
         return parsed.scheme == "https" && parsed.host == "localhost" && parsed.userInfo == null &&
@@ -183,7 +198,7 @@ class NativeCredentialPlugin : Plugin() {
     }
 
     private fun authorize(call: PluginCall, requireVisible: Boolean = false): Boolean {
-        if (!NativeBridgeAuthorization.isTrustedMainDocument(bridge.webView.url)) {
+        if (!NativeBridgeAuthorization.isTrustedMainDocument(NativeBridgeAuthorization.mainDocumentUrl(bridge.webView))) {
             call.reject("Credential operation is not allowed from this document")
             return false
         }

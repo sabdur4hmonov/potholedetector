@@ -18,7 +18,7 @@ class ManagedMediaPlugin : Plugin() {
     }
 
     private fun authorize(call: PluginCall): Boolean {
-        if (!NativeBridgeAuthorization.isTrustedMainDocument(bridge.webView.url)) {
+        if (!NativeBridgeAuthorization.isTrustedMainDocument(NativeBridgeAuthorization.mainDocumentUrl(bridge.webView))) {
             call.reject("Media operation is unavailable from this page")
             return false
         }
