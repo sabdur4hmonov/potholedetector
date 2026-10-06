@@ -27,7 +27,19 @@ descs = [t for t in re.findall(r'content-desc="([^"]*)"', xml) if t.strip()]
 PY
 adb shell pidof $PKG > "$OUT/pid.txt" 2>&1
 adb logcat -d -v time > "$OUT/logcat-full.txt" 2>&1
-grep -E "AndroidRuntime|FATAL|Process: $PKG|Caused by|at dev\.aiengg" "$OUT/logcat-full.txt" | head -80 > "$OUT/crash.txt"
-grep -E "chromium|Capacitor|CONSOLE|Uncaught|SecurityError|Refused to" "$OUT/logcat-full.txt" | head -80 > "$OUT/webview.txt"
+adb logcat -b crash -d -v time > "$OUT/crash-buffer.txt" 2>&1
+APPPID=$(grep -oE "Start proc [0-9]+:$PKG" "$OUT/logcat-full.txt" | head -1 | grep -oE "[0-9]+" | head -1)
+{
+  echo "app pid: ${APPPID:-unknown}"
+  echo "--- crash buffer ---"
+  head -60 "$OUT/crash-buffer.txt"
+  echo "--- process death / signals ---"
+  grep -E "$PKG.*(died|crash|ANR)|am_crash|am_proc_died|Fatal signal|SIGSEGV|SIGABRT|Force finishing|Exception thrown" "$OUT/logcat-full.txt" | head -20
+} > "$OUT/crash.txt"
+if [ -n "${APPPID:-}" ]; then
+  grep -E "\( *$APPPID\)" "$OUT/logcat-full.txt" | grep -vE "BoundaryInterfaceReflectionUtil|WebMessageListenerHolder|cr_AWNetworkFetcherTask" | tail -70 > "$OUT/webview.txt"
+else
+  grep -E "chromium|Capacitor|CONSOLE|Uncaught|SecurityError|Refused to" "$OUT/logcat-full.txt" | head -60 > "$OUT/webview.txt"
+fi
 echo "pid after launch: $(cat "$OUT/pid.txt")" >> "$OUT/start.txt"
 exit 0
