@@ -15,6 +15,36 @@ adb shell pm grant $PKG android.permission.ACCESS_FINE_LOCATION > /dev/null 2>&1
 adb shell am start -W -n $PKG/.MainActivity > "$OUT/start.txt" 2>&1
 sleep 20
 
+# Read the page state through the WebView debugger (debug builds only).
+APPPID0=$(adb shell pidof $PKG | tr -d '\r')
+if [ -n "$APPPID0" ]; then
+  adb forward tcp:9222 localabstract:webview_devtools_remote_$APPPID0 > /dev/null 2>&1
+  pip install --quiet websocket-client > /dev/null 2>&1 || true
+  python3 - "$OUT" <<'PY' || true
+import json, sys, urllib.request, pathlib
+out = pathlib.Path(sys.argv[1])
+res = []
+try:
+    import websocket
+    tabs = json.load(urllib.request.urlopen("http://localhost:9222/json", timeout=10))
+    res.append("targets: " + ", ".join(t.get("url", "?") for t in tabs))
+    page = [t for t in tabs if t.get("type") == "page"][0]
+    ws = websocket.create_connection(page["webSocketDebuggerUrl"], timeout=15)
+    def ev(expr, i):
+        ws.send(json.dumps({"id": i, "method": "Runtime.evaluate", "params": {"expression": expr, "returnByValue": True}}))
+        while True:
+            m = json.loads(ws.recv())
+            if m.get("id") == i:
+                return m.get("result", {}).get("result", {}).get("value", m)
+    res.append("homeHidden: %s" % ev("(function(){var h=document.getElementById('home');return h?String(h.hidden)+' display='+getComputedStyle(h).display:'no #home'})()", 1))
+    res.append("bootError: %s" % ev("(function(){var b=document.getElementById('bootErrorBox');return b?b.innerText:'none'})()", 2))
+    res.append("bodyText: %s" % str(ev("document.body.innerText.slice(0,1500)", 3)))
+    res.append("title: %s" % ev("document.title", 4))
+except Exception as e:
+    res.append("devtools failed: %r" % (e,))
+(out / "page-state.txt").write_text("\n".join(res) + "\n")
+PY
+fi
 adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
 adb pull /sdcard/ui.xml "$OUT/ui.xml" > /dev/null 2>&1 || true
 python3 - "$OUT" <<'PY'

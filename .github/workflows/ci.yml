@@ -259,7 +259,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           set -uo pipefail
-          for part in start.txt crash.txt webview.txt ui-text.txt; do
+          for part in start.txt crash.txt page-state.txt webview.txt ui-text.txt; do
             [ -f "emulator-report/$part" ] && python3 tools/ci_annotate.py plain "emulator-report/$part" "emulator $part" 60
           done
           exit 0
