@@ -53,13 +53,13 @@ jobs:
       - name: Install Python test tooling and Chromium
         run: |
           set -euo pipefail
-          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m pip install --disable-pip-version-check -r requirements.txt "playwright==1.58.0"
           python -m playwright install --only-shell chromium
 
       - name: Install Node test tooling and Chromium
         run: |
           set -euo pipefail
-          npm install --prefix "$RUNNER_TEMP/pwnode" --no-audit --no-fund playwright
+          npm install --prefix "$RUNNER_TEMP/pwnode" --no-audit --no-fund playwright@1.58.0
           "$RUNNER_TEMP/pwnode/node_modules/.bin/playwright" install --only-shell chromium
 
       - name: Install locked Android web dependencies and generate packaged inputs

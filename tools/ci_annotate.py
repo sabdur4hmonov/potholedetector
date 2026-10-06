@@ -20,18 +20,21 @@ import re
 import sys
 from pathlib import Path
 
-MAX_DETAIL = 7
+# GitHub caps each level (error, warning, notice) at 10 annotations per step, so detail
+# blocks rotate through all three levels after the one error that lists every failure.
+MAX_DETAIL = 29
 MESSAGE_LIMIT = 3500
+DETAIL_LEVELS = ["error"] * 9 + ["warning"] * 10 + ["notice"] * 10
 
 
 def escape(text: str) -> str:
     return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 
 
-def emit(title: str, message: str) -> None:
+def emit(title: str, message: str, level: str = "error") -> None:
     if len(message) > MESSAGE_LIMIT:
         message = "..." + message[-MESSAGE_LIMIT:]
-    print(f"::error title={escape(title)}::{escape(message)}")
+    print(f"::{level} title={escape(title)}::{escape(message)}")
 
 
 def read(path: str) -> list[str]:
@@ -53,8 +56,8 @@ def run_all(lines: list[str]) -> int:
     if not failures:
         return 0
     emit(f"{len(failures)} test(s) failed in run-all.sh", ", ".join(name for name, _ in failures))
-    for name, detail in failures[:MAX_DETAIL]:
-        emit(f"FAIL {name}", "\n".join(detail) or "(no output captured)")
+    for (name, detail), level in zip(failures[:MAX_DETAIL], DETAIL_LEVELS):
+        emit(f"FAIL {name}", "\n".join(detail) or "(no output captured)", level)
     return len(failures)
 
 
