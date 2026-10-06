@@ -2747,7 +2747,8 @@ class DriveForegroundService : LifecycleService() {
 
     private suspend fun persistSession(status: String, endedAt: Long?) {
         val sourceTrack = locationProvider?.gpsTrack
-        val track = JSONArray(if (sourceTrack == null) emptyList<JSONArray>() else synchronized(sourceTrack) {
+        val keepTracks = TrackRetentionPolicy.keepTracks(applicationContext)
+        val track = JSONArray(if (sourceTrack == null || !keepTracks) emptyList<JSONArray>() else synchronized(sourceTrack) {
             sourceTrack.toList()
         }).toString()
         database.sessionDao().insertSession(SessionEntity(

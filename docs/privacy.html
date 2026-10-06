@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Privacy policy for the Pothole Reporter Android app.">
+  <meta name="description" content="Privacy policy for the Pothole Reporter Android app (Uzbekistan).">
   <title>Privacy Policy — Pothole Reporter</title>
   <style>
     :root {
@@ -72,33 +72,23 @@
   <header>
     <p class="meta">Pothole Reporter · Android package <code>dev.aiengg.potholereporter</code></p>
     <h1>Privacy Policy</h1>
-    <p class="meta">Effective and last updated: 31 August 2026</p>
+    <p class="meta">Effective and last updated: 6 October 2026 · Maxfiylik siyosati (O&#8216;zbekcha qisqacha): pastda.</p>
     <nav aria-label="Related pages">
-      <a href="sources.html">Data sources</a>
-      <a href="https://github.com/coding-parrot/pothole-reporter">Source code</a>
-      <a href="https://github.com/coding-parrot/pothole-reporter/issues/new">Privacy question</a>
+      <a href="https://github.com/sabdur4hmonov/potholedetector">Source code</a>
+      <a href="https://github.com/sabdur4hmonov/potholedetector/issues/new">Privacy question</a>
     </nav>
   </header>
 
   <section>
     <h2>Summary</h2>
     <div class="summary">
-      <p>Pothole Reporter has no project-operated server, advertising network, or app account system. Reports and recordings you choose to create stay on your device. Android can also retain a dashcam RTSP address using Keystore-backed encryption; the browser version does not retain credentials after the page closes or reloads.</p>
-      <p>It is not fully offline: selected pothole images are sent directly to OpenAI for analysis. Precise coordinates are sent to OpenStreetMap Nominatim; Karnataka locations also query Karnataka GIS, and exact Hyderabad CURE checks query Telangana GIS. Downloaded state-boundary containment, including Uttar Pradesh, Chhattisgarh, and Rajasthan, is checked locally.</p>
-      <p>Routing/contact and optional National Highway, PMGSY, official State/UT procurement-notice, and Karnataka KPPP candidate data is downloaded only when needed as a versioned State/UT pack or 2° National Highway tile from this project's GitHub Pages site and then cached locally. That request contains no report, photo, or exact coordinates, but GitHub can receive an IP address, standard connection metadata, and the requested URL, which identifies the selected state, the top-50 city pack, or an approximate 2° tile. Downloaded bytes are checked against a checksum pinned in the app before use. Remote candidate packs do not enter the APK; the three catalog manifests add about 100 KB to a future build. These repository changes do not alter the already-submitted Play closed-test binary.</p>
-      <p>Reports are not filed automatically. Only when you choose a handoff does the app open an official app or portal, place prefilled text in WhatsApp, open the dialler, share compressed evidence, or hand an editable draft to your email app. You must review and complete the complaint in that external service.</p>
+      <p>Pothole Reporter is an independent app that finds potholes on roads in Uzbekistan. It has no project-operated server, advertising network or account system. Reports, photos, recordings and drive tracks you create stay on your phone until you delete them.</p>
+      <p>It is not fully offline: selected pothole photos and complete video frames are sent directly to OpenAI for analysis using your own API key, and precise coordinates are sent to OpenStreetMap Nominatim to look up the street name. The app never sends a report to any authority, company or government service by itself. It is not a government service.</p>
     </div>
   </section>
 
   <section>
-    <h2>Scope and controller</h2>
-    <p>This policy applies to the Pothole Reporter Android app and its project pages. “The project” below means the Pothole Reporter open-source project identified by that name in its store listing and source repository.</p>
-    <p>The project does not receive a central copy of your reports because it operates no collection backend. The external services listed below receive data directly from your device for the features you request.</p>
-  </section>
-
-  <section>
     <h2>Data the app handles</h2>
-    <p>Photo reporting is manual-first: confirming and saving a pothole photo keeps it privately on this device without an API key, geocoding, authority lookup or cloud analysis. These reports are user-reported, not AI verified. Optional cloud analysis is a separate confirmed action and creates a separate result; it does not replace the saved manual report. Drive retains its existing optional cloud behavior and limits. Export or sharing requires your action; saving a photo does not submit a complaint.</p>
     <div class="table-wrap">
       <table>
         <thead>
@@ -107,53 +97,28 @@
         <tbody>
           <tr>
             <td>Pothole photos and video frames</td>
-            <td>A pothole photo, or selected complete still frames sampled during Drive Mode or from saved drive evidence, is resized and sent to the OpenAI API. Drive can use either the phone camera or a user-configured H.264 RTSP dashcam stream. On Android, the RTSP address and any credentials are encrypted with a non-exportable Android Keystore key and used only by native code; audio is disabled. The whole dashcam stream is neither saved nor uploaded. When optional phone-camera recording is enabled, Android stores local video and a 720p evidence frame at most every two seconds; an explicit post-drive pass can send an unfinished evidence frame with nearby frames from just before and after it. On a precise later live-drive revisit, the saved earlier damage photo and current views may be sent together for a separate before/after repair check. Images are not blurred first and may contain faces, number plates, people, vehicles, or shopfronts. The complete saved video file is not uploaded by the app.</td>
-            <td>Assess visible potholes and create an editable local report.</td>
-          </tr>
-          <tr>
-            <td>Legacy garbage and manhole reports</td>
-            <td>Current versions do not offer these Photo categories. Reports created by an older version remain readable and deletable on the device; their photo leaves the app only if you choose an external handoff, email, or share destination.</td>
-            <td>Preserve access to existing on-device reports after an update.</td>
+            <td>A pothole photo, or selected complete frames sampled while Drive Mode runs, are resized (never cropped) and sent to the OpenAI API with your API key. On a later revisit to a known pothole, the saved earlier photo and current views may be sent together for a before/after repair check. Images are not blurred first and may contain faces, number plates, people, vehicles or shopfronts. Optional local video recording is off by default; recorded video is never uploaded by the app.</td>
+            <td>Decide whether a visible pothole is present and keep evidence on the device.</td>
           </tr>
           <tr>
             <td>Precise location and drive motion data</td>
-            <td>The app reads latitude and longitude and may retain a local drive track with accuracy, speed, heading, and timestamps. Coordinates are sent to OpenStreetMap Nominatim. Its structured city/municipality and state fields are also required for the remaining city-specific top-50 routes. Karnataka locations query Karnataka GIS endpoints. For Hyderabad-area reports, a small envelope representing the GPS accuracy is sent to the official Telangana GIS service to check the 2,053 km² Core Urban Region and exclude Secunderabad Cantonment before selecting My Cure. An unavailable or ambiguous response, or a Cantonment intersection, cannot select My Cure but can use neutral Prajavani after local state containment. The app requests the 2° National Highway tile containing the point and checks mapped NH/NE geometry locally. After the required verified routing pack has been downloaded, all 28 States and all 8 Union Territories are checked locally against cached checksum-pinned geometry; more-specific reviewed municipal routes retain precedence. Viewing the in-app map requests OpenStreetMap tiles for the displayed area.</td>
-            <td>Find an address, check supported coverage, suggest a complaint route, identify a supported Karnataka body, classify Karnataka roads, display report locations, and suppress repeated Drive Mode observations.</td>
-          </tr>
-          <tr>
-            <td>Downloaded routing, highway, contact, and optional project/procurement data</td>
-            <td>When needed, the app requests a versioned routing, National Highway project, PMGSY road-agreement, official State/UT procurement-notice, Karnataka KPPP, or 2° highway-geometry pack from <code>coding-parrot.github.io</code>. The URL identifies the selected state, the shared top-50 city pack, or an approximate tile but contains no report, photo, or exact coordinates. GitHub can receive the device's IP address and standard connection metadata. If an optional candidate pack is unavailable or cannot be verified, the report continues without contract context. Verified packs are stored in the app's local cache.</td>
-            <td>Keep the APK smaller while providing locally processed highway geometry, boundaries, published contacts, and optional road candidates.</td>
+            <td>The app reads latitude and longitude and keeps a local drive track with accuracy, speed, heading and timestamps. While Drive Mode runs, location is used in the background (a persistent notification is always shown), even when this app is not visible. Coordinates are sent to OpenStreetMap Nominatim to look up a street name. Viewing the in-app map requests OpenStreetMap tiles for the displayed area. Raw GPS tracks are deleted automatically after 30 days; you can delete any drive earlier, or turn track keeping off in Settings. Pothole reports keep their own coordinates until you delete them.</td>
+            <td>Tag potholes with a position and street, ignore repeat sightings of the same pothole and show trip statistics.</td>
           </tr>
           <tr>
             <td>OpenAI API key</td>
-            <td>The key you enter is stored in the app's local WebView storage and sent to OpenAI in the authorization header for API requests. It is never built into the app or sent to a project-operated server.</td>
+            <td>On Android the key is encrypted with a non-exportable Android Keystore key and used only by native code for the fixed OpenAI request. It is never built into the app, shown again or sent to any project-operated server. The browser version keeps a key in page memory only.</td>
             <td>Authenticate usage billed to your own OpenAI account.</td>
           </tr>
           <tr>
-            <td>Road address and procurement candidates</td>
-            <td>For an eligible Karnataka route only, the reverse-geocoded road address and a shortlist of public KPPP records may be sent to OpenAI for a probable match. National Highway, PMGSY, and official State/UT notice candidates outside this flow are matched locally on the device.</td>
-            <td>Offer an optional, reviewable road reference. A match is not proof of the exact segment, award, contractor responsibility, warranty, or DLP.</td>
+            <td>Reports, settings, photos, footage and drive summaries</td>
+            <td>Stored on the device, including your language, model and Drive preferences.</td>
+            <td>Run the app, keep history and let you review or share evidence.</td>
           </tr>
           <tr>
-            <td>Name, settings, reports, labels, photos, footage, and drive summaries</td>
-            <td>These are stored on the device. A verified or review-needed repair revisit also stores its current evidence photo and physical-condition status locally, separately from complaint-submission status. Your name is placed in the complaint signature. An official grievance/reference ID is stored locally only if you enter it to mark an official-channel report submitted. Settings include language, model, image detail, Drive video source, recording, Drive battery limit, frame-saving, and debug choices. Android may retain the optional RTSP address in encrypted native storage.</td>
-            <td>Run the app, preserve history, allow review, and prepare complaint drafts.</td>
-          </tr>
-          <tr>
-            <td>Official handoff text and evidence</td>
-            <td>The offered app or portal opens only after you choose it. A Google Play fallback receives no report attachment. A WhatsApp action places complaint text in a link but does not press Send. Share creates compressed image copies and report text in app cache and invokes Android's share sheet. Call opens the dialler. Email hands an editable draft and attachment to your email app.</td>
-            <td>Let you review and complete a complaint yourself in an external official channel. Opening any channel is not treated as a submission.</td>
-          </tr>
-          <tr>
-            <td>Email draft and attachment</td>
-            <td>When you choose Email, the recipient, subject, complaint body, and road photo are handed to your email app. The email provider may sync a draft under its own terms. Pothole Reporter does not press Send.</td>
-            <td>Let you review, edit, and choose whether to send a complaint.</td>
-          </tr>
-          <tr>
-            <td>Saved or exported evaluation files</td>
-            <td>If you enable frame saving, analysed frames and a model-verdict manifest are written to the device's Documents area. If you export labelled data, a ZIP is handed to Android's share sheet and goes only to the destination you choose.</td>
-            <td>Let you inspect model output and build a human-labelled evaluation set.</td>
+            <td>Shared evidence</td>
+            <td>When you choose <em>Share evidence</em>, the app hands a photo and a plain-text note (time, coordinates, map link, GPS accuracy) to Android&#8217;s share sheet. It goes only to the destination you choose.</td>
+            <td>Let you pass a pothole to someone yourself.</td>
           </tr>
         </tbody>
       </table>
@@ -163,67 +128,54 @@
   <section>
     <h2>External recipients</h2>
     <ul>
-      <li><strong>OpenAI:</strong> API credentials, selected pothole images, prompts, and—for eligible Karnataka contract matching only—a road address and procurement shortlist. Requests set <code>store: false</code>, which prevents Responses API application-state retention but does not override OpenAI's security, abuse-monitoring, or legal retention. See <a href="https://openai.com/policies/privacy-policy/">OpenAI's privacy policy</a>.</li>
-      <li><strong>OpenStreetMap services:</strong> coordinates sent to Nominatim for reverse geocoding—including the structured city/state fields required by remaining city-specific routes—and map-area requests sent to the tile service. Downloaded ODbL boundary copies cover all 28 States and all 8 Union Territories, with more-specific reviewed municipal polygons where available; those polygon checks run locally and do not themselves send the coordinate to OpenStreetMap. See the <a href="https://osmfoundation.org/wiki/Privacy_Policy">OpenStreetMap Foundation privacy policy</a> and <a href="https://operations.osmfoundation.org/policies/nominatim/">Nominatim policy</a>.</li>
-      <li><strong>Karnataka GIS/KSRSAC:</strong> for Karnataka locations only, coordinates are sent to government map endpoints to check municipal, gram-panchayat, and national-highway layers.</li>
-      <li><strong>Telangana GIS/TGRAC:</strong> for Hyderabad-area routing only, the report coordinates and GPS-accuracy envelope are sent to official government map endpoints to check the Core Urban Region and Secunderabad Cantonment. No report text or photo is included.</li>
-      <li><strong>GitHub Pages:</strong> hosts this project's versioned routing, National Highway, PMGSY, official State/UT procurement-notice, Karnataka KPPP, and 2° highway packs. A request can disclose the device's IP address, standard connection metadata, and the requested URL, which identifies the selected state or approximate tile. It contains no report, road photo, or exact coordinates. GitHub handles its logs and metadata under the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a>.</li>
-      <li><strong>Google Play:</strong> when an offered official Android app is absent, its store page may open. The app does not attach report content to that link, although Google receives ordinary connection and device metadata under its <a href="https://policies.google.com/privacy">privacy policy</a>.</li>
-      <li><strong>WhatsApp/Meta:</strong> after a separate confirmation, choosing an offered published WhatsApp route—including PMC CARE and supported BMC, VVCMC, KMC, Delhi PWD Sewa, GCC Chennai, or AMC CCRS routes where applicable—passes prefilled complaint text, including the exact location, to WhatsApp. It is not sent as a chat until you choose Send there. See <a href="https://www.whatsapp.com/legal/privacy-policy">WhatsApp's privacy policy</a>.</li>
-      <li><strong>Official complaint recipients:</strong> opening a plain app or portal link sends ordinary connection or launch metadata; report content reaches that recipient only when you complete a message, email, upload, call, or submission in its external service. Available routes include Rajmargyatra/1033 for mapped National Highways; reviewed municipal channels where available; State/UT grievance systems; and CPGRAMS as the conservative State/UT handoff where no safer specific online intake was verified. Every neutral handoff requires the user to select and verify the district, department, local body, category, and road owner. No handoff proves ownership or automatic submission, and the app has no public complaint-write API integration. See BMC's published website policy and <a href="https://www.kmcgov.in/KMCPortal/jsp/Disclaimer.html">KMC's website disclaimer and privacy terms</a>.</li>
-      <li><strong>Your email and sharing providers:</strong> data is transferred only when you open a complaint draft or choose a destination in Android's share sheet. Their own policies and retention rules apply.</li>
+      <li><strong>OpenAI:</strong> your API key, selected images and prompts. Requests set <code>store: false</code>, which prevents Responses API application-state retention but does not override OpenAI&#8217;s security, abuse-monitoring or legal retention. See <a href="https://openai.com/policies/privacy-policy/">OpenAI&#8217;s privacy policy</a>. Processing can occur outside Uzbekistan.</li>
+      <li><strong>OpenStreetMap services:</strong> coordinates sent to Nominatim for reverse geocoding and map-area requests sent to the tile service. See the <a href="https://osmfoundation.org/wiki/Privacy_Policy">OpenStreetMap Foundation privacy policy</a> and <a href="https://operations.osmfoundation.org/policies/nominatim/">Nominatim policy</a>.</li>
+      <li><strong>Your sharing providers:</strong> data is transferred only when you choose a destination in Android&#8217;s share sheet. Their own policies apply.</li>
     </ul>
-    <p>Like other internet services, these recipients can receive an IP address and standard connection metadata. They may process data outside your state or country, including outside India. The project does not control their independent retention or legal obligations.</p>
+    <p>Like other internet services, these recipients can receive an IP address and standard connection metadata. The project does not control their retention or legal obligations.</p>
   </section>
 
   <section>
     <h2>Permissions</h2>
     <ul>
-      <li><strong>Camera</strong> captures a manual pothole photo or Phone camera Drive frames. Dashcam Drive does not request or use the phone camera. While Phone camera Drive is active, the camera remains in use in the background—even when this app is not visible or in use and another app, such as Google Maps or the phone-call screen, is visible—under a persistent foreground-service notification.</li>
-      <li><strong>Precise or approximate location</strong> locates and routes a report and records a drive track. With either Drive source, location remains in use in the background under the same persistent foreground-service notification, including when this app is not visible or in use.</li>
-      <li><strong>Internet and network access</strong> reach the external services described above and the RTSP endpoint on a dashcam network selected by the user.</li>
+      <li><strong>Camera</strong> captures a manual pothole photo or Drive frames. While Drive runs, the camera remains in use in the background, even when this app is not visible and another app such as Maps or a call is on screen, under a persistent foreground-service notification.</li>
+      <li><strong>Precise or approximate location</strong> tags reports and records a drive track, in the background under the same notification.</li>
+      <li><strong>Internet access</strong> reaches the services above.</li>
     </ul>
-    <p>The app does not request Android's separate background-location permission. Android Drive Mode nevertheless uses location and the selected video source in the background while its visible foreground service is active, including when this app is not visible or in use and Google Maps or the phone-call screen is visible. It can be paused or stopped from the app or persistent notification. A video call or another higher-priority camera user can temporarily interrupt Phone camera sampling; a dashcam or Wi-Fi interruption triggers bounded reconnection attempts. RTSP does not expose the dashcam sensor's true capture time, so an uncalibrated dashcam detection keeps its evidence and observed coordinate but does not automatically select an authority, tender, or repair match; Phone camera is required for that automatic routing until the exact dashcam/phone pair is calibrated. Mount the phone or dashcam before moving and do not interact with it while driving.</p>
+    <p>The app does not request Android&#8217;s separate background-location permission. Drive can be paused or stopped from the app or the notification. Mount the phone before moving and do not interact with it while driving.</p>
   </section>
 
   <section>
     <h2>Retention and deletion</h2>
     <ul>
-      <li>Phone camera Drive recording is off by default. If you enable it, silent 60-second clips and sparse 720p evidence frames are written to app-private storage; the live screen and persistent notification state when video is being saved. Recording stops instead of deleting older clips when total footage reaches 4 GB or free space approaches 500 MB. Dashcam Drive stores selected evidence frames but does not save the whole RTSP stream.</li>
-      <li>Drive has a selectable 15, 30, 60, or 90-minute active-time battery limit and defaults to 30 minutes. When the active-time limit expires, camera, location, recording, inference, and the foreground service stop through the normal Drive shutdown; paused time does not consume the limit.</li>
-      <li>Reports, original and repair-evidence photos, sparse Drive frames, physical-condition history, drive summaries, and recorded footage remain in app-private storage until the app deletes them automatically or you delete them.</li>
-      <li>An official grievance/reference ID you enter remains in the local report until that report or all app data is deleted.</li>
-      <li>Sharing report evidence or an exported dataset creates temporary files in the app's dedicated cache folder. Android may clear cache automatically, and <strong>Delete all app data</strong> removes that folder. Copies already handed to another app are controlled by that destination.</li>
-      <li>For browser fallback recording, successfully analysed footage is deleted when analysis completes without failed frame requests and Debug is off. Native Android clips and sparse frames remain until you delete that drive's footage from History or delete all app data.</li>
-      <li>Verified routing, project/procurement, and highway packs are cached locally after download. On a subsequent pack use, entries past their unused limits or above the shared cache-size limit are pruned automatically and can be downloaded again when needed.</li>
-      <li><strong>Delete all app data</strong> clears local reports, photos, drive summaries, app-held footage, downloaded packs and highway tiles, the API key, sender name, RTSP address, settings, and the app's <code>Documents/pothole-frames</code> folder.</li>
-      <li>Files already exported, shared, attached, copied elsewhere, or sent are outside the app's control and must be deleted from their destination separately.</li>
-      <li>Data already processed by OpenAI, OpenStreetMap services, Karnataka GIS, Telangana GIS, GitHub Pages, Google Play, WhatsApp, an email or sharing provider, or an official complaint service is subject to that recipient's retention and deletion process.</li>
+      <li>Reports, photos, repair evidence, sampled frames, drive summaries and any recorded footage remain in app-private storage until you delete them.</li>
+      <li>Raw GPS drive tracks are deleted automatically after 30 days. You can delete a single drive at any time, or turn track keeping off in Settings.</li>
+      <li>Drive has a selectable 15, 30, 60 or 90-minute active-time battery limit (default 30).</li>
+      <li><strong>Delete all app data</strong> clears local reports, photos, drive summaries, footage, the API key and settings.</li>
+      <li>Files already shared, exported or copied elsewhere, and data already processed by OpenAI or OpenStreetMap services, are outside the app&#8217;s control.</li>
     </ul>
-    <p>The app creates no Pothole Reporter account, so there is no project account to delete. Android backup is disabled for the app.</p>
+    <p>There is no project account to delete. Android backup is disabled for the app.</p>
   </section>
 
   <section>
     <h2>Security and your choices</h2>
-    <p>Internet calls in the current app use HTTPS. A dashcam's local <code>rtsp://</code> stream is commonly unencrypted, so use the dashcam's own trusted Wi-Fi and a camera password where supported; the app never places that address or password in Drive status or logs. Each downloaded pack has a version, expected byte length, and SHA-256 checksum pinned in a local manifest. The complete download is verified before parsing or caching. If required routing data is unavailable, malformed, or different from the pinned checksum, authority routing stops; failure of optional project/procurement data only omits candidate context. Highway matching also refuses weak GPS, ambiguous parallel references, and conflicting driving direction. State/UT and exact municipal polygon routes never fall back to a place name; enclave territories retain their own pinned boundaries. The specific My Cure route requires a successful official Telangana GIS check and excludes an accuracy envelope intersecting Secunderabad Cantonment. Detection, geocoding, Karnataka GIS, and exact CURE checks still require their own network services.</p>
-    <p>On Android, retained OpenAI and dashcam RTSP credentials are encrypted with AES-GCM using a non-exportable key generated and held by Android Keystore. Only ciphertext is stored in private preferences, plaintext is never returned to the WebView, and native code adds the OpenAI credential only to the fixed OpenAI request endpoint. Existing WebView plaintext values are removed before one-time migration. The browser version keeps an entered OpenAI key in page memory only and loses it when the page closes or reloads. Local RTSP is normally unencrypted in transit, so use only a trusted dashcam Wi-Fi. Protect your device, use revocable credentials with appropriate limits, and revoke them if the device or a credential may be compromised.</p>
-    <ul>
-      <li>You can deny camera or location permission, but the corresponding capture or routing feature will not work.</li>
-      <li>You can choose whether to enable drive recording, Debug retention, or saved analysis frames in Settings.</li>
-      <li>You decide whether to edit, share, export, open an official channel, or send any draft or dataset. No complaint is submitted automatically.</li>
-      <li>Review every AI verdict, recipient, and probable contract match before acting on it.</li>
-    </ul>
+    <p>Internet calls use HTTPS. You can deny camera or location permission, but the corresponding feature will not work. You decide whether to enable recording, keep sampled frames, share evidence or delete data. AI can miss damage or produce false positives: review every result yourself.</p>
+  </section>
+
+  <section>
+    <h2>O&#8216;zbekcha qisqacha</h2>
+    <p>Ilova O&#8216;zbekistondagi yo&#8216;llarda chuqurlarni topadi. Hisobotlar, rasmlar va yozuvlar faqat telefoningizda qoladi. Tanlangan rasmlar sizning OpenAI API kalitingiz bilan aniqlash uchun OpenAI&#8217;ga, aniq koordinatalar esa ko&#8216;cha nomini topish uchun OpenStreetMap Nominatim&#8217;ga yuboriladi. Ilova hech qaysi idoraga o&#8216;zi hisobot yubormaydi va davlat xizmati emas. Xom GPS izlari 30 kundan keyin avtomatik o&#8216;chiriladi; istalgan haydashni oldinroq o&#8216;chirishingiz yoki iz saqlashni Sozlamalarda o&#8216;chirib qo&#8216;yishingiz mumkin.</p>
   </section>
 
   <section>
     <h2>Children, changes, and contact</h2>
-    <p>Pothole Reporter is a civic-reporting tool and is not designed for children. It does not create user profiles or knowingly operate a child-directed service.</p>
-    <p>If this policy or the app's data flows change, this page will be updated and its effective date will change. Material new collection should be disclosed in the app before it begins.</p>
-    <p>For a private privacy question or request, email <a href="mailto:contact@aiengg.dev">contact@aiengg.dev</a>. For a non-sensitive public bug, you may instead open a <a href="https://github.com/coding-parrot/pothole-reporter/issues/new">GitHub issue</a>. Do not put an API key, precise location, unredacted report photo, or other sensitive information in a public issue.</p>
+    <p>Pothole Reporter is a road-reporting tool and is not designed for children.</p>
+    <p>If this policy or the app&#8217;s data flows change, this page will be updated and its effective date will change.</p>
+    <p>For a question or request, open a <a href="https://github.com/sabdur4hmonov/potholedetector/issues/new">GitHub issue</a>. Do not put an API key, precise location, unredacted photo or other sensitive information in a public issue.</p>
   </section>
 
   <footer>
-    <p>Pothole Reporter is independent and is not affiliated with or endorsed by any listed government, civic body, grievance service, data provider, OpenAI, OpenStreetMap, KSRSAC, or TGRAC.</p>
+    <p>Pothole Reporter is independent and is not affiliated with or endorsed by any government body, OpenAI or OpenStreetMap.</p>
   </footer>
 </main>
 </body>

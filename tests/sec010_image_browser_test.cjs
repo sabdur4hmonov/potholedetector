@@ -6,7 +6,9 @@ const { chromium } = require('playwright');
 const fixtures = require('./fixtures/sec010-images.json');
 const APP = process.env.POTHOLE_TEST_APP || 'http://127.0.0.1:8765/';
 (async () => {
-  const browser = await chromium.launch({ channel: process.env.POTHOLE_TEST_BROWSER_CHANNEL || 'chrome', headless: true });
+  const browser = await chromium.launch(process.env.POTHOLE_TEST_CHROME
+    ? { executablePath: process.env.POTHOLE_TEST_CHROME, headless: true }
+    : { channel: process.env.POTHOLE_TEST_BROWSER_CHANNEL || 'chrome', headless: true });
   try {
     for (const suffix of ['/', '/web-app/']) {
       const context = await browser.newContext({ bypassCSP: false });
@@ -74,6 +76,7 @@ const APP = process.env.POTHOLE_TEST_APP || 'http://127.0.0.1:8765/';
           const P=StandaloneAPI.__pure;
           const saved={api:window.api,loadReports:window.loadReports,openDetail:window.openDetail};
           let submitted=null;
+          localStorage.setItem('data_notice_version',DATA_NOTICE_VERSION);window.confirm=()=>true;
           window.api=async (path,options)=>{submitted=options.body;return {id:99};};
           window.loadReports=async()=>{};window.openDetail=()=>{};
           try {

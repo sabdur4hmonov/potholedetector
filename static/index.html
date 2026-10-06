@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-saEFAx9b3lEkOyJ9JF1npOdiYgpw2nPk5e4gJj9k6EU='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-A7LMI5ZF49b6jgJT4aTGXLuhsXrjgoY3cnzyxXEOPd8='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-qaWsWwQH8GkyJPJB0qaEVCcN1PTwd979Hhumi5JdDno='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -12,7 +12,7 @@
 <style>
   * { box-sizing: border-box; margin: 0; }
   :root { --bg:#111214; --card:#1c1d21; --line:#2a2b30; --accent:#ff7a1a; --ok:#3ecf6f; --bad:#ff5d5d; --mut:#9a9ba1; }
-  body { background:var(--bg); color:#f2f2f4; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans Bengali","Nirmala UI",Vrinda,Roboto,sans-serif;
+  body { background:var(--bg); color:#f2f2f4; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
          padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 24px); max-width:520px; margin:0 auto; }
   h1 { font-size:22px; margin:4px 0 2px; }
   .sub { color:var(--mut); font-size:13px; margin-bottom:14px; }
@@ -44,6 +44,9 @@
   .chip.queued { background:#122f33; color:#7cd8e8; }
   .chip.fixed { background:#12331d; color:#7ce8a2; }
   .chip.repair-review { background:#302642; color:#d4b8ff; }
+  .chip.fresh-fresh { background:#12331d; color:#7ce8a2; }
+  .chip.fresh-aging { background:#332a12; color:#ffca66; }
+  .chip.fresh-stale { background:#26272c; color:#cfcfd4; }
   .meta { color:var(--mut); font-size:12px; margin-top:2px; }
   label { display:block; font-size:12px; color:var(--mut); margin:10px 0 4px; }
   input[type=text], input[type=password], select, textarea { width:100%; background:#131417; color:#f2f2f4; border:1px solid var(--line); border-radius:10px; padding:10px; font:inherit; font-size:14px; }
@@ -210,6 +213,11 @@
         <span id="keepFramesLabel">Save every analysed frame to the device</span>
       </label>
       <div class="meta" id="keepFramesNote"></div>
+      <label id="keepTracksSetting" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#f2f2f4">
+        <input type="checkbox" id="setKeepTracks" style="width:18px;height:18px;accent-color:var(--accent)">
+        <span id="keepTracksLabel">Keep GPS tracks of my drives</span>
+      </label>
+      <div class="meta" id="keepTracksNote"></div>
       <div class="meta" id="settingsNote" style="margin-top:10px">Reports stay on this phone. Nothing is sent to any authority.</div>
       <div class="meta" id="independentNote" style="margin-top:10px"></div>
       <div class="policy-links">
@@ -259,7 +267,7 @@ const DASHCAM_CAPTURE_SOURCE = "dashcam";
 const CAPTURE_SOURCE_KEY = "drive_capture_source";
 const LEGACY_SETTINGS_KEYS = [
   "sender_name", "detection_model", "image_detail", "debug_mode",
-  "keep_frames", "record_video", "drive_limit_minutes", "app_lang", "data_notice_version",
+  "keep_frames", "keep_tracks", "record_video", "drive_limit_minutes", "app_lang", "data_notice_version",
   CAPTURE_SOURCE_KEY,
 ];
 const normaliseDriveCaptureSource = (value) => value === DASHCAM_CAPTURE_SOURCE
@@ -406,6 +414,14 @@ const I18N = {
     footage_line: "Footage: {mb} MB · {segments} clips",
     analyse_btn: "Analyse footage",
     delete_footage: "Delete footage",
+    fresh_fresh: "Fresh (up to 7 days)",
+    fresh_aging: "Aging (8–30 days)",
+    fresh_stale: "Stale (over 30 days)",
+    dash_freshness: "Freshness: {fresh} fresh · {aging} aging · {stale} stale",
+    delete_track: "Delete GPS track",
+    confirm_delete_track: "Delete the GPS track of this drive? The potholes and their coordinates stay.",
+    keep_tracks_label: "Keep GPS tracks of my drives",
+    keep_tracks_note: "Raw GPS tracks are deleted automatically after 30 days. Turn this off to stop saving them; pothole reports keep their own coordinates either way.",
     analysing: "Frame {i} of {n} · {found} new",
     analyse_done: "Footage analysed: {found} new potholes from {n} frames.",
     analyse_none: "No footage stored for this drive.",
@@ -590,6 +606,14 @@ const I18N = {
     footage_line: "Video: {mb} MB · {segments} ta bo'lak",
     analyse_btn: "Videoni tahlil qilish",
     delete_footage: "Videoni o'chirish",
+    fresh_fresh: "Yangi (7 kungacha)",
+    fresh_aging: "Eskirmoqda (8–30 kun)",
+    fresh_stale: "Eski (30 kundan ortiq)",
+    dash_freshness: "Yangiligi: {fresh} yangi · {aging} eskirmoqda · {stale} eski",
+    delete_track: "GPS izini o'chirish",
+    confirm_delete_track: "Bu safarning GPS izi o'chirilsinmi? Chuqurlar va ularning koordinatalari qoladi.",
+    keep_tracks_label: "Haydash GPS izlarini saqlash",
+    keep_tracks_note: "Xom GPS izlari 30 kundan keyin avtomatik o'chiriladi. Saqlashni to'xtatish uchun buni o'chiring; chuqur hisobotlari har holda o'z koordinatalarini saqlaydi.",
     analysing: "{n} ta kadrdan {i}-si · {found} ta yangi",
     analyse_done: "Video tahlil qilindi: {n} ta kadrdan {found} ta yangi chuqur.",
     analyse_none: "Bu safar uchun video saqlanmagan.",
@@ -748,6 +772,18 @@ function conditionChip(report) {
   return `<span class="chip ${css}">${escapeHtml(label)}</span>`;
 }
 
+function freshnessOf(report, nowS = Date.now() / 1000) {
+  if (!report || physicalCondition(report) === "fixed") return "";
+  if (!["draft", "queued", "sent"].includes(report.status)) return "";
+  const seen = Number.isFinite(report.last_seen_at) ? report.last_seen_at : report.created_at;
+  const value = StandaloneAPI.__pure.freshnessFor(Number(seen), nowS);
+  return value === "unknown" ? "" : value;
+}
+function freshnessChip(report) {
+  const value = freshnessOf(report);
+  return value ? `<span class="chip fresh-${value}">${escapeHtml(t("fresh_" + value))}</span>` : "";
+}
+
 function setDashcamRtspFeedback(message = "", invalid = false) {
   const input = $("setDashcamRtspUrl");
   const note = $("dashcamRtspNote");
@@ -806,6 +842,8 @@ function applyLang() {
   $("driveLimitNote").textContent = t("drive_limit_note");
   $("keepFramesLabel").textContent = t("keep_frames_label");
   $("keepFramesNote").innerHTML = t("keep_frames_note");
+  $("keepTracksLabel").textContent = t("keep_tracks_label");
+  $("keepTracksNote").textContent = t("keep_tracks_note");
   $("settingsNote").textContent = t("settings_note");
   $("independentNote").textContent = t("independent_note");
   $("privacyTitle").textContent = t("privacy_title");
@@ -1015,7 +1053,7 @@ async function renderReports() {
     <div class="card row" data-id="${escapeAttr(r.id)}" style="cursor:pointer">
       <img class="thumb" src="${safePhotoSrc(photoSrc(r))}" alt="" loading="lazy" decoding="async">
       <div style="min-width:0">
-        <div>${chip(r.status)} ${conditionChip(r)} ${damageType(r) !== "none"
+        <div>${chip(r.status)} ${conditionChip(r)} ${freshnessChip(r)} ${damageType(r) !== "none"
           ? `<span class="chip" style="background:#26272c;color:#cfcfd4">${escapeHtml(tDamage(r))}</span>` : ""} ${r.size ? `<span class="chip" style="background:#26272c;color:#cfcfd4">${escapeHtml(tSize(r.size))}</span>` : ""}</div>
         <div class="meta">${escapeHtml(fmtDate(r.created_at))}${r.address ? " · " + escapeHtml(String(r.address).split(",").slice(0, 2).join(", ")) : ""}</div>
       </div>
@@ -1062,16 +1100,23 @@ async function renderReports() {
     (!g.driveId || expandedDrives.has(String(g.driveId))) ? g.items : []);
   await ensureThumbs(willShow);
   releaseThumbs(new Set(reports.map((r) => r.id)));
-  const footageRowHtml = (driveId, fo, open) => !fo ? "" :
-    `<div class="card" data-footagerow="${driveId}" style="padding:10px 12px;${open ? "" : "display:none"}">
-      <div class="meta">${t("footage_line", { mb: (fo.bytes / 1048576).toFixed(0), segments: fo.segments })}${fo.native && fo.keyframes ? ` · ${fo.keyframes} saved frame${fo.keyframes === 1 ? "" : "s"}` : ""}</div>
+  const footageRowHtml = (driveId, fo, open, rec) => {
+    const hasTrack = !!(rec && Array.isArray(rec.gps_track) && rec.gps_track.length);
+    if (!fo && !hasTrack) return "";
+    const trackButton = hasTrack
+      ? `<button class="ghost danger" data-deltrack="${driveId}">${t("delete_track")}</button>` : "";
+    const footagePart = !fo ? "" : `<div class="meta">${t("footage_line", { mb: (fo.bytes / 1048576).toFixed(0), segments: fo.segments })}${fo.native && fo.keyframes ? ` · ${fo.keyframes} saved frame${fo.keyframes === 1 ? "" : "s"}` : ""}</div>
       <div class="btn-row" style="margin-top:8px">
         ${fo.native
           ? `${fo.pending_keyframes && !(drive && drive.native && String(drive.sessionId) === String(driveId)) ? `<button class="ghost" data-analysenative="${driveId}">Analyse saved frames</button>` : ""}${fo.segments ? `<button class="ghost" data-sharenative="${driveId}">${t("share_evidence_btn")}</button>` : ""}`
           : `<button class="ghost" data-analyse="${driveId}">${t("analyse_btn")}</button>`}
         <button class="ghost danger" data-delfootage="${driveId}">${t("delete_footage")}</button>
-      </div>
+      </div>`;
+    return `<div class="card" data-footagerow="${driveId}" style="padding:10px 12px;${open ? "" : "display:none"}">
+      ${footagePart}
+      ${trackButton ? `<div class="btn-row" style="margin-top:8px">${trackButton}</div>` : ""}
     </div>`;
+  };
   list.innerHTML = groups.map((g) => {
     const cards = expandedDrives.has(String(g.driveId)) || !g.driveId
       ? g.items.map(cardHtml).join("") : "";
@@ -1097,7 +1142,7 @@ async function renderReports() {
           checked: rec.checked, video: videoTxt })
       : t("drive_group_partial", { date: fmtDate(start), found: foundTxt, kept: g.items.length });
     const open = expandedDrives.has(String(g.driveId));
-    const footageRow = footageRowHtml(g.driveId, fo, open);
+    const footageRow = footageRowHtml(g.driveId, fo, open, rec);
     return `<div class="group-head ${open ? "open" : ""}" data-drive="${g.driveId}">
         <span class="caret">&#9656;</span><span class="meta" style="font-weight:600;color:#f2f2f4">${label}</span>
       </div>` + footageRow
@@ -1150,6 +1195,23 @@ async function renderReports() {
       ev.stopPropagation();
       try { await nativeDrivePlugin().shareFootage({ sessionId: el.dataset.sharenative }); }
       catch (e) { alert(e.message || e); }
+    };
+  }
+  for (const el of list.querySelectorAll("[data-deltrack]")) {
+    el.onclick = async (ev) => {
+      ev.stopPropagation();
+      if (!confirm(t("confirm_delete_track"))) return;
+      try {
+        const id = el.dataset.deltrack;
+        const plugin = nativeDrivePlugin();
+        if (driveById[id] && driveById[id].native && plugin && plugin.deleteDriveTrack) {
+          await plugin.deleteDriveTrack({ sessionId: id });
+          invalidateNativeDriveHistory();
+        } else {
+          await api(`/api/drives/${encodeURIComponent(id)}/track`, { method: "DELETE" });
+        }
+      } catch (e) { alert(e.message); }
+      loadReports();
     };
   }
   for (const el of list.querySelectorAll("[data-delfootage]")) {
@@ -1460,7 +1522,7 @@ function openDetail(r, list) {
         <div class="verdict" style="color:${fixed ? "var(--ok)" : "var(--accent)"}">
           ${escapeHtml(detectionVerdict(r))}
         </div>
-        <div>${chip(r.status)} ${conditionChip(r)}</div>
+        <div>${chip(r.status)} ${conditionChip(r)} ${freshnessChip(r)}</div>
         ${place ? `<div class="meta">&#128205; ${escapeHtml(place)}${Number.isFinite(r.gps_accuracy) ? ` (±${Math.round(r.gps_accuracy)} m)` : ""}</div>` : `<div class="meta" style="color:var(--bad)">&#9888; ${escapeHtml(t("no_location"))}</div>`}
         ${manual ? `<div class="meta">${escapeHtml(t("manual_help"))}</div>` : `<div class="meta">${escapeHtml(r.description || "")}</div>`}
         ${repairEvidenceHtml(r)}
@@ -4647,6 +4709,8 @@ async function openDash() {
 
   const days = new Set(holes.map((r) => new Date(r.created_at * 1000).toDateString())).size;
   const first = holes.length ? fmtDate(Math.min(...holes.map((r) => r.created_at))) : "";
+  const freshCounts = { fresh: 0, aging: 0, stale: 0 };
+  for (const r of holes) { const f = freshnessOf(r); if (f) freshCounts[f]++; }
   $("dashTitle").textContent = t("dash_title");
   const dayTxt = days === 1 ? t("day_one") : t("day_many", { n: days });
   $("dashRange").innerHTML = holes.length ? t("dash_range", { days: dayTxt, first }) : t("dash_empty");
@@ -4662,6 +4726,7 @@ async function openDash() {
     tile(tripValue(trip.moving_time_s, 1 / 60), t("trip_moving")) +
     tile(tripValue(trip.avg_moving_speed_mps, 3.6), t("trip_average")) +
     tile(tripValue(trip.max_interval_speed_mps, 3.6), t("trip_peak")) +
+    `<div class="meta" data-freshness-summary style="flex:1 1 100%">${escapeHtml(t("dash_freshness", freshCounts))}</div>` +
     `<div class="meta" data-trip-coverage="${trip.coverage}">${escapeHtml(t("trip_limits"))}
       ${trip.coverage === "partial" ? escapeHtml(t("trip_partial")) : ""}</div>`;
 
@@ -4890,6 +4955,7 @@ window.openSettings = (showWelcome = false, requireCompletion = false) => {
   updateCaptureSourceSettings();
   $("setDebug").checked = localStorage.getItem("debug_mode") === "1";
   $("setKeepFrames").checked = localStorage.getItem("keep_frames") === "1";
+  $("setKeepTracks").checked = localStorage.getItem("keep_tracks") !== "0";
   $("setRecord").checked = localStorage.getItem("record_video") === "1"; // explicit opt-in
   $("setDriveLimit").value = String(driveLimitMinutes());
   $("setLang").value = LANG;
@@ -4960,6 +5026,9 @@ $("setSave").onclick = async () => {
     localStorage.setItem(CAPTURE_SOURCE_KEY, selectedCaptureSource);
     localStorage.setItem("debug_mode", $("setDebug").checked ? "1" : "0");
     localStorage.setItem("keep_frames", $("setKeepFrames").checked ? "1" : "0");
+    const keepTracksChoice = $("setKeepTracks").checked;
+    localStorage.setItem("keep_tracks", keepTracksChoice ? "1" : "0");
+    if (plugin && plugin.setTrackKeeping) await plugin.setTrackKeeping({ enabled: keepTracksChoice });
     localStorage.setItem("record_video", recordVideo ? "1" : "0");
     localStorage.setItem("drive_limit_minutes", String(driveLimit));
     localStorage.setItem("app_lang", newLang);
@@ -5080,6 +5149,15 @@ $("wipeBtn").onclick = async () => {
 };
 
 applyLang();
+try {
+  // Keep the native track-retention preference in step with this page's setting, including
+  // after "Delete all app data" resets the page to its default (keep for 30 days).
+  const trackPlugin = nativeDrivePlugin();
+  if (trackPlugin && trackPlugin.setTrackKeeping) {
+    Promise.resolve(trackPlugin.setTrackKeeping({ enabled: localStorage.getItem("keep_tracks") !== "0" }))
+      .catch(() => {});
+  }
+} catch (_) {}
 if (initialSettingsRequired) openSettings(true, true);
 else show("home");
 

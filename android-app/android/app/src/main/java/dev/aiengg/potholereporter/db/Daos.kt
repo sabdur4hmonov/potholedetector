@@ -276,6 +276,17 @@ interface SessionDao {
 
     @Query("UPDATE sessions SET status = 'interrupted', endedAt = :endedAt WHERE status IN ('active', 'paused') AND id != :activeSessionId")
     suspend fun markOtherStaleInterrupted(activeSessionId: String, endedAt: Long)
+
+    // GPS-track retention. Only finished sessions are touched; a running drive keeps its
+    // in-memory track until it ends and is then subject to the same rules.
+    @Query("UPDATE sessions SET gpsTrackJson = '[]' WHERE id = :id AND status IN ('stopped', 'interrupted')")
+    suspend fun clearTrack(id: String): Int
+
+    @Query("UPDATE sessions SET gpsTrackJson = '[]' WHERE gpsTrackJson != '[]' AND status IN ('stopped', 'interrupted') AND COALESCE(endedAt, startedAt) < :cutoffSeconds")
+    suspend fun purgeTracksBefore(cutoffSeconds: Long): Int
+
+    @Query("UPDATE sessions SET gpsTrackJson = '[]' WHERE gpsTrackJson != '[]' AND status IN ('stopped', 'interrupted')")
+    suspend fun purgeFinishedTracks(): Int
 }
 
 @Dao

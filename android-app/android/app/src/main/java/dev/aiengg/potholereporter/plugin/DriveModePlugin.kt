@@ -37,6 +37,7 @@ import dev.aiengg.potholereporter.drive.NativeReportEvidenceStorage
 import dev.aiengg.potholereporter.drive.NativeRollingBurstWindow
 import dev.aiengg.potholereporter.drive.NativeStoredImagePolicy
 import dev.aiengg.potholereporter.drive.NotificationHelper
+import dev.aiengg.potholereporter.drive.TrackRetentionPolicy
 import dev.aiengg.potholereporter.security.NativeSecret
 import dev.aiengg.potholereporter.media.AndroidAppMediaCleanup
 import dev.aiengg.potholereporter.media.AppMediaOperations
@@ -1279,11 +1280,59 @@ class DriveModePlugin : Plugin() {
     }
 
     @PluginMethod
+    fun setTrackKeeping(call: PluginCall) {
+        val enabled = call.getBoolean("enabled") ?: true
+        TrackRetentionPolicy.setKeepTracks(context, enabled)
+        if (enabled) {
+            call.resolve()
+            return
+        }
+        pluginScope.launch {
+            try {
+                PotholeDatabase.getDatabase(context).sessionDao().purgeFinishedTracks()
+                call.resolve()
+            } catch (e: Exception) {
+                call.reject("Failed to delete saved GPS tracks: ${e.message}")
+            }
+        }
+    }
+
+    @PluginMethod
+    fun deleteDriveTrack(call: PluginCall) {
+        val requestedSession = call.getString("sessionId")
+        if (requestedSession.isNullOrBlank()) {
+            call.reject("A drive session is required")
+            return
+        }
+        val status = DriveForegroundService.status()
+        if ((status.isRunning || status.isStopping) && status.sessionId == requestedSession) {
+            call.reject("Stop this drive before deleting its GPS track")
+            return
+        }
+        pluginScope.launch {
+            try {
+                PotholeDatabase.getDatabase(context).sessionDao().clearTrack(requestedSession)
+                call.resolve()
+            } catch (e: Exception) {
+                call.reject("Failed to delete the GPS track: ${e.message}")
+            }
+        }
+    }
+
+    @PluginMethod
     fun getDrives(call: PluginCall) {
         pluginScope.launch {
             try {
                 val db = PotholeDatabase.getDatabase(context)
                 reconcileNativeStateOnce(db)
+                // Raw GPS tracks live for 30 days at most, and not at all after an opt-out.
+                if (TrackRetentionPolicy.keepTracks(context)) {
+                    db.sessionDao().purgeTracksBefore(
+                        TrackRetentionPolicy.cutoffSeconds(System.currentTimeMillis() / 1000)
+                    )
+                } else {
+                    db.sessionDao().purgeFinishedTracks()
+                }
                 val sessions = db.sessionDao().getAllSessions()
                 val footageBySession = db.footageDao().getAllSegments().groupBy { it.sessionId }
                 val keyframesBySession = db.driveKeyframeDao().getSummaries()

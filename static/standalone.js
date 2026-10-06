@@ -1505,7 +1505,39 @@ This is a strict before/after verification, not ordinary pothole detection:
   const putReport = (r) => op("readwrite", (s) => s.put(r));
   const addReport = (r) => op("readwrite", (s) => s.add(r));
   const delReport = (id) => op("readwrite", (s) => s.delete(Number(id)));
-  const allDrives = () => op("readonly", (s) => s.getAll(), "drives");
+  // Raw GPS tracks are personal movement data: keep them 30 days, drop them earlier when the
+  // user opts out, and let any single drive's track be deleted on request. Pothole reports
+  // keep their own coordinates; only the per-drive track and its trip statistics go.
+  // FRESH-001: a saved pothole is fresh for 7 days after it was last seen, aging through
+  // day 30 and stale after that. Freshness only describes how recently we saw it; stale
+  // potholes are never deleted, and "fixed" still needs separate before/after evidence.
+  const FRESH_THROUGH_S = 7 * 86400;
+  const STALE_AFTER_S = 30 * 86400;
+  function freshnessFor(observedAtS, nowS) {
+    if (!Number.isFinite(observedAtS) || observedAtS <= 0 || !Number.isFinite(nowS)
+        || observedAtS > nowS + 300) return "unknown";
+    const age = nowS - observedAtS;
+    return age <= FRESH_THROUGH_S ? "fresh" : age <= STALE_AFTER_S ? "aging" : "stale";
+  }
+  const TRACK_RETENTION_S = 30 * 86400;
+  const keepTracks = () => localStorage.getItem("keep_tracks") !== "0";
+  function trackExpired(drive, nowS, keep = true) {
+    if (!drive || !Array.isArray(drive.gps_track) || !drive.gps_track.length) return false;
+    if (!keep) return true;
+    const ended = Number(drive.ended_at || drive.started_at || 0);
+    return Number.isFinite(ended) && ended > 0 && nowS - ended > TRACK_RETENTION_S;
+  }
+  async function pruneExpiredTracks(nowS = Date.now() / 1000) {
+    const keep = keepTracks();
+    const drives = await op("readonly", (s) => s.getAll(), "drives");
+    for (const d of drives) {
+      if (trackExpired(d, nowS, keep)) await putDrive({ ...d, gps_track: [], track_deleted_at: nowS });
+    }
+  }
+  const allDrives = async () => {
+    await pruneExpiredTracks();
+    return op("readonly", (s) => s.getAll(), "drives");
+  };
   const getDrive = (id) => op("readonly", (s) => s.get(String(id)), "drives");
   const putFootage = (seg) => op("readwrite", (s) => s.put(seg), "footage");
   const footageFor = (driveId) => op("readonly", (s) => s.index("by_drive").getAll(String(driveId)), "footage");
@@ -1850,13 +1882,14 @@ This is a strict before/after verification, not ordinary pothole detection:
         const prepared = new File([normalized], file.name || "photo.jpg", {
           type: "image/jpeg", lastModified: file.lastModified,
         });
-        const pending = original(prepared, captureMeta);
-        const photo = document.getElementById("progressPhoto");
-        if (photo && photo.src.startsWith("blob:")) preview = photo.src;
-        return await pending;
+        return await original(prepared, captureMeta);
       } catch (error) {
         alert(error.message || imageDecodeError().message);
       } finally {
+        // The original sets the preview only after its consent and confirmation prompts,
+        // so look for it now rather than right after starting it.
+        const shown = document.getElementById("progressPhoto");
+        if (shown && shown.src.startsWith("blob:")) preview = shown.src;
         if (preview) {
           const photo = document.getElementById("progressPhoto");
           if (photo && photo.src === preview) photo.removeAttribute("src");
@@ -2203,10 +2236,7 @@ This is a strict before/after verification, not ordinary pothole detection:
     const current = fullViews.filter(Boolean);
     const images = [{ url: oldEvidence }, { url: contextDataUrl },
       ...current.map((url) => ({ url }))];
-    const language = LANG() === "kn"
-      ? "\n- Write description in formal Kannada."
-      : LANG() === "mr" ? "\n- Write description in formal Marathi."
-        : LANG() === "bn" ? "\n- Write description in formal Bengali." : "";
+    const language = LANG() === "uz" ? "\n- Write description in clear Uzbek (Latin script)." : "";
     return analyzeImage(images, REPAIR_PROMPT + language, "road_repair_verification",
       REPAIR_SCHEMA, model, null, false, detail);
   }
@@ -3101,7 +3131,13 @@ This is a strict before/after verification, not ordinary pothole detection:
       await putDrive({ id: String(d.id), started_at: d.started_at || null,
                        ended_at: Date.now() / 1000, checked: d.checked | 0, found: d.found | 0,
                        already: Math.max(d.already | 0, alreadyIds.length), already_ids: alreadyIds,
-                       gps_track: Array.isArray(d.gps_track) ? d.gps_track : [] });
+                       gps_track: keepTracks() && Array.isArray(d.gps_track) ? d.gps_track : [] });
+      return { ok: true };
+    }
+    if ((m = path.match(/^\/api\/drives\/([^/]+)\/track$/)) && method === "DELETE") {
+      const id = decodeURIComponent(m[1]);
+      const existing = await getDrive(id);
+      if (existing) await putDrive({ ...existing, gps_track: [], track_deleted_at: Date.now() / 1000 });
       return { ok: true };
     }
     if ((m = path.match(/^\/api\/drives\/([^/]+)\/analysis$/)) && method === "POST") {
@@ -3231,7 +3267,7 @@ This is a strict before/after verification, not ordinary pothole detection:
     buildDetectionRequest, ASSESS_SCHEMA, DETECT_PROMPT, PROMPT_VERSION,
     PHOTO_ONLY_PROMPT_SUFFIX, PHOTO_PROMPT_VERSION, REPAIR_SCHEMA, REPAIR_PROMPT,
     REPAIR_PROMPT_VERSION, REPAIR_SCHEMA_VERSION, clearAbsenceForRepair, repairConditionFor,
-    SCHEMA_VERSION, MAX_DETECTION_IMAGES, MAX_REPAIR_IMAGES, MAX_PREPARED_FRAME_DIMENSION,
+    SCHEMA_VERSION, TRACK_RETENTION_S, trackExpired, freshnessFor, FRESH_THROUGH_S, STALE_AFTER_S, MAX_DETECTION_IMAGES, MAX_REPAIR_IMAGES, MAX_PREPARED_FRAME_DIMENSION,
     IMAGE_DECODE_POLICY, checkedImageDimensions, inspectImageHeader, readImageBounds,
     decodeBoundedImage, toDataUrl, averageLuminance, detectionEnhancementPlan,
     applyDetectionEnhancement, distMeters, roadEventMatch, sameRoadEvent, repairTargetMatch,
