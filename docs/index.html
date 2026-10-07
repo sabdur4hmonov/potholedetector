@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-wSSew9ITQRzeWFNNU/BBkO2DLy8r7NbpdFJfZFPrKXo='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-ZPFdF1DuEfw+RlYjytEJ3UsjZCk7zywIstVg0DTCNMA='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -89,6 +89,9 @@
       <div class="meta" id="alertsStatus"></div>
       <div class="verdict hidden" id="alertsBanner" role="alert" style="margin:8px 0 0;padding:8px 10px;border-radius:10px;font-size:17px;background:rgba(200,110,0,.92);color:#fff"></div>
     </div>
+    <div id="communityHome" class="hidden">
+      <button class="ghost" id="routeBtn" style="width:100%;margin-bottom:10px">&#129517; &nbsp;Route</button>
+    </div>
     <button class="ghost" id="captureBtn" style="width:100%;margin-bottom:10px">&#128247; &nbsp;Photo</button>
     <button class="ghost" id="dashBtn" style="width:100%;margin-bottom:14px">&#128506;&#65039; &nbsp;Contribution</button>
     <input type="file" id="fileInput" accept="image/*" capture="environment" class="hidden">
@@ -143,12 +146,37 @@
       <div id="dashStats" class="row" style="flex-wrap:wrap;gap:8px;margin-top:12px"></div>
     </div>
     <div class="card" id="dashTrips"></div>
+    <div class="card hidden" id="dashRanking">
+      <div class="verdict" id="rankTitle" style="font-size:18px;margin:0 0 6px">Ranking</div>
+      <div class="btn-row" id="rankLevels">
+        <button class="ghost" data-ranklevel="village" id="rankVillage">Village</button>
+        <button class="ghost" data-ranklevel="district" id="rankDistrict">District</button>
+        <button class="ghost" data-ranklevel="region" id="rankRegion">Region</button>
+        <button class="ghost" data-ranklevel="country" id="rankCountry">Uzbekistan</button>
+      </div>
+      <div id="rankList" class="meta"></div>
+    </div>
     <div class="card" style="padding:0;overflow:hidden">
       <div id="map" style="height:46vh;background:#0c0d0f"></div>
       <div class="meta" id="mapNote" style="padding:8px 12px"></div>
     </div>
     <div class="card" id="dashBreak"></div>
     <div class="btn-row"><button class="ghost" id="dashBack">Back</button></div>
+  </div>
+
+  <div id="route" class="hidden">
+    <div class="card">
+      <div class="verdict" id="routeTitle" style="font-size:18px;margin:0 0 6px">Route</div>
+      <input id="routeQuery" type="search" autocomplete="off" placeholder="Where to?">
+      <div class="btn-row"><button class="send" id="routeSearch">Search</button></div>
+      <div id="routeResults"></div>
+      <div class="meta" id="routeSummary"></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div id="routeMap" style="height:52vh;background:#0c0d0f"></div>
+    </div>
+    <div class="meta" id="routeNote"></div>
+    <div class="btn-row"><button class="ghost" id="routeBack">Back</button></div>
   </div>
 
   <div id="review" class="hidden">
@@ -245,6 +273,45 @@
         <button class="ghost danger" id="cameraClearBtn" type="button">Remove list</button>
       </div>
       <div class="meta" id="camerasNote"></div>
+      <div id="communitySettings" class="hidden">
+        <label id="commTitle">Community (optional)</label>
+        <input id="commName" type="text" maxlength="24" autocomplete="nickname" placeholder="Name shown in rankings">
+        <select id="commRegion">
+          <option value="andijon">Andijon viloyati</option>
+          <option value="buxoro">Buxoro viloyati</option>
+          <option value="fargona">Farg'ona viloyati</option>
+          <option value="jizzax">Jizzax viloyati</option>
+          <option value="xorazm">Xorazm viloyati</option>
+          <option value="namangan">Namangan viloyati</option>
+          <option value="navoiy">Navoiy viloyati</option>
+          <option value="qashqadaryo">Qashqadaryo viloyati</option>
+          <option value="qoraqalpogiston">Qoraqalpog'iston Respublikasi</option>
+          <option value="samarqand">Samarqand viloyati</option>
+          <option value="sirdaryo">Sirdaryo viloyati</option>
+          <option value="surxondaryo">Surxondaryo viloyati</option>
+          <option value="toshkent_viloyati">Toshkent viloyati</option>
+          <option value="toshkent_shahri">Toshkent shahri</option>
+        </select>
+        <input id="commDistrict" type="text" maxlength="60" placeholder="District">
+        <input id="commVillage" type="text" maxlength="60" placeholder="Village or mahalla">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#f2f2f4">
+          <input type="checkbox" id="commRank" style="width:18px;height:18px;accent-color:var(--accent)">
+          <span id="commRankLabel">Take part in rankings (trip totals only)</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#f2f2f4">
+          <input type="checkbox" id="commSharePotholes" style="width:18px;height:18px;accent-color:var(--accent)">
+          <span id="commSharePotholesLabel">Share pothole locations on the common map (no photos)</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#f2f2f4">
+          <input type="checkbox" id="commShareSpeeds" style="width:18px;height:18px;accent-color:var(--accent)">
+          <span id="commShareSpeedsLabel">Share anonymous speeds to detect traffic jams</span>
+        </label>
+        <div class="btn-row">
+          <button class="send" id="commSave" type="button">Save profile</button>
+          <button class="ghost danger" id="commDelete" type="button">Delete my online data</button>
+        </div>
+        <div class="meta" id="commNote"></div>
+      </div>
       <label id="keepFramesSetting" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#f2f2f4">
         <input type="checkbox" id="setKeepFrames" style="width:18px;height:18px;accent-color:var(--accent)">
         <span id="keepFramesLabel">Save every analysed frame to the device</span>
@@ -446,6 +513,33 @@ const I18N = {
     stat_frames: "pothole checks",
     stat_drives: "drives",
     trips_title: "My trips",
+    route_btn: "&#129517; &nbsp;Route",
+    route_title: "Route",
+    route_query: "Where to?",
+    route_search: "Search",
+    route_no_results: "Nothing found in Uzbekistan.",
+    route_no_gps: "Your position is unknown. Turn on precise location and try again.",
+    route_summary: "{min} min · {km} km · live traffic on {live}% of the way",
+    route_alt: "Alternative: {min} min · {km} km",
+    route_note: "The route uses OpenStreetMap and live speeds shared anonymously by other drivers. Follow road signs; there is no turn-by-turn voice yet.",
+    rank_title: "Safe-driving ranking (30 days)",
+    rank_village: "Village", rank_district: "District", rank_region: "Region", rank_country: "Uzbekistan",
+    rank_empty: "Nobody here has driven 20 km with a score yet.",
+    rank_me: "You: place {rank} of {total}",
+    rank_me_none: "Drive at least 20 km to appear in the ranking.",
+    comm_title: "Community (optional)",
+    comm_name: "Name shown in rankings",
+    comm_district: "District",
+    comm_village: "Village or mahalla",
+    comm_rank: "Take part in rankings (trip totals only, never the route)",
+    comm_share_potholes: "Share pothole locations on the common map (no photos)",
+    comm_share_speeds: "Share anonymous speeds to detect traffic jams (start and end of trips removed)",
+    comm_save: "Save profile",
+    comm_delete: "Delete my online data",
+    comm_note: "Nothing is sent until you save a profile. Your name and village appear in rankings; no phone number is needed. Delete removes your profile, trips and pothole confirmations from the server.",
+    comm_saved: "Profile saved.",
+    comm_deleted: "Your online data was deleted.",
+    comm_confirm_delete: "Delete your profile, trips and pothole confirmations from the server?",
     trips_empty: "No trip with a GPS track yet. Drive with track keeping on.",
     trip_row: "{km} km · {min} min · {turns} turns · {brakes} hard brakes",
     trip_no_score: "too short to score",
@@ -691,6 +785,33 @@ const I18N = {
     stat_frames: "chuqur tekshiruvlari",
     stat_drives: "safarlar",
     trips_title: "Safarlarim",
+    route_btn: "&#129517; &nbsp;Marshrut",
+    route_title: "Marshrut",
+    route_query: "Qayerga?",
+    route_search: "Qidirish",
+    route_no_results: "O'zbekistonda hech narsa topilmadi.",
+    route_no_gps: "Joylashuvingiz aniqlanmadi. Aniq joylashuvni yoqib, qayta urining.",
+    route_summary: "{min} daqiqa · {km} km · yo'lning {live}% qismida jonli tirbandlik hisobga olindi",
+    route_alt: "Muqobil yo'l: {min} daqiqa · {km} km",
+    route_note: "Marshrut OpenStreetMap va boshqa haydovchilar anonim ulashgan jonli tezliklarga asoslanadi. Yo'l belgilariga amal qiling; burilishlarni ovozli aytish hali yo'q.",
+    rank_title: "Xavfsiz haydash reytingi (30 kun)",
+    rank_village: "Qishloq", rank_district: "Tuman", rank_region: "Viloyat", rank_country: "O'zbekiston",
+    rank_empty: "Bu yerda hali hech kim baholangan 20 km yurmagan.",
+    rank_me: "Siz: {total} tadan {rank}-o'rin",
+    rank_me_none: "Reytingga kirish uchun kamida 20 km yuring.",
+    comm_title: "Hamjamiyat (ixtiyoriy)",
+    comm_name: "Reytingda ko'rinadigan ism",
+    comm_district: "Tuman",
+    comm_village: "Qishloq yoki mahalla",
+    comm_rank: "Reytingda qatnashish (faqat safar yakunlari, marshrut emas)",
+    comm_share_potholes: "Chuqur joylashuvlarini umumiy xaritaga ulashish (rasmsiz)",
+    comm_share_speeds: "Tirbandlikni aniqlash uchun anonim tezliklarni ulashish (safar boshi va oxiri olib tashlanadi)",
+    comm_save: "Profilni saqlash",
+    comm_delete: "Onlayn ma'lumotlarimni o'chirish",
+    comm_note: "Profil saqlanmaguncha hech narsa yuborilmaydi. Ismingiz va qishlog'ingiz reytingda ko'rinadi; telefon raqami kerak emas. O'chirish profilingiz, safarlaringiz va chuqur tasdiqlaringizni serverdan o'chiradi.",
+    comm_saved: "Profil saqlandi.",
+    comm_deleted: "Onlayn ma'lumotlaringiz o'chirildi.",
+    comm_confirm_delete: "Profilingiz, safarlaringiz va chuqur tasdiqlaringiz serverdan o'chirilsinmi?",
     trips_empty: "GPS treki bor safar hali yo'q. Trek saqlash yoqilgan holda yuring.",
     trip_row: "{km} km · {min} daqiqa · {turns} ta burilish · {brakes} ta keskin tormoz",
     trip_no_score: "baholash uchun juda qisqa",
@@ -904,7 +1025,7 @@ function show(screen) {
       (nativePreviewAttached || document.documentElement.classList.contains("native-preview-active"))) {
     stopNativePreview();
   }
-  for (const s of ["home", "progress", "detail", "drive", "settings", "review", "dash", "dataConsent"]) {
+  for (const s of ["home", "progress", "detail", "drive", "settings", "review", "dash", "route", "dataConsent"]) {
     $(s).classList.toggle("hidden", s !== screen);
   }
   window.scrollTo(0, 0);
@@ -1014,6 +1135,26 @@ function applyLang() {
   $("cameraImportBtn").textContent = t("cameras_import");
   $("cameraClearBtn").textContent = t("cameras_clear");
   $("camerasNote").textContent = t("cameras_note");
+  $("routeBtn").innerHTML = t("route_btn");
+  $("routeTitle").textContent = t("route_title");
+  $("routeQuery").placeholder = t("route_query");
+  $("routeSearch").textContent = t("route_search");
+  $("routeNote").textContent = t("route_note");
+  $("routeBack").textContent = t("back");
+  $("rankTitle").textContent = t("rank_title");
+  for (const level of ["village", "district", "region", "country"]) {
+    $("rank" + level[0].toUpperCase() + level.slice(1)).textContent = t("rank_" + level);
+  }
+  $("commTitle").textContent = t("comm_title");
+  $("commName").placeholder = t("comm_name");
+  $("commDistrict").placeholder = t("comm_district");
+  $("commVillage").placeholder = t("comm_village");
+  $("commRankLabel").textContent = t("comm_rank");
+  $("commSharePotholesLabel").textContent = t("comm_share_potholes");
+  $("commShareSpeedsLabel").textContent = t("comm_share_speeds");
+  $("commSave").textContent = t("comm_save");
+  $("commDelete").textContent = t("comm_delete");
+  $("commNote").textContent = t("comm_note");
   setAlertsButton(roadAlertState.running);
   $("keepFramesLabel").textContent = t("keep_frames_label");
   $("keepFramesNote").innerHTML = t("keep_frames_note");
@@ -5115,6 +5256,134 @@ async function shareTripCard(id) {
   await shareZip({ name: `trip-${day}.png`, base64, mime: "image/png" });
 }
 
+// ---------- community: profile, rankings, shared potholes, routing ----------
+let communityState = { configured: false, registered: false };
+let rankLevel = "village";
+let routeMapObj = null;
+
+async function refreshCommunity() {
+  communityState = await api("/api/community/status").catch(() => ({ configured: false }));
+  $("communityHome").classList.toggle("hidden", !communityState.configured);
+  $("communitySettings").classList.toggle("hidden", !communityState.configured);
+  return communityState;
+}
+
+async function refreshCommunitySettings() {
+  const state = await refreshCommunity();
+  if (!state.configured) return;
+  const p = state.profile || {};
+  $("commName").value = p.display_name || "";
+  if (p.region) $("commRegion").value = p.region;
+  $("commDistrict").value = p.district || "";
+  $("commVillage").value = p.village || "";
+  $("commRank").checked = !!state.rank;
+  $("commSharePotholes").checked = !!state.share_potholes;
+  $("commShareSpeeds").checked = !!state.share_speeds;
+  $("commDelete").disabled = !state.registered;
+}
+
+$("commSave").onclick = async () => {
+  try {
+    await api("/api/community/profile", { method: "POST", body: JSON.stringify({
+      display_name: $("commName").value, region: $("commRegion").value,
+      district: $("commDistrict").value, village: $("commVillage").value,
+      rank: $("commRank").checked, share_potholes: $("commSharePotholes").checked,
+      share_speeds: $("commShareSpeeds").checked,
+    }) });
+    alert(t("comm_saved"));
+  } catch (e) { alert(e.message || String(e)); }
+  refreshCommunitySettings();
+};
+$("commDelete").onclick = async () => {
+  if (!confirm(t("comm_confirm_delete"))) return;
+  try { await api("/api/community/profile", { method: "DELETE" }); alert(t("comm_deleted")); }
+  catch (e) { alert(e.message || String(e)); }
+  refreshCommunitySettings();
+};
+
+async function communityAfterDash(drives) {
+  const state = await refreshCommunity();
+  $("dashRanking").classList.toggle("hidden", !(state.configured && state.registered));
+  if (!state.configured || !state.registered) return;
+  // Upload opted-in totals and refresh everyone's confirmed potholes; failures are quiet.
+  await api("/api/community/sync", { method: "POST", body: JSON.stringify({ drives }) }).catch(() => null);
+  renderRanking(rankLevel);
+}
+
+async function renderRanking(level) {
+  rankLevel = level;
+  document.querySelectorAll("[data-ranklevel]").forEach((b) => {
+    b.classList.toggle("send", b.dataset.ranklevel === level);
+    b.classList.toggle("ghost", b.dataset.ranklevel !== level);
+  });
+  const box = $("rankList");
+  try {
+    const data = await api(`/api/community/rankings?level=${encodeURIComponent(level)}`);
+    const rows = (data.entries || []).slice(0, 10).map((e) =>
+      `<div style="display:flex;justify-content:space-between;padding:4px 0"><span>${e.rank}. ${escapeHtml(e.name)}</span>`
+      + `<span>${escapeHtml(e.score)} · ${escapeHtml(e.km)} km</span></div>`);
+    box.innerHTML = (rows.length ? rows.join("") : escapeHtml(t("rank_empty")))
+      + `<div style="margin-top:6px;color:#f2f2f4">${escapeHtml(data.me
+        ? t("rank_me", { rank: data.me.rank, total: data.total }) : t("rank_me_none"))}</div>`;
+  } catch (e) { box.textContent = e.message || String(e); }
+}
+document.querySelectorAll("[data-ranklevel]").forEach((b) => {
+  b.onclick = () => renderRanking(b.dataset.ranklevel);
+});
+
+$("routeBtn").onclick = () => { show("route"); $("routeQuery").focus(); };
+$("routeBack").onclick = () => { show("home"); };
+$("routeSearch").onclick = async () => {
+  const q = $("routeQuery").value.trim();
+  if (!q) return;
+  const box = $("routeResults");
+  box.innerHTML = `<div class="meta">${escapeHtml(t("working"))}</div>`;
+  try {
+    const { places } = await api(`/api/geocode?q=${encodeURIComponent(q)}`);
+    if (!places.length) { box.innerHTML = `<div class="meta">${escapeHtml(t("route_no_results"))}</div>`; return; }
+    box.innerHTML = places.map((p, i) =>
+      `<button class="ghost" data-place="${i}" style="width:100%;margin-top:6px;text-align:left">${escapeHtml(p.name)}</button>`).join("");
+    box.querySelectorAll("[data-place]").forEach((b) => {
+      b.onclick = () => planRoute(places[Number(b.dataset.place)]);
+    });
+  } catch (e) { box.innerHTML = `<div class="meta">${escapeHtml(e.message || String(e))}</div>`; }
+};
+
+async function planRoute(place) {
+  $("routeSummary").textContent = t("working");
+  const here = await getPosition();
+  if (!here) { $("routeSummary").textContent = t("route_no_gps"); return; }
+  try {
+    const result = await api(`/api/community/route?from=${here.lat},${here.lng}&to=${place.lat},${place.lng}`);
+    const [best, ...others] = result.routes;
+    const fmt = (r) => ({ min: Math.max(1, Math.round(r.duration_s / 60)), km: (r.distance_m / 1000).toFixed(1) });
+    $("routeSummary").innerHTML = escapeHtml(t("route_summary", { ...fmt(best), live: Math.round(best.live_share * 100) }))
+      + others.slice(0, 2).map((r) => `<div>${escapeHtml(t("route_alt", fmt(r)))}</div>`).join("");
+    drawRoute(result.routes, here, place);
+  } catch (e) { $("routeSummary").textContent = e.message || String(e); }
+}
+
+function drawRoute(routes, here, place) {
+  if (!window.L) return;
+  if (!routeMapObj) {
+    routeMapObj = L.map($("routeMap"), { attributionControl: true });
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(routeMapObj);
+  }
+  routeMapObj.eachLayer((layer) => { if (layer instanceof L.Polyline || layer instanceof L.CircleMarker) layer.remove(); });
+  routes.slice().reverse().forEach((r, i) => {
+    const isBest = i === routes.length - 1;
+    L.polyline(r.geometry, { color: isBest ? "#ff7a1a" : "#888", weight: isBest ? 6 : 4, opacity: isBest ? 1 : 0.7 })
+      .addTo(routeMapObj);
+  });
+  L.circleMarker([here.lat, here.lng], { radius: 7, color: "#2ecc71" }).addTo(routeMapObj);
+  L.circleMarker([place.lat, place.lng], { radius: 7, color: "#e74c3c" }).addTo(routeMapObj);
+  routeMapObj.fitBounds(L.latLngBounds(routes[0].geometry), { padding: [20, 20] });
+  setTimeout(() => routeMapObj.invalidateSize(), 50);
+}
+refreshCommunity().catch(() => {});
+
 let mapObj = null;
 let mapFallbackTimer = null;
 let mapDrawGeneration = 0;
@@ -5132,6 +5401,7 @@ async function openDash() {
   const mb = footage.reduce((n, f) => n + f.bytes, 0) / 1048576;
   const trip = TripStats.summarizeDrives(drives);
   renderTrips(drives, reports);
+  communityAfterDash(drives);
   const tripValue = (value, scale = 1) => value == null ? escapeHtml(t("trip_unknown"))
     : (value * scale).toFixed(1);
 
@@ -5359,7 +5629,7 @@ window.handleAppBack = () => {
   if (!$("dataConsent").classList.contains("hidden")) { finishDataConsent(false); return true; }
   if (!$("viewer").classList.contains("hidden")) { closeViewer(); return true; }
   if (initialSettingsActive && !$("settings").classList.contains("hidden")) return true;
-  for (const s of ["detail", "settings", "progress", "drive", "review", "dash"]) {
+  for (const s of ["detail", "settings", "progress", "drive", "review", "dash", "route"]) {
     if (!$(s).classList.contains("hidden")) { show("home"); loadReports(); return true; }
   }
   return false;
@@ -5390,6 +5660,7 @@ window.openSettings = (showWelcome = false, requireCompletion = false) => {
   $("setBumpSensitivity").value = bumpSensitivity();
   $("setRoadAlerts").checked = roadAlertsEnabled();
   refreshCameraSummary();
+  refreshCommunitySettings();
   $("setVoiceAlerts").checked = voiceAlertsEnabled();
   $("setLang").value = LANG;
   $("settingsHint").textContent = showWelcome ? t("welcome_hint") : "";

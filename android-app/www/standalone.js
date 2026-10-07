@@ -2755,6 +2755,199 @@ This is a strict before/after verification, not ordinary pothole detection:
     return toDict(rec);
   }
 
+  // Destination search for routing, limited to Uzbekistan, through the same rate-limited
+  // public Nominatim path as street names.
+  async function searchPlaces(query) {
+    const q = String(query || "").trim().slice(0, 120);
+    if (!q) return [];
+    await waitForNominatimSlot();
+    const res = await fetchWithTimeout(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=uz&limit=5`
+      + `&accept-language=${LANG() === "uz" ? "uz,ru,en" : "en"}&q=${encodeURIComponent(q)}`, {}, 12000);
+    if (!res.ok) throw new Error("Place search is unavailable right now.");
+    const rows = await readJson(res);
+    return (Array.isArray(rows) ? rows : []).map((r) => ({
+      name: String(r.display_name || "").slice(0, 160), lat: Number(r.lat), lng: Number(r.lon),
+    })).filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+  }
+
+  // ---------- community server (optional, opt-in) ----------
+  // Empty means this build has no server: every community feature stays hidden and nothing
+  // is sent. tools/set-community-server.py sets it together with the CSP connect-src.
+  const COMMUNITY_SERVER = "";
+  const COMMUNITY_TOKEN_KEY = "community_token";
+  const COMMUNITY_PROFILE_KEY = "community_profile";
+  const COMMUNITY_SENT_TRIPS_KEY = "community_sent_trips";
+  const COMMUNITY_SENT_POTHOLES_KEY = "community_sent_potholes";
+  const COMMUNITY_SENT_SPEEDS_KEY = "community_sent_speeds";
+  const COMMUNITY_HAZARDS_KEY = "community_hazards";
+  const COMMUNITY_TIMEOUT_MS = 15000;
+  const SPEED_UPLOAD_MAX_AGE_S = 45 * 60;
+  const communityEnabled = () => /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(COMMUNITY_SERVER);
+  const optIn = (name) => localStorage.getItem(name) === "1";
+  const readJsonKey = (key, fallback) => {
+    try { const v = JSON.parse(localStorage.getItem(key) || "null"); return v == null ? fallback : v; }
+    catch (e) { return fallback; }
+  };
+  const writeJsonKey = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+
+  async function communityFetch(path, { method = "GET", body = null, auth = true } = {}) {
+    if (!communityEnabled()) throw new Error("This build has no community server.");
+    const headers = {};
+    const token = localStorage.getItem(COMMUNITY_TOKEN_KEY);
+    if (auth && token) headers.Authorization = `Bearer ${token}`;
+    if (body != null) headers["Content-Type"] = "application/json";
+    const res = await fetchWithTimeout(COMMUNITY_SERVER + path, {
+      method, headers, body: body == null ? undefined : JSON.stringify(body),
+    }, COMMUNITY_TIMEOUT_MS);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data && data.error ? String(data.error) : `Server error ${res.status}`);
+    return data;
+  }
+
+  function communityStatus() {
+    return {
+      configured: communityEnabled(),
+      registered: !!localStorage.getItem(COMMUNITY_TOKEN_KEY),
+      profile: readJsonKey(COMMUNITY_PROFILE_KEY, null),
+      rank: optIn("community_rank"), share_potholes: optIn("community_share_potholes"),
+      share_speeds: optIn("community_share_speeds"),
+      shared_hazards: (readJsonKey(COMMUNITY_HAZARDS_KEY, { potholes: [] }).potholes || []).length,
+    };
+  }
+
+  async function communitySaveProfile(body) {
+    const profile = {
+      display_name: String(body.display_name || "").trim(), region: String(body.region || ""),
+      district: String(body.district || "").trim(), village: String(body.village || "").trim(),
+    };
+    const saved = localStorage.getItem(COMMUNITY_TOKEN_KEY)
+      ? await communityFetch("/v1/devices/me", { method: "PATCH", body: profile })
+      : await communityFetch("/v1/devices", { method: "POST", body: profile, auth: false });
+    if (saved.token) localStorage.setItem(COMMUNITY_TOKEN_KEY, saved.token);
+    writeJsonKey(COMMUNITY_PROFILE_KEY, {
+      display_name: saved.display_name, region: saved.region, district: saved.district, village: saved.village,
+    });
+    for (const key of ["rank", "share_potholes", "share_speeds"]) {
+      if (key in body) localStorage.setItem(`community_${key}`, body[key] ? "1" : "0");
+    }
+    return communityStatus();
+  }
+
+  async function communityDelete() {
+    if (localStorage.getItem(COMMUNITY_TOKEN_KEY)) {
+      await communityFetch("/v1/devices/me", { method: "DELETE" });
+    }
+    [COMMUNITY_TOKEN_KEY, COMMUNITY_PROFILE_KEY, COMMUNITY_SENT_TRIPS_KEY, COMMUNITY_SENT_POTHOLES_KEY,
+     COMMUNITY_SENT_SPEEDS_KEY, COMMUNITY_HAZARDS_KEY, "community_rank", "community_share_potholes",
+     "community_share_speeds"].forEach((key) => localStorage.removeItem(key));
+    return communityStatus();
+  }
+
+  // Trip totals only (never the GPS track) for drives with a score.
+  function communityTripPayloads(drives, sent) {
+    const T = window.TripStats;
+    if (!T) return [];
+    return drives.filter((d) => Array.isArray(d.gps_track) && d.gps_track.length > 1 && !sent.includes(String(d.id)))
+      .map((d) => ({ d, a: T.analyseDrive(d.gps_track) }))
+      .filter(({ a }) => a.score != null && a.moving_time_s >= 60)
+      .map(({ d, a }) => ({
+        client_id: String(d.id).replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, 64),
+        started_day: new Date((Number(d.started_at) || 0) * 1000).toISOString().slice(0, 10),
+        distance_m: Math.round(a.distance_m), moving_s: Math.round(a.moving_time_s), score: a.score,
+        hard_brake: a.hard_brake, hard_accel: a.hard_accel, sharp_turn: a.sharp_turn, turns: a.turns,
+      }));
+  }
+
+  // Coordinates and kind of open potholes and unlabelled shocks; no photos, no notes.
+  function communityPotholePayloads(reports, sent) {
+    return roadHazardsFrom(reports)
+      .filter((h) => !sent.includes(h.id) && h.lat >= 37 && h.lat <= 46 && h.lng >= 55 && h.lng <= 74)
+      .map((h) => ({ id: h.id, lat: Number(h.lat.toFixed(6)), lng: Number(h.lng.toFixed(6)), kind: h.kind }));
+  }
+
+  // Anonymous speeds for live traffic: one sample every ~10 s from a drive that ended in
+  // the last 45 minutes, with the first and last 300 m removed like the share card.
+  function communitySpeedPayloads(drives, sent, nowS) {
+    const T = window.TripStats;
+    const out = [];
+    for (const d of drives) {
+      const end = Number(d.ended_at || 0);
+      if (!T || !end || nowS - end > SPEED_UPLOAD_MAX_AGE_S || sent.includes(String(d.id))) continue;
+      const trimmed = T.shareRoute(d.gps_track);
+      if (!trimmed.length) continue;
+      const keep = new Set(trimmed.map(([lat, lng]) => `${lat},${lng}`));
+      const start = Number(d.started_at || 0);
+      let last = -Infinity;
+      for (const p of d.gps_track) {
+        if (!keep.has(`${p[1]},${p[2]}`) || !Number.isFinite(p[4]) || !Number.isFinite(p[5])) continue;
+        if (p[0] - last < 10) continue;
+        last = p[0];
+        const at = Math.round(start + p[0]);
+        if (nowS - at > 3600) continue;
+        out.push({ drive: String(d.id), lat: p[1], lng: p[2], heading: ((p[5] % 360) + 360) % 360,
+                   speed_kmh: Math.min(200, Math.max(0, p[4] * 3.6)), at });
+      }
+    }
+    return out;
+  }
+
+  // `extraDrives` are native Drive sessions the page read from the plugin; they are not in
+  // this IndexedDB. Only their totals, trimmed speeds and nothing else leave the phone.
+  async function communitySync(extraDrives = []) {
+    if (!communityEnabled() || !localStorage.getItem(COMMUNITY_TOKEN_KEY)) return { skipped: true };
+    const result = { trips: 0, potholes: 0, speeds: 0, downloaded: 0 };
+    const [stored, reports] = await Promise.all([allDrives(), allReports()]);
+    const drives = stored.slice();
+    for (const d of Array.isArray(extraDrives) ? extraDrives.slice(0, 200) : []) {
+      if (d && d.id != null && !drives.some((x) => String(x.id) === String(d.id))) drives.push(d);
+    }
+    if (optIn("community_rank")) {
+      const sent = readJsonKey(COMMUNITY_SENT_TRIPS_KEY, []);
+      for (const trip of communityTripPayloads(drives, sent).slice(0, 20)) {
+        await communityFetch("/v1/trips", { method: "POST", body: trip });
+        sent.push(trip.client_id); result.trips++;
+      }
+      writeJsonKey(COMMUNITY_SENT_TRIPS_KEY, sent.slice(-500));
+    }
+    if (optIn("community_share_potholes")) {
+      const sent = readJsonKey(COMMUNITY_SENT_POTHOLES_KEY, []);
+      const points = communityPotholePayloads(reports, sent);
+      for (let i = 0; i < points.length && i < 1000; i += 200) {
+        const page = points.slice(i, i + 200);
+        await communityFetch("/v1/potholes", { method: "POST",
+          body: { points: page.map(({ lat, lng, kind }) => ({ lat, lng, kind })) } });
+        page.forEach((p) => sent.push(p.id)); result.potholes += page.length;
+      }
+      writeJsonKey(COMMUNITY_SENT_POTHOLES_KEY, sent.slice(-5000));
+    }
+    if (optIn("community_share_speeds")) {
+      const sent = readJsonKey(COMMUNITY_SENT_SPEEDS_KEY, []);
+      const samples = communitySpeedPayloads(drives, sent, Date.now() / 1000);
+      for (let i = 0; i < samples.length; i += 500) {
+        await communityFetch("/v1/speeds", { method: "POST",
+          body: { samples: samples.slice(i, i + 500).map(({ drive, ...rest }) => rest) } });
+      }
+      new Set(samples.map((s) => s.drive)).forEach((id) => sent.push(id));
+      result.speeds = samples.length;
+      writeJsonKey(COMMUNITY_SENT_SPEEDS_KEY, sent.slice(-500));
+    }
+    // Everyone's potholes confirmed by at least two drivers, for offline warnings.
+    const shared = await communityFetch("/v1/potholes?min_confirmations=2&since_days=180", { auth: false });
+    writeJsonKey(COMMUNITY_HAZARDS_KEY, { at: Date.now() / 1000, potholes: (shared.potholes || []).slice(0, 20000) });
+    result.downloaded = (shared.potholes || []).length;
+    return result;
+  }
+
+  function communityHazards(ownHazards) {
+    const cached = readJsonKey(COMMUNITY_HAZARDS_KEY, { potholes: [] });
+    const own = ownHazards.filter((h) => h.kind === "pothole" || h.kind === "road_shock");
+    return (cached.potholes || []).filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng)
+      && !own.some((h) => Math.abs(h.lat - p.lat) < 0.00015 && Math.abs(h.lng - p.lng) < 0.0002))
+      .map((p) => ({ id: `s${p.id}`, kind: p.kind === "road_shock" ? "road_shock" : "pothole",
+                     lat: p.lat, lng: p.lng }));
+  }
+
   // ---------- road camera list ("antiradar") ----------
   // An official list of fixed cameras, imported from a JSON pack or a CSV file. It is public
   // road information, kept only on this phone and used for offline warnings.
@@ -3303,7 +3496,31 @@ This is a strict before/after verification, not ordinary pothole detection:
     }
     if (path === "/api/road-hazards" && method === "GET") {
       const cameras = cameraHazards(storedCameraPack());
-      return { hazards: cameras.concat(roadHazardsFrom(await allReports())).slice(0, MAX_ROAD_HAZARDS) };
+      const own = roadHazardsFrom(await allReports());
+      return { hazards: cameras.concat(own, communityHazards(own)).slice(0, MAX_ROAD_HAZARDS) };
+    }
+    if (path.startsWith("/api/geocode") && method === "GET") {
+      return { places: await searchPlaces(new URLSearchParams(path.split("?")[1] || "").get("q")) };
+    }
+    if (path === "/api/community/status" && method === "GET") return communityStatus();
+    if (path === "/api/community/profile" && method === "POST") {
+      return communitySaveProfile(JSON.parse(opts.body || "{}"));
+    }
+    if (path === "/api/community/profile" && method === "DELETE") return communityDelete();
+    if (path === "/api/community/sync" && method === "POST") {
+      return communitySync((JSON.parse(opts.body || "{}").drives) || []);
+    }
+    if (path === "/api/community/regions" && method === "GET") {
+      return communityFetch("/v1/regions", { auth: false });
+    }
+    if (path.startsWith("/api/community/rankings") && method === "GET") {
+      const level = new URLSearchParams(path.split("?")[1] || "").get("level") || "country";
+      return communityFetch(`/v1/rankings?level=${encodeURIComponent(level)}&period_days=30`);
+    }
+    if (path.startsWith("/api/community/route") && method === "GET") {
+      const q = new URLSearchParams(path.split("?")[1] || "");
+      return communityFetch(`/v1/route?from=${encodeURIComponent(q.get("from") || "")}&to=${encodeURIComponent(q.get("to") || "")}`,
+        { auth: false });
     }
     if (path === "/api/cameras" && method === "GET") return cameraSummary(storedCameraPack());
     if (path === "/api/cameras" && method === "DELETE") {
@@ -3571,7 +3788,8 @@ This is a strict before/after verification, not ordinary pothole detection:
     decodeBoundedImage, toDataUrl, averageLuminance, detectionEnhancementPlan,
     applyDetectionEnhancement, distMeters, roadEventMatch, sameRoadEvent, repairTargetMatch,
     findRepairCandidateFromReports, findDuplicateReport, roadHazardsFrom,
-    parseCameraPack, cameraHazards, CAMERA_PACK_SCHEMA, dataUrlToBlob, blobToDataUrl,
+    parseCameraPack, cameraHazards, CAMERA_PACK_SCHEMA, communityTripPayloads,
+    communityPotholePayloads, communitySpeedPayloads, communityHazards, dataUrlToBlob, blobToDataUrl,
     photoToBase64, toDict, listDict, evidenceForReport, fullFramePhoto,
   };
 

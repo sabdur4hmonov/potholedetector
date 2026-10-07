@@ -1,0 +1,5 @@
+# Replace api.example.uz with your domain; Caddy obtains and renews the certificate.
+api.example.uz {
+	encode gzip
+	reverse_proxy community:8080
+}

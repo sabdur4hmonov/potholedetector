@@ -1,0 +1,32 @@
+# One small VPS runs everything: the community API, the OSRM routing engine for
+# Uzbekistan and Caddy for automatic HTTPS. See README.md.
+services:
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+    command: osrm-routed --algorithm mld /data/uzbekistan-latest.osrm
+    volumes:
+      - ./osrm-data:/data:ro
+    restart: unless-stopped
+
+  community:
+    image: python:3.12-slim
+    command: python3 /app/community_server.py --host 0.0.0.0 --port 8080
+    environment:
+      DB_PATH: /data/community.db
+      OSRM_URL: http://osrm:5000
+      ALLOWED_ORIGINS: https://localhost,capacitor://localhost
+      TRUST_PROXY: "1"
+    volumes:
+      - ./community_server.py:/app/community_server.py:ro
+      - ./community-data:/data
+    depends_on: [osrm]
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy-data:/data
+    depends_on: [community]
+    restart: unless-stopped

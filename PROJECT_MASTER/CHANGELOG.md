@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-07 — SERVER-001 + ROUTE-001 community server, rankings, shared map, routing
+
+Added `server/community_server.py` (Python standard library, SQLite): anonymous device profiles (token hash only) with region/district/village, per-trip totals, distance-weighted 30-day rankings at village/district/region/country level, a shared pothole map (coordinates only, merged within 15 m, confirmations counted per driver), anonymous speed cells (no device id, 7-day retention), daily limits, CORS allow-list, trusted-proxy-only client addresses, and `/v1/route`, which asks a self-hosted OSRM for alternatives and re-times every segment with live speeds before choosing the fastest. Deployment: `docker-compose.yml` (OSRM + server + Caddy HTTPS), `osrm-prepare.sh`, `server/README.md`. App: `tools/set-community-server.py` sets the server constant and CSP origin together (empty by default, so nothing changes for current builds); opt-in profile and sharing switches in Settings; sync of trip totals, pothole points and trimmed anonymous speeds; confirmed community potholes join offline warnings; ranking card in the dashboard; Route screen with Nominatim destination search and a Leaflet map.
+
 ## 2026-10-07 — TRIP-003 my trips, safe-driving score, share card
 
 `trip-stats.js` gained `analyseDrive` (moving distance and time, average speed, turns, stops, hard braking ≥ 3.5 m/s², hard starts ≥ 3 m/s², sharp corners ≥ 4 m/s² lateral; a 0–100 score from events per 10 km with green ≥ 85 / yellow ≥ 65 / red bands; no score under 1 km) and `shareRoute` (route sketch with the first and last 300 m removed). The dashboard lists the last 20 trips with a coloured score; Share renders a 1080×1920 story PNG (no map tiles, no top speed) and opens the share sheet. The existing TRIP-001 dashboard totals are unchanged. The score never rewards speed; there is no speed-limit map, so speeding is not scored.
