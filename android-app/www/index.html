@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-FnGcPUndD3u/yU8wHEMPJUDGC5g5labYXNji24ENu6c='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-wSSew9ITQRzeWFNNU/BBkO2DLy8r7NbpdFJfZFPrKXo='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -142,6 +142,7 @@
       <div class="meta" id="dashRange"></div>
       <div id="dashStats" class="row" style="flex-wrap:wrap;gap:8px;margin-top:12px"></div>
     </div>
+    <div class="card" id="dashTrips"></div>
     <div class="card" style="padding:0;overflow:hidden">
       <div id="map" style="height:46vh;background:#0c0d0f"></div>
       <div class="meta" id="mapNote" style="padding:8px 12px"></div>
@@ -444,6 +445,25 @@ const I18N = {
     stat_found: "reports saved",
     stat_frames: "pothole checks",
     stat_drives: "drives",
+    trips_title: "My trips",
+    trips_empty: "No trip with a GPS track yet. Drive with track keeping on.",
+    trip_row: "{km} km · {min} min · {turns} turns · {brakes} hard brakes",
+    trip_no_score: "too short to score",
+    grade_green: "Excellent",
+    grade_yellow: "Good",
+    grade_red: "Be careful",
+    share_trip_btn: "Share",
+    card_title: "My trip",
+    card_score: "Safe-driving score",
+    card_km: "km",
+    card_min: "minutes",
+    card_avg: "avg km/h",
+    card_turns: "turns",
+    card_brakes: "hard brakes",
+    card_accels: "hard starts",
+    card_potholes: "potholes found",
+    card_privacy: "Start and end of the route are hidden",
+    card_rule: "The score rewards smooth, calm driving, never speed.",
     stat_footage: "MB of footage",
     by_type: "By report type",
     by_size: "By pothole size",
@@ -670,6 +690,25 @@ const I18N = {
     stat_found: "hisobot saqlangan",
     stat_frames: "chuqur tekshiruvlari",
     stat_drives: "safarlar",
+    trips_title: "Safarlarim",
+    trips_empty: "GPS treki bor safar hali yo'q. Trek saqlash yoqilgan holda yuring.",
+    trip_row: "{km} km · {min} daqiqa · {turns} ta burilish · {brakes} ta keskin tormoz",
+    trip_no_score: "baholash uchun juda qisqa",
+    grade_green: "A'lo",
+    grade_yellow: "Yaxshi",
+    grade_red: "Ehtiyot bo'ling",
+    share_trip_btn: "Ulashish",
+    card_title: "Mening safarim",
+    card_score: "Xavfsiz haydash bali",
+    card_km: "km",
+    card_min: "daqiqa",
+    card_avg: "o'rtacha km/soat",
+    card_turns: "burilish",
+    card_brakes: "keskin tormoz",
+    card_accels: "keskin tezlanish",
+    card_potholes: "chuqur topildi",
+    card_privacy: "Marshrutning boshi va oxiri yashirilgan",
+    card_rule: "Bal tezlik uchun emas, silliq va xotirjam haydash uchun beriladi.",
     stat_footage: "MB video",
     by_type: "Hisobot turi bo'yicha",
     by_size: "Chuqur o'lchami bo'yicha",
@@ -4972,6 +5011,110 @@ async function analyseFootage(driveId, driveRec) {
 // Leaflet is vendored rather than loaded from a CDN so the app keeps working with no
 // network and ships nothing it does not carry itself. Tiles do need a connection, so
 // when they cannot load the points are still plotted on a plain scatter.
+// ---------- my trips: safe-driving score and share card (TRIP-003) ----------
+const GRADE_COLORS = { green: "#2ecc71", yellow: "#f1c40f", red: "#e74c3c" };
+let tripCards = new Map();
+
+function renderTrips(drives, reports) {
+  const box = $("dashTrips");
+  if (!box) return;
+  const FOUND = ["draft", "queued", "sent"];
+  const trips = drives
+    .filter((d) => Array.isArray(d.gps_track) && d.gps_track.length > 1)
+    .sort((a, b) => Number(b.started_at || 0) - Number(a.started_at || 0))
+    .slice(0, 20);
+  tripCards = new Map();
+  const rows = trips.map((d) => {
+    const id = String(d.id);
+    const a = TripStats.analyseDrive(d.gps_track);
+    const potholes = reports.filter((r) => String(r.drive_id) === id && FOUND.includes(r.status)).length;
+    tripCards.set(id, { drive: d, analysis: a, potholes });
+    const km = a.distance_m == null ? "0.0" : (a.distance_m / 1000).toFixed(1);
+    const min = a.moving_time_s == null ? 0 : Math.round(a.moving_time_s / 60);
+    const chip = a.score == null
+      ? `<span class="meta">${escapeHtml(t("trip_no_score"))}</span>`
+      : `<span class="chip" style="background:${GRADE_COLORS[a.grade]};color:#111">${a.score} · ${escapeHtml(t("grade_" + a.grade))}</span>`;
+    return `<div style="padding:8px 0;border-top:1px solid var(--line)" data-trip="${escapeHtml(id)}">
+      <div class="meta" style="color:#f2f2f4">${escapeHtml(fmtDate(Number(d.started_at) || 0))} ${chip}</div>
+      <div class="meta">${escapeHtml(t("trip_row", { km, min, turns: a.turns, brakes: a.hard_brake }))}</div>
+      ${a.score == null ? "" : `<button class="ghost" data-sharetrip="${escapeHtml(id)}" style="margin-top:6px">${escapeHtml(t("share_trip_btn"))}</button>`}
+    </div>`;
+  });
+  box.innerHTML = `<div class="verdict" style="font-size:18px;margin:0 0 6px">${escapeHtml(t("trips_title"))}</div>`
+    + (rows.length ? rows.join("") : `<div class="meta">${escapeHtml(t("trips_empty"))}</div>`);
+  box.querySelectorAll("[data-sharetrip]").forEach((button) => {
+    button.onclick = () => shareTripCard(button.dataset.sharetrip).catch((e) => alert(e.message || e));
+  });
+}
+
+// A 1080x1920 story-sized picture: numbers, score and a route sketch whose first and
+// last 300 m are cut off. No map tiles, no exact places, no top speed.
+function drawTripCard(entry) {
+  const { drive: d, analysis: a, potholes } = entry;
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080; canvas.height = 1920;
+  const g = canvas.getContext("2d");
+  const grad = g.createLinearGradient(0, 0, 0, 1920);
+  grad.addColorStop(0, "#15161a"); grad.addColorStop(1, "#24140a");
+  g.fillStyle = grad; g.fillRect(0, 0, 1080, 1920);
+  g.fillStyle = "#ff7a1a"; g.font = "bold 64px sans-serif"; g.textAlign = "center";
+  g.fillText(t("card_title"), 540, 160);
+  g.fillStyle = "#d5d5da"; g.font = "36px sans-serif";
+  g.fillText(fmtDate(Number(d.started_at) || 0), 540, 220);
+
+  const color = GRADE_COLORS[a.grade] || "#888";
+  g.lineWidth = 28; g.strokeStyle = "#2a2b30";
+  g.beginPath(); g.arc(540, 520, 210, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = color;
+  g.beginPath(); g.arc(540, 520, 210, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (a.score / 100)); g.stroke();
+  g.fillStyle = "#fff"; g.font = "bold 150px sans-serif"; g.fillText(String(a.score), 540, 575);
+  g.fillStyle = color; g.font = "bold 48px sans-serif"; g.fillText(t("grade_" + a.grade), 540, 800);
+  g.fillStyle = "#d5d5da"; g.font = "36px sans-serif"; g.fillText(t("card_score"), 540, 860);
+
+  const route = TripStats.shareRoute(d.gps_track);
+  if (route.length > 1) {
+    const lats = route.map((p) => p[0]), lngs = route.map((p) => p[1]);
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+    const kx = Math.cos(((minLat + maxLat) / 2) * Math.PI / 180);
+    const w = Math.max((maxLng - minLng) * kx, 1e-9), h = Math.max(maxLat - minLat, 1e-9);
+    const scale = Math.min(820 / w, 420 / h);
+    const ox = 540 - (w * scale) / 2, oy = 1150 + (h * scale) / 2;
+    g.strokeStyle = "#ff7a1a"; g.lineWidth = 10; g.lineJoin = "round"; g.lineCap = "round";
+    g.beginPath();
+    route.forEach(([lat, lng], i) => {
+      const x = ox + (lng - minLng) * kx * scale, y = oy - (lat - minLat) * scale;
+      if (i) g.lineTo(x, y); else g.moveTo(x, y);
+    });
+    g.stroke();
+  }
+
+  const km = ((a.distance_m || 0) / 1000).toFixed(1);
+  const min = String(Math.round((a.moving_time_s || 0) / 60));
+  const avg = a.avg_moving_speed_mps == null ? "--" : String(Math.round(a.avg_moving_speed_mps * 3.6));
+  const tiles = [[km, t("card_km")], [min, t("card_min")], [avg, t("card_avg")],
+    [String(a.turns), t("card_turns")], [String(a.hard_brake), t("card_brakes")],
+    [String(potholes), t("card_potholes")]];
+  tiles.forEach(([value, label], i) => {
+    const x = 200 + (i % 3) * 340, y = 1520 + Math.floor(i / 3) * 170;
+    g.fillStyle = "#fff"; g.font = "bold 64px sans-serif"; g.fillText(value, x, y);
+    g.fillStyle = "#aaa"; g.font = "30px sans-serif"; g.fillText(label, x, y + 46);
+  });
+  g.fillStyle = "#8a8a90"; g.font = "28px sans-serif";
+  g.fillText(t("card_rule"), 540, 1830);
+  g.fillText(`${t("card_privacy")} · Pothole Reporter`, 540, 1875);
+  return canvas;
+}
+
+async function shareTripCard(id) {
+  const entry = tripCards.get(String(id));
+  if (!entry || entry.analysis.score == null) return;
+  const dataUrl = drawTripCard(entry).toDataURL("image/png");
+  const base64 = dataUrl.split(",")[1];
+  const day = new Date((Number(entry.drive.started_at) || 0) * 1000).toISOString().slice(0, 10);
+  await shareZip({ name: `trip-${day}.png`, base64, mime: "image/png" });
+}
+
 let mapObj = null;
 let mapFallbackTimer = null;
 let mapDrawGeneration = 0;
@@ -4988,6 +5131,7 @@ async function openDash() {
   const frames = drives.reduce((n, d) => n + (d.checked || 0), 0) || roadReports.length;
   const mb = footage.reduce((n, f) => n + f.bytes, 0) / 1048576;
   const trip = TripStats.summarizeDrives(drives);
+  renderTrips(drives, reports);
   const tripValue = (value, scale = 1) => value == null ? escapeHtml(t("trip_unknown"))
     : (value * scale).toFixed(1);
 
@@ -5158,7 +5302,7 @@ async function shareZip(zip) {
     // Browser fallback, used by the test harness.
     const bin = atob(zip.base64), arr = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-    const url = URL.createObjectURL(new Blob([arr], { type: "application/zip" }));
+    const url = URL.createObjectURL(new Blob([arr], { type: zip.mime || "application/zip" }));
     const a = document.createElement("a");
     a.href = url; a.download = zip.name; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);

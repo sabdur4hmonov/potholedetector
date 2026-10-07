@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-07 — TRIP-003 my trips, safe-driving score, share card
+
+`trip-stats.js` gained `analyseDrive` (moving distance and time, average speed, turns, stops, hard braking ≥ 3.5 m/s², hard starts ≥ 3 m/s², sharp corners ≥ 4 m/s² lateral; a 0–100 score from events per 10 km with green ≥ 85 / yellow ≥ 65 / red bands; no score under 1 km) and `shareRoute` (route sketch with the first and last 300 m removed). The dashboard lists the last 20 trips with a coloured score; Share renders a 1080×1920 story PNG (no map tiles, no top speed) and opens the share sheet. The existing TRIP-001 dashboard totals are unchanged. The score never rewards speed; there is no speed-limit map, so speeding is not scored.
+
 ## 2026-10-07 — ALERT-002 antiradar
 
 Added a GPS-only `RoadAlertService` (location foreground service, no camera, no network) that announces cameras and saved potholes ahead, with a Stop action in its notification; Drive and antiradar never run together. Camera lists in the `uz-road-cameras-v1` format (JSON or CSV with lat, lng, type and optional id, heading, limit, name; Uzbek/Russian type spellings accepted) are imported in Settings and stored on the phone; `tools/build-camera-pack.py` validates the same format for releases. Over-limit camera warnings add "Tezlikni kamaytiring". Home screen: Antiradar button with speed, counts, GPS state and alert banner. Data request spec: [CAMERA_DATA_FORMAT.md](CAMERA_DATA_FORMAT.md). No real camera data is shipped.
