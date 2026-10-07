@@ -17,13 +17,13 @@ class NativeInferenceEngine(
     private val detail: String = "original",
     private val language: String = "en",
     private val debug: Boolean = false
-) {
+) : DriveDetector {
     private val transport = NativeInferenceTransport(apiKey, model, detail, debug,
         budgetGate = { NativeAiUsageBudget.reserve(context, it) })
     private val evidenceStore = NativeInferenceEvidenceStore(context)
     private val appContext = context.applicationContext
 
-    suspend fun analyzeBurst(
+    override suspend fun analyzeBurst(
         burstFrames: List<BurstFrame>,
         primaryIndex: Int,
         lat: Double?,
@@ -37,7 +37,7 @@ class NativeInferenceEngine(
         heading: Float?,
         allowEarlyReject: Boolean,
         onEvidenceSaved: (String) -> Unit,
-        onDiagnostic: ((DetectionDiagnosticEvent) -> Unit)? = null
+        onDiagnostic: ((DetectionDiagnosticEvent) -> Unit)?
     ): InferenceOutcome = withContext(Dispatchers.IO) {
         runObservedDetection(burstFrames.size, onDiagnostic) { progress ->
         // Capacity is reserved before a paid request and released on every exit path.
@@ -117,7 +117,7 @@ class NativeInferenceEngine(
      * Runs only after a complete usable absence verdict. A separate strict comparison must prove
      * the historical footprint is visible and repaired; ordinary absence never marks it fixed.
      */
-    suspend fun verifyRepair(
+    override suspend fun verifyRepair(
         target: RepairTargetEntity,
         burstFrames: List<BurstFrame>,
         primaryIndex: Int,
@@ -207,5 +207,5 @@ class NativeInferenceEngine(
         }
     }
 
-    fun close() = transport.close()
+    override fun close() = transport.close()
 }

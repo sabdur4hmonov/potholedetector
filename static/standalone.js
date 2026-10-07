@@ -2755,11 +2755,95 @@ This is a strict before/after verification, not ordinary pothole detection:
     return toDict(rec);
   }
 
+  // An AI-free Drive candidate: the phone's accelerometer felt a road shock and the
+  // complete camera frame from just before the hit is the evidence. It is never shown as
+  // a confirmed pothole; the owner's label decides what it was.
+  const NATIVE_SENSOR_CAPTURE_SOURCE = "drive_sensor";
+  async function importNativeSensorReport(native, nativeId) {
+    const lat = Number(native.lat), lng = Number(native.lng);
+    if (native.decision !== "sensor_candidate" || native.damage_type !== "road_shock"
+      || !native.photo_data_url) {
+      return { native_id: nativeId, ignored: true, reason: "invalid_sensor_candidate" };
+    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      throw new Error("Native report location is invalid.");
+    }
+    const sourceEventKey = String(native.source_event_key || `native:${nativeId}`).slice(0, 180);
+    const gpsAccuracy = native.gps_accuracy == null ? null : Number(native.gps_accuracy);
+    const speed = Number(native.speed_mps);
+    const heading = Number(native.heading);
+    const capturedAt = Number(native.captured_at);
+    const offset = Number(native.source_offset_s);
+    const driveId = native.drive_id == null ? null : String(native.drive_id);
+    const debug = !!native.debug_capture;
+    const geo = await reverseGeocode(lat, lng).catch(() => null);
+    const address = (geo && geo.short) || native.address || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    const rec = {
+      created_at: Number(native.created_at) || Date.now() / 1000,
+      lat, lng, address,
+      photo: await dataUrlToBlob(native.photo_data_url),
+      photo_full: await dataUrlToBlob(native.photo_full_data_url || native.photo_data_url),
+      issue_type: "road_damage",
+      report_origin: "sensor_detected",
+      is_reportable: 0,
+      is_pothole: null,
+      looks_like_speed_breaker: null,
+      damage_type: "road_shock",
+      assessment: "sensor",
+      image_quality: null,
+      defect_type: "unverified_road_shock",
+      surface_type: "unknown",
+      measurement_provenance: "accelerometer_peak_to_peak",
+      measurement_confidence: "low",
+      on_drivable_surface: null,
+      has_localized_cavity: null,
+      has_unambiguous_lower_interior: null,
+      has_broken_edge_or_rim: null,
+      has_depth_or_surface_loss: null,
+      temporal_consistency: null,
+      size: null,
+      decision: "sensor_candidate",
+      description: String(native.description || "Road shock felt by the phone sensor; not verified.").slice(0, 400),
+      status: "draft",
+      condition_status: "open", condition_updated_at: null, condition_source: null,
+      detection_model: "phone_accelerometer",
+      image_detail: null,
+      prompt_version: String(native.prompt_version || "sensor-shock-v1").slice(0, 40),
+      schema_version: Number(native.schema_version) || 1,
+      evidence_count: 1,
+      drive_id: driveId, capture_source: NATIVE_SENSOR_CAPTURE_SOURCE,
+      source_event_key: sourceEventKey, source_event_keys: [sourceEventKey],
+      captured_at: Number.isFinite(capturedAt) ? capturedAt : null,
+      source_offset_s: Number.isFinite(offset) ? offset : null,
+      gps_accuracy: Number.isFinite(gpsAccuracy) ? gpsAccuracy : null,
+      speed_mps: Number.isFinite(speed) ? speed : null,
+      heading: Number.isFinite(heading) ? ((heading % 360) + 360) % 360 : null,
+      frame_quality: null, primary_frame_index: 0,
+      debug_capture: debug, dedupe_eligible: !debug,
+      event_sightings: [eventSighting({
+        drive_id: driveId, lat, lng,
+        source_offset_s: Number.isFinite(offset) ? offset : null,
+        captured_at: Number.isFinite(capturedAt) ? capturedAt : null,
+        gps_accuracy: Number.isFinite(gpsAccuracy) ? gpsAccuracy : null,
+        speed_mps: Number.isFinite(speed) ? speed : null,
+        heading: Number.isFinite(heading) ? heading : null,
+        source_event_key: sourceEventKey,
+      })],
+      sighting_drive_ids: driveId ? [driveId] : [], seen_count: Number(native.seen_count) || 1,
+      last_seen_at: Number.isFinite(Number(native.last_seen_at)) ? Number(native.last_seen_at)
+        : Number.isFinite(capturedAt) ? capturedAt : Date.now() / 1000,
+    };
+    const committed = await addReportUnlessDuplicate(rec, !debug);
+    return { native_id: nativeId, id: committed.duplicate ? committed.duplicate.id : committed.id,
+             duplicate: !!committed.duplicate };
+  }
+
   async function importNativeReport(native) {
     if (!native || typeof native !== "object") throw new Error("Native report missing.");
     const nativeId = Number(native.id);
     const lat = Number(native.lat), lng = Number(native.lng);
     if (!Number.isFinite(nativeId) || nativeId <= 0) throw new Error("Native report id missing.");
+    if (native.capture_source === NATIVE_SENSOR_CAPTURE_SOURCE) return importNativeSensorReport(native, nativeId);
     const nativeIsPothole = native.is_pothole === true || Number(native.is_pothole) === 1;
     const nativeIsReportable = native.is_reportable === true || Number(native.is_reportable) === 1;
     const nativeContract = nativeDetectorContract(native);

@@ -1,5 +1,12 @@
 # Product decisions
 
+## 2026-10-07 — AI-free sensor Drive mode (owner request in chat)
+
+- The owner asked for a way to run the app "without AI", the way roadside speed cameras measure without a language model. Drive now has a **sensor mode**: the phone's accelerometer feels road shocks; the complete camera frame captured just before the wheel hit and the GPS position of the hit are saved as a local report marked **"road shock, not verified"** (`report_origin: sensor_detected`, `is_pothole: null`, `decision: sensor_candidate`).
+- Sensor mode is automatic when no OpenAI key is stored, or can be chosen in Settings. Nothing is sent to any service in this mode (street-name lookup still uses Nominatim, as before).
+- A shock is never shown as a confirmed pothole: speed bumps, manholes and rail crossings feel similar. The owner labels candidates in Review; those labels are the training data for the on-device camera model (ONDEVICE-001).
+- Detecting people (seat belts, pedestrians crossing on red) is **not** part of this app: it is surveillance of identifiable people and belongs to the authorities' own camera systems. Not planned.
+
 ## 2026-10-06 — Uzbekistan refocus decisions (human-approved in chat)
 
 - **India removed.** All India routing, authority packs, tender matching, complaint/handoff flows and the Kannada/Marathi/Bengali UI are removed. Languages: **English and Uzbek (Latin)**; Russian may come later. Accepted detections are saved as local drafts; nothing is sent to any authority.

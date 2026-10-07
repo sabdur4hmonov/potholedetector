@@ -606,3 +606,16 @@ finding; none exists after NEW-002.
 * **Remaining blockers:** labelled Uzbekistan frames, human licence review of base weights/data, real-phone verification, NEW-002/release gates unchanged.
 * **Exact next task:** ONDEVICE-002 — add LiteRT, load a card-validated model from assets, score complete frames, use `decideBurst`; no behaviour change without a runnable model.
 * **Commit/push:** committed and pushed to the session branch `ccr-aba46d05-gm456b` only (not `main`); hash reported in chat.
+
+---
+
+## 2026-10-07 — SENSOR-001 AI-free sensor Drive mode
+
+* **Date/time:** 2026-10-07 (Asia/Tashkent). **Agent/tool:** Claude in a cloud sandbox; no Android SDK locally (Google Maven blocked), so the Android build is CI-only.
+* **Task/status:** Owner (no car until evening) asked to make the code ready and to find an AI-free way to detect. COMPLETE at source/JVM/browser level; not road- or device-tested.
+* **Files changed:** new `drive/DriveDetector.kt`, `drive/RoadBumpDetector.kt`, `drive/RoadBumpMonitor.kt`, `drive/SensorDriveDetector.kt`, `test/.../RoadBumpDetectorTest.kt`, `tests/sensor_drive_test.py`; edited `drive/NativeInferenceEngine.kt` (implements `DriveDetector`), `drive/DriveForegroundService.kt` (mode selection, accelerometer lifecycle, status fields), `plugin/DriveModePlugin.kt` (no key requirement; key never passed in sensor mode), `static/index.html` + `static/standalone.js` and their mirrors (settings, strings, HUD, sensor import), `docs/privacy.html`, `tests/run-all.sh`, PRODUCT_DECISIONS, PROJECT_STATUS, NEXT_STEPS, CHANGELOG and this worklog.
+* **Design:** gravity-projected vertical acceleration, 300 ms peak-to-peak window, speed ≥ 4 m/s with fresh GPS, 1.5 s refractory, 2 s warm-up, handling suppression (gravity norm or slow/fast filter angle > 25°), 600 ms confirmation hold. Evidence = complete primary frame from a 12-frame/5 s ring, chosen ~8 m before the hit (0.3–2.5 s lead). Location = GPS fix nearest the hit. Reports: `capture_source drive_sensor`, `damage_type road_shock`, `decision sensor_candidate`, `is_pothole 0/null`, size unknown; native and web deduplicate shocks only with other shocks. Repair verification is never attempted in sensor mode.
+* **Validation:** standalone Kotlin 2.1 JVM run of `RoadBumpDetectorTest` (15) and `OnDeviceDetectorContractTest` (4) passed; `tests/sensor_drive_test.py` and the local `run-all.sh` results are in the chat summary; CI builds the APK.
+* **Decisions/limits:** thresholds are first guesses; no claim of detection accuracy. Detecting people (seat belts, pedestrians) declined as out of scope. No new dependency.
+* **Exact next task:** owner road test with the CI debug APK, then threshold tuning from that drive.
+* **Commit/push:** session branch `ccr-aba46d05-gm456b` only.

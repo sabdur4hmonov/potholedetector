@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-07 — SENSOR-001 AI-free sensor Drive mode
+
+Drive can now start without an AI key. A pure `RoadBumpDetector` projects 50 Hz accelerometer samples onto a low-pass gravity estimate, flags a short vertical peak-to-peak swing above the chosen sensitivity at 14 km/h or more, ignores phone handling, warm-up and stale speed, and holds each shock 600 ms for confirmation. `SensorDriveDetector` keeps a short ring of complete primary frames and saves the one captured about 8 m before the hit as an unverified "road shock" report; `DriveDetector` lets the service run either it or the cloud engine. Web: Settings choice (automatic / sensor only) and sensitivity, English/Uzbek text, HUD shock count, a separate native import path that never marks a shock as a pothole, deduplication of repeated shocks, and labelling/export as training data. Privacy page mentions the accelerometer.
+
 ## 2026-10-07 — ONDEVICE-001 on-device detector training pipeline and app contract
 
 Added `ml/train_on_device_detector.py`: trains a full-frame MobileNetV3Small pothole/not-pothole classifier from the app's labelled dataset exports, with drive-grouped splits, whole-frame-only preprocessing and augmentation, a threshold chosen on the exported TFLite model's validation scores, and a model card. Added the pure Kotlin `OnDeviceDetectorContract` (model-card validation, whole-frame input tensor, burst consistency decision) and a 33+10-case vector file shared by a JVM test and a Python test. The full-frame invariant test now covers both. No model ships, no ML runtime dependency was added, and Drive mode is unchanged.

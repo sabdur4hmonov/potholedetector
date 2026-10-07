@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-qaWsWwQH8GkyJPJB0qaEVCcN1PTwd979Hhumi5JdDno='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-e86a7r5W8xti7tayG9ugqeciR4DMyaxiSG63sgoHKhU='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -208,6 +208,18 @@
         <option value="90">90 minutes</option>
       </select>
       <div class="meta" id="driveLimitNote">Drive stops at the active-time limit or after 15 minutes continuously paused.</div>
+      <label id="detectionModeLabel" for="setDetectionMode">Drive detection</label>
+      <select id="setDetectionMode">
+        <option value="auto">Automatic: cloud AI if a key is saved, otherwise phone sensor</option>
+        <option value="sensor">Phone sensor only: free, no AI, nothing sent</option>
+      </select>
+      <label id="bumpSensitivityLabel" for="setBumpSensitivity">Sensor sensitivity</label>
+      <select id="setBumpSensitivity">
+        <option value="low">Low (only hard hits)</option>
+        <option value="medium">Medium</option>
+        <option value="high">High (small holes too; more false alarms)</option>
+      </select>
+      <div class="meta" id="sensorNote"></div>
       <label id="keepFramesSetting" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#f2f2f4">
         <input type="checkbox" id="setKeepFrames" style="width:18px;height:18px;accent-color:var(--accent)">
         <span id="keepFramesLabel">Save every analysed frame to the device</span>
@@ -268,8 +280,17 @@ const CAPTURE_SOURCE_KEY = "drive_capture_source";
 const LEGACY_SETTINGS_KEYS = [
   "sender_name", "detection_model", "image_detail", "debug_mode",
   "keep_frames", "keep_tracks", "record_video", "drive_limit_minutes", "app_lang", "data_notice_version",
-  CAPTURE_SOURCE_KEY,
+  CAPTURE_SOURCE_KEY, "drive_detection", "bump_sensitivity",
 ];
+// Drive without an AI key uses the phone's accelerometer instead (native sensor mode).
+const BUMP_SENSITIVITY_OPTIONS = ["low", "medium", "high"];
+function bumpSensitivity() {
+  const selected = localStorage.getItem("bump_sensitivity");
+  return BUMP_SENSITIVITY_OPTIONS.includes(selected) ? selected : "medium";
+}
+function savedDetectionMode() {
+  return localStorage.getItem("drive_detection") === "sensor" ? "sensor" : "auto";
+}
 const normaliseDriveCaptureSource = (value) => value === DASHCAM_CAPTURE_SOURCE
   ? DASHCAM_CAPTURE_SOURCE : PHONE_CAPTURE_SOURCE;
 const savedDriveCaptureSource = () => normaliseDriveCaptureSource(
@@ -436,6 +457,21 @@ const I18N = {
     record_label: "Record local video during a drive (no audio; off by default)",
     drive_limit_label: "Drive battery limit",
     drive_limit_note: "Drive stops at the active-time limit or after 15 minutes continuously paused.",
+    detection_mode_label: "Drive detection",
+    detection_mode_auto: "Automatic: cloud AI if a key is saved, otherwise phone sensor",
+    detection_mode_sensor: "Phone sensor only: free, no AI, nothing sent",
+    bump_sensitivity_label: "Sensor sensitivity",
+    bump_low: "Low (only hard hits)",
+    bump_medium: "Medium",
+    bump_high: "High (small holes too; more false alarms)",
+    sensor_note: "Sensor mode feels road shocks with the phone's accelerometer and keeps the camera frame taken just before the wheel hit. Mount the phone firmly. A shock can also be a speed bump, manhole or rail crossing, so each one is saved for you to check and label. It works above about 15 km/h.",
+    sensor_verdict: "Road shock felt by the phone · not verified",
+    sensor_help: "Felt by the phone's accelerometer, not checked by AI. It may be a pothole, a speed bump, a manhole or a rail crossing. Label it in Review so it can train the on-device model.",
+    evidence_sensor: "Phone sensor shock; what caused it is unknown until you label it.",
+    damage_road_shock: "road shock (unverified)",
+    shocks_one: "{n} road shock",
+    shocks_many: "{n} road shocks",
+    sensor_mode_hud: "Sensor mode, no AI",
     keep_frames_label: "Save every analysed frame to the device",
     keep_frames_note: "Writes each frame the AI checked, with its verdict, into Documents/pothole-frames on this phone. Visible in the Files app, and the raw material for building an evaluation set. Adds up fast: roughly 300 KB a frame.",
     frames_saved: "{n} frames written to Documents/{dir}.",
@@ -628,6 +664,21 @@ const I18N = {
     record_label: "Haydash vaqtida mahalliy video yozish (ovozsiz; sukut bo'yicha o'chiq)",
     drive_limit_label: "Haydash batareya chegarasi",
     drive_limit_note: "Haydash faol vaqt chegarasida yoki 15 daqiqa uzluksiz pauzadan keyin to'xtaydi.",
+    detection_mode_label: "Haydashda aniqlash usuli",
+    detection_mode_auto: "Avtomatik: kalit saqlangan bo'lsa bulutli AI, aks holda telefon sensori",
+    detection_mode_sensor: "Faqat telefon sensori: bepul, AI'siz, hech narsa yuborilmaydi",
+    bump_sensitivity_label: "Sensor sezgirligi",
+    bump_low: "Past (faqat kuchli zarbalar)",
+    bump_medium: "O'rta",
+    bump_high: "Yuqori (kichik chuqurlar ham; xato signal ko'proq)",
+    sensor_note: "Sensor rejimi telefon akselerometri orqali yo'ldagi zarbalarni sezadi va g'ildirak tushishidan biroz oldin olingan kamera kadrini saqlaydi. Telefonni mahkam o'rnating. Zarba sun'iy notekislik, lyuk yoki temir yo'l kesishmasi ham bo'lishi mumkin, shuning uchun har biri siz tekshirib belgilashingiz uchun saqlanadi. Taxminan 15 km/soatdan yuqori tezlikda ishlaydi.",
+    sensor_verdict: "Telefon sezgan zarba · tasdiqlanmagan",
+    sensor_help: "Telefon akselerometri sezgan, AI tekshirmagan. Bu chuqur, sun'iy notekislik, lyuk yoki temir yo'l kesishmasi bo'lishi mumkin. Telefon ichidagi modelni o'qitish uchun uni Ko'rib chiqish bo'limida belgilang.",
+    evidence_sensor: "Telefon sensori sezgan zarba; sababi siz belgilamaguningizcha noma'lum.",
+    damage_road_shock: "yo'l zarbasi (tasdiqlanmagan)",
+    shocks_one: "{n} ta zarba",
+    shocks_many: "{n} ta zarba",
+    sensor_mode_hud: "Sensor rejimi, AI'siz",
     keep_frames_label: "Har bir tahlil qilingan kadrni qurilmaga saqlash",
     keep_frames_note: "AI tekshirgan har bir kadrni uning xulosasi bilan shu telefondagi Documents/pothole-frames papkasiga yozadi. Fayllar ilovasida ko'rinadi va baholash to'plamini yig'ish uchun xom material bo'ladi. Tez to'ladi: kadr uchun taxminan 300 KB.",
     frames_saved: "{n} ta kadr Documents/{dir} ga yozildi.",
@@ -700,9 +751,11 @@ const tSize = (s) => (s ? t("size_" + s) : "");
 const damageType = (r) => (r && r.damage_type) || (r && r.is_pothole ? "pothole_cavity" : "none");
 const assessment = (r) => (r && r.assessment) || (r && r.is_pothole ? "clear" : "absent");
 const tDamage = (value) => value && value.report_origin === "user_reported"
-  ? t("manual_verdict") : t("damage_" + (typeof value === "string" ? value : damageType(value)));
+  ? t("manual_verdict") : value && value.report_origin === "sensor_detected"
+  ? t("sensor_verdict") : t("damage_" + (typeof value === "string" ? value : damageType(value)));
 const tAssessment = (value) => t("assessment_" + (typeof value === "string" ? value : assessment(value)));
 const eventCountText = (n) => n === 1 ? t("potholes_one", { n }) : t("potholes_many", { n });
+const shockCountText = (n) => n === 1 ? t("shocks_one", { n }) : t("shocks_many", { n });
 const alreadyCountText = (n) => n === 1 ? t("already_one", { n }) : t("already_many", { n });
 const escapeHtml = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, (ch) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -840,6 +893,14 @@ function applyLang() {
   $("recordLabel").textContent = t("record_label");
   $("driveLimitLabel").textContent = t("drive_limit_label");
   $("driveLimitNote").textContent = t("drive_limit_note");
+  $("detectionModeLabel").textContent = t("detection_mode_label");
+  $("setDetectionMode").querySelector('option[value="auto"]').textContent = t("detection_mode_auto");
+  $("setDetectionMode").querySelector('option[value="sensor"]').textContent = t("detection_mode_sensor");
+  $("bumpSensitivityLabel").textContent = t("bump_sensitivity_label");
+  for (const level of BUMP_SENSITIVITY_OPTIONS) {
+    $("setBumpSensitivity").querySelector(`option[value="${level}"]`).textContent = t("bump_" + level);
+  }
+  $("sensorNote").textContent = t("sensor_note");
   $("keepFramesLabel").textContent = t("keep_frames_label");
   $("keepFramesNote").innerHTML = t("keep_frames_note");
   $("keepTracksLabel").textContent = t("keep_tracks_label");
@@ -1427,6 +1488,7 @@ function step(delta) {
 
 function detectionVerdict(r) {
   if (r.report_origin === "user_reported") return t("manual_verdict");
+  if (r.report_origin === "sensor_detected") return t("sensor_verdict");
   if (physicalCondition(r) === "fixed") return t("verdict_fixed");
   if (physicalCondition(r) === "repair_review") return t("verdict_repair_review");
   if (r.status === "review") return t("verdict_review", { type: tDamage(r) });
@@ -1480,7 +1542,8 @@ function hazardEvidenceHtml(r) {
     <div>${escapeHtml(t("evidence_confidence"))}: ${escapeHtml(t(confidenceKey))}</div>
     <div>${escapeHtml(t("evidence_severity"))}: ${escapeHtml(evidence.severity === "unknown"
       ? t("evidence_unknown") : tSize(evidence.severity))}</div>
-    <div>${escapeHtml(t(manual ? "evidence_manual" : "evidence_limits"))}</div>
+    <div>${escapeHtml(t(r.report_origin === "sensor_detected" ? "evidence_sensor"
+      : manual ? "evidence_manual" : "evidence_limits"))}</div>
     <div>${escapeHtml(t("evidence_size_limits"))}</div>
     ${evidence.is_fixed === true ? `<div>${escapeHtml(t("evidence_fixed"))}</div>` : ""}
   </div>`;
@@ -1524,7 +1587,9 @@ function openDetail(r, list) {
         </div>
         <div>${chip(r.status)} ${conditionChip(r)} ${freshnessChip(r)}</div>
         ${place ? `<div class="meta">&#128205; ${escapeHtml(place)}${Number.isFinite(r.gps_accuracy) ? ` (±${Math.round(r.gps_accuracy)} m)` : ""}</div>` : `<div class="meta" style="color:var(--bad)">&#9888; ${escapeHtml(t("no_location"))}</div>`}
-        ${manual ? `<div class="meta">${escapeHtml(t("manual_help"))}</div>` : `<div class="meta">${escapeHtml(r.description || "")}</div>`}
+        ${manual ? `<div class="meta">${escapeHtml(t("manual_help"))}</div>`
+          : r.report_origin === "sensor_detected" ? `<div class="meta">${escapeHtml(t("sensor_help"))}</div>`
+          : `<div class="meta">${escapeHtml(r.description || "")}</div>`}
         ${repairEvidenceHtml(r)}
         ${fixed ? "" : `<div class="btn-row">
           <button class="ghost" id="shareEvidenceBtn">${t("share_evidence_btn")}</button>
@@ -2075,7 +2140,8 @@ function updateNativeDriveHud(status) {
   const found = Number(status.found) || 0;
   const already = Number(status.already) || 0;
   const repaired = Number(status.repaired) || 0;
-  $("nativeDriveCount").textContent = eventCountText(found)
+  const sensorMode = status.detectionMode === "sensor";
+  $("nativeDriveCount").textContent = (sensorMode ? shockCountText(found) : eventCountText(found))
     + (already ? ` · ${alreadyCountText(already)}` : "")
     + (repaired ? ` · ${repaired} fixed` : "");
   const queued = Number(status.queued) || 0;
@@ -2089,8 +2155,9 @@ function updateNativeDriveHud(status) {
   const sourceIssue = publicNativeSourceText(status.sourceIssue, captureSource);
   const statusMessage = sourceIssue || (status.captureBlocked && captureIssue
     ? captureIssue : publicNativeSourceText(status.status || "Scanning live", captureSource));
-  $("nativeDriveStatus").textContent = statusMessage
-    + (queued ? ` · ${queued} queued` : "")
+  $("nativeDriveStatus").textContent = (sensorMode ? `${t("sensor_mode_hud")} · ` : "")
+    + statusMessage
+    + (queued && !sensorMode ? ` · ${queued} queued` : "")
     + (dropped ? ` · ${dropped} saved for later` : "")
     + (keyframes ? ` · ${keyframes} saved frame${keyframes === 1 ? "" : "s"}` : "")
     + (segments ? ` · ${segments} video clip${segments === 1 ? "" : "s"} (${savedMb.toFixed(0)} MB)` : "")
@@ -2720,12 +2787,13 @@ async function startDriveAdmitted() {
     openSettings(true, false);
     return;
   }
-  if (!window.CredentialBroker.hasOpenAi()) {
+  const captureConfig = savedDriveCaptureConfig();
+  const nativePlugin = nativeDrivePlugin();
+  // The native app can drive with the phone sensor alone; only browser Drive needs a key.
+  if (!window.CredentialBroker.hasOpenAi() && !nativePlugin) {
     openSettings(true, false);
     return;
   }
-  const captureConfig = savedDriveCaptureConfig();
-  const nativePlugin = nativeDrivePlugin();
   if (captureConfig.captureSource === DASHCAM_CAPTURE_SOURCE) {
     // Keep old saved selections intact, but never reconnect or silently switch source.
     openSettings(false, false);
@@ -2788,6 +2856,8 @@ async function startDriveAdmitted() {
           localStorage.getItem("record_video") === "1",
         maxDurationMinutes: driveLimitMinutes(),
         captureSource: captureConfig.captureSource,
+        detectionMode: savedDetectionMode() === "sensor" ? "sensor" : "cloud",
+        bumpSensitivity: bumpSensitivity(),
       });
       if (nativeWipeInProgress) {
         drive = null;
@@ -4958,6 +5028,8 @@ window.openSettings = (showWelcome = false, requireCompletion = false) => {
   $("setKeepTracks").checked = localStorage.getItem("keep_tracks") !== "0";
   $("setRecord").checked = localStorage.getItem("record_video") === "1"; // explicit opt-in
   $("setDriveLimit").value = String(driveLimitMinutes());
+  $("setDetectionMode").value = savedDetectionMode();
+  $("setBumpSensitivity").value = bumpSensitivity();
   $("setLang").value = LANG;
   $("settingsHint").textContent = showWelcome ? t("welcome_hint") : "";
   $("setBack").classList.toggle("hidden", initialSettingsActive);
@@ -5026,6 +5098,11 @@ $("setSave").onclick = async () => {
     localStorage.setItem(CAPTURE_SOURCE_KEY, selectedCaptureSource);
     localStorage.setItem("debug_mode", $("setDebug").checked ? "1" : "0");
     localStorage.setItem("keep_frames", $("setKeepFrames").checked ? "1" : "0");
+    localStorage.setItem("drive_detection",
+      $("setDetectionMode").value === "sensor" ? "sensor" : "auto");
+    localStorage.setItem("bump_sensitivity",
+      BUMP_SENSITIVITY_OPTIONS.includes($("setBumpSensitivity").value)
+        ? $("setBumpSensitivity").value : "medium");
     const keepTracksChoice = $("setKeepTracks").checked;
     localStorage.setItem("keep_tracks", keepTracksChoice ? "1" : "0");
     if (plugin && plugin.setTrackKeeping) await plugin.setTrackKeeping({ enabled: keepTracksChoice });

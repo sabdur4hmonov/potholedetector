@@ -1,5 +1,12 @@
 # Next steps from the preserved tree
 
+## 2026-10-07 next actions after SENSOR-001
+
+1. Owner road test (tonight): install the CI debug APK, leave the OpenAI key empty (or Settings → Drive detection → Phone sensor only), mount the phone firmly, drive above ~15 km/h. Note how many real potholes, speed bumps and smooth stretches produced a shock, then open each report and check whether the saved frame shows the spot. Try Medium first, then High/Low.
+2. Tune `BumpSensitivity` thresholds and `SensorEvidencePolicy.LEAD_DISTANCE_M` from that drive. Optional: a debug log of shock peaks for tuning.
+3. Label the shock frames in Review (Pothole / Not pothole), export, and train the camera model with `ml/train_on_device_detector.py` (ONDEVICE-001). Then ONDEVICE-002 (LiteRT runtime) can combine "shock felt" with "camera model agrees".
+4. Unchanged: shared map/backend ("collect everything in one place") does not exist; it needs a server, accounts, moderation and a retention policy, and is a separate decision.
+
 ## 2026-10-07 next actions after ONDEVICE-001
 
 1. Human: collect and label frames (Photo, then "Review and label frames"), export them, and run `ml/train_on_device_detector.py inspect`, then `train` (see `ml/README.md`). Several hundred frames per class from many drives, including hard negatives, is a realistic start. Review the licence of the ImageNet base weights and the data.

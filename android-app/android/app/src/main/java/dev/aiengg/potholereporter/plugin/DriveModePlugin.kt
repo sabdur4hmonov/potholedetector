@@ -22,6 +22,8 @@ import dev.aiengg.potholereporter.db.ReportMediaRef
 import dev.aiengg.potholereporter.db.ReportSyncCandidate
 import dev.aiengg.potholereporter.db.RepairTargetEntity
 import dev.aiengg.potholereporter.db.SessionEntity
+import dev.aiengg.potholereporter.drive.BumpSensitivity
+import dev.aiengg.potholereporter.drive.DriveDetectionMode
 import dev.aiengg.potholereporter.drive.DriveEndSummary
 import dev.aiengg.potholereporter.drive.DriveForegroundService
 import dev.aiengg.potholereporter.drive.DriveSessionLimitPolicy
@@ -247,6 +249,8 @@ class DriveModePlugin : Plugin() {
                 put("sourceActive", status.sourceActive)
                 put("sourceState", status.sourceState)
                 put("sourceIssue", status.sourceIssue)
+                put("detectionMode", status.detectionMode)
+                put("shockCount", status.shockCount)
             }
             notifyListeners("driveStatusChange", data)
         }
@@ -310,10 +314,9 @@ class DriveModePlugin : Plugin() {
             call.reject("Enable Pothole Reporter notifications in Android Settings so Drive capture is always visible")
             return
         }
-        if (apiKey.isBlank()) {
-            call.reject("An OpenAI API key is required")
-            return
-        }
+        // Without a key Drive runs in the AI-free sensor mode; nothing is sent anywhere.
+        val detectionMode = DriveDetectionMode.resolve(call.getString("detectionMode"), apiKey.isNotBlank())
+        val bumpSensitivity = BumpSensitivity.fromWire(call.getString("bumpSensitivity")).wireValue
         val existing = DriveForegroundService.status()
         if (existing.isRunning) {
             // This call did not create that session. During a phone/video-call camera
@@ -363,7 +366,10 @@ class DriveModePlugin : Plugin() {
         val context = context
         val serviceIntent = Intent(context, DriveForegroundService::class.java).apply {
             action = DriveForegroundService.ACTION_START
-            putExtra(DriveForegroundService.EXTRA_API_KEY, apiKey)
+            putExtra(DriveForegroundService.EXTRA_API_KEY,
+                if (detectionMode == DriveDetectionMode.CLOUD) apiKey else "")
+            putExtra(DriveForegroundService.EXTRA_DETECTION_MODE, detectionMode)
+            putExtra(DriveForegroundService.EXTRA_BUMP_SENSITIVITY, bumpSensitivity)
             putExtra(DriveForegroundService.EXTRA_MODEL, model)
             putExtra(DriveForegroundService.EXTRA_DETAIL, detail)
             putExtra(DriveForegroundService.EXTRA_LANGUAGE, language)
@@ -2281,6 +2287,8 @@ class DriveModePlugin : Plugin() {
         put("sourceActive", status.sourceActive)
         put("sourceState", status.sourceState)
         put("sourceIssue", status.sourceIssue)
+        put("detectionMode", status.detectionMode)
+        put("shockCount", status.shockCount)
     }
 
     private suspend fun nearbyVideoFrameDataUrls(

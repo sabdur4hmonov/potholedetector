@@ -57,7 +57,9 @@ data class DriveStatusSnapshot(
     val sourceActive: Boolean = cameraActive,
     val sourceState: String = if (cameraActive) NativeFrameSourceState.STREAMING.wireValue
         else NativeFrameSourceState.IDLE.wireValue,
-    val sourceIssue: String? = null
+    val sourceIssue: String? = null,
+    val detectionMode: String = DriveDetectionMode.CLOUD,
+    val shockCount: Int = 0
 )
 
 data class DriveEndSummary(
@@ -76,7 +78,9 @@ class DriveForegroundService : LifecycleService() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var frameSource: NativeFrameSource? = null
     private var locationProvider: NativeDriveLocationProvider? = null
-    private var inferenceEngine: NativeInferenceEngine? = null
+    private var inferenceEngine: DriveDetector? = null
+    private var bumpMonitor: RoadBumpMonitor? = null
+    private var detectionMode = DriveDetectionMode.CLOUD
     private var dedupeEngine: NativeDeduplicationEngine? = null
     private var repairEngine: NativeRepairStatusEngine? = null
     private lateinit var database: PotholeDatabase
@@ -218,6 +222,8 @@ class DriveForegroundService : LifecycleService() {
         const val ACTION_STOP = "dev.aiengg.potholereporter.ACTION_STOP"
         const val EXTRA_API_KEY = "extra_api_key"
         const val EXTRA_MODEL = "extra_model"
+        const val EXTRA_DETECTION_MODE = "extra_detection_mode"
+        const val EXTRA_BUMP_SENSITIVITY = "extra_bump_sensitivity"
         const val EXTRA_DETAIL = "extra_detail"
         const val EXTRA_LANGUAGE = "extra_language"
         const val EXTRA_DEBUG = "extra_debug"
@@ -357,7 +363,9 @@ class DriveForegroundService : LifecycleService() {
                         NativeFrameSourceConfig.create(
                             intent?.getStringExtra(EXTRA_CAPTURE_SOURCE),
                             intent?.getStringExtra(EXTRA_DASHCAM_RTSP_URL)
-                        ).getOrThrow()
+                        ).getOrThrow(),
+                        intent?.getStringExtra(EXTRA_DETECTION_MODE),
+                        BumpSensitivity.fromWire(intent?.getStringExtra(EXTRA_BUMP_SENSITIVITY))
                     )
                     // startDriveSession marks the service running before this admission
                     // is released, so observers can never see an Idle gap in between.
@@ -440,6 +448,7 @@ class DriveForegroundService : LifecycleService() {
         clearStartAdmission(startRequestId)
         terminalStatusSealed = true
         runCatching { onDriveEndedListener?.invoke(summary) }
+        runCatching { stopBumpMonitor() }
         runCatching { scheduleForegroundNotificationRemoval() }
         stopSelf(startId)
     }
@@ -485,7 +494,9 @@ class DriveForegroundService : LifecycleService() {
         debug: Boolean,
         recordVideo: Boolean,
         maxDriveMinutes: Int,
-        sourceConfig: NativeFrameSourceConfig
+        sourceConfig: NativeFrameSourceConfig,
+        requestedDetectionMode: String? = null,
+        bumpSensitivity: BumpSensitivity = BumpSensitivity.MEDIUM
     ) {
         // A new producer lifetime invalidates any bridge inventory completed before it.
         // The epoch cannot be overwritten by an older reconciliation pass racing here.
@@ -562,7 +573,16 @@ class DriveForegroundService : LifecycleService() {
         startForegroundNow()
         acquireWakeLock()
 
-        inferenceEngine = NativeInferenceEngine(applicationContext, apiKey, model, detail, language, debug)
+        detectionMode = DriveDetectionMode.resolve(requestedDetectionMode, apiKey.isNotBlank())
+        stopBumpMonitor()
+        val sensorDetector = if (detectionMode == DriveDetectionMode.SENSOR) SensorDriveDetector(
+            applicationContext,
+            fixAt = { elapsed -> locationProvider?.fixNearestToElapsed(elapsed) },
+            isCapturing = { sessionRunning && !isPaused && !isStopping },
+            debug = debug
+        ) else null
+        inferenceEngine = sensorDetector
+            ?: NativeInferenceEngine(applicationContext, apiKey, model, detail, language, debug)
         jobChannel = Channel(
             // A remote model cannot consume raw camera bursts at capture cadence. Do not
             // add a buffered ~10.5 MiB ARGB burst beyond the two explicitly bounded live
@@ -580,6 +600,18 @@ class DriveForegroundService : LifecycleService() {
                 mainHandler.post { noteLocationAccess(access) }
             }
         ).also { it.startUpdates(startedAtMs) }
+        if (sensorDetector != null) {
+            val monitor = RoadBumpMonitor(
+                this,
+                bumpSensitivity,
+                latestFix = { locationProvider?.latestFix },
+                onBump = sensorDetector::onBump
+            )
+            bumpMonitor = monitor
+            if (!monitor.start()) {
+                publish("This phone has no usable accelerometer, so sensor mode cannot feel road shocks")
+            }
+        }
         val recordingStateListener =
             { enabled: Boolean, recording: Boolean, supported: Boolean, message: String? ->
                 recordingEnabled = enabled
@@ -1657,6 +1689,12 @@ class DriveForegroundService : LifecycleService() {
         }
     }
 
+    @Synchronized
+    private fun stopBumpMonitor() {
+        bumpMonitor?.stop()
+        bumpMonitor = null
+    }
+
     private fun startInferenceWorker() {
         workerJob?.cancel()
         val channel = jobChannel ?: return
@@ -2192,6 +2230,7 @@ class DriveForegroundService : LifecycleService() {
         jobChannel = null
         runCatching { locationProvider?.stopUpdates() }
             .onFailure { recordStopError("Could not stop location updates", it) }
+        runCatching { stopBumpMonitor() }
         runCatching { releaseWakeLock() }
             .onFailure { recordStopError("Could not release the Drive Mode wake lock", it) }
         val manager = frameSource
@@ -2795,7 +2834,9 @@ class DriveForegroundService : LifecycleService() {
             sourceActive = cameraActive,
             sourceState = if (starting) NativeFrameSourceState.CONNECTING.wireValue
                 else sourceState.wireValue,
-            sourceIssue = if (starting) null else sourceIssue
+            sourceIssue = if (starting) null else sourceIssue,
+            detectionMode = detectionMode,
+            shockCount = bumpMonitor?.shockCount ?: 0
         )
     }
 
@@ -2963,6 +3004,7 @@ class DriveForegroundService : LifecycleService() {
                 runCatching { scheduleForegroundNotificationRemoval() }
             }
             runCatching { locationProvider?.stopUpdates() }
+            runCatching { stopBumpMonitor() }
             runCatching { inferenceEngine?.close() }
             inferenceEngine = null
             runCatching { releaseWakeLock() }
