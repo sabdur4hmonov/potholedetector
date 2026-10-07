@@ -643,3 +643,15 @@ finding; none exists after NEW-002.
 * **Limits:** warnings depend entirely on the imported list; mobile cameras and outdated entries are not covered; GPS drift in tunnels/near parallel roads.
 * **Exact next task:** TRIP-003 trip statistics, safe-driving score and share card.
 * **Commit/push:** session branch `ccr-aba46d05-gm456b` only.
+
+---
+
+## 2026-10-07 — TRIP-003, SERVER-001, ROUTE-001 (roadmap items 3–5)
+
+* **Date/time:** 2026-10-07 (Asia/Tashkent). **Agent/tool:** Claude in a cloud sandbox; Android build on CI only.
+* **Task/status:** Owner asked to finish all remaining roadmap items, report and test. COMPLETE at source/browser/server-test level; nothing road-tested; server not deployed.
+* **Files changed:** `static/trip-stats.js` (analyseDrive, shareRoute), `static/index.html` + `static/standalone.js` and mirrors (My trips, share card, community settings, ranking card, Route screen, community client, place search), new `server/` (community_server.py, docker-compose.yml, Caddyfile, osrm-prepare.sh, README.md), `tools/set-community-server.py`, new tests `tests/drive_score_test.cjs`, `tests/trip_card_test.py`, `tests/community_server_test.py`, `tests/community_client_test.py`, `tests/run-all.sh`, `docs/privacy.html`, PROJECT_STATUS, NEXT_STEPS, CHANGELOG and this worklog.
+* **Decisions:** score rewards smooth driving only (no speed-limit map, never rewards speed); shared card hides first/last 300 m and shows no top speed; server stores token hashes, trip totals, pothole coordinates and device-free speed cells only; community is opt-in and disabled until a server origin is set at build time (CSP lists exactly that origin); routing re-times OSRM alternatives with live speeds.
+* **Validation:** see the chat report for the full local suite, Node tests and CI.
+* **Exact next task:** owner road test, then server deployment decision.
+* **Commit/push:** session branch `ccr-aba46d05-gm456b` only.

@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-07 Free-for-users roadmap items 1–5 implemented (code level)
+
+All five agreed items now exist in code and tests: (1) offline pothole warnings, (2) antiradar with an importable official camera list, (3) My trips with a safe-driving score and a story share card, (4) an optional community server with profiles, village→country rankings and a shared pothole map, (5) traffic-aware routing through a self-hosted OSRM using drivers' anonymous speeds. Nothing needs a paid AI. **Not done / not verified:** no road or phone test of any of this; no official camera data; the community server is not deployed (needs a VPS, a domain and `tools/set-community-server.py`), so community and routing are hidden in current builds; live traffic needs many opted-in drivers; there is no turn-by-turn voice navigation; the on-device camera model still needs labelled data.
+
 ## 2026-10-07 Antiradar (ALERT-002)
 
 The app can now warn about speed, seat-belt, red-light, lane and phone cameras without the camera running: Antiradar on the home screen starts a location-only service; the camera list is imported from a CSV/JSON file in Settings. Covered by `RoadAlertEngineTest` (over-limit wording) and `tests/antiradar_test.py` (Python builder/JS parser parity on a synthetic file, error handling, import UI, hazards, service/manifest/plugin contract). **No official camera list exists in the app yet**; the owner needs to obtain it (see [CAMERA_DATA_FORMAT.md](CAMERA_DATA_FORMAT.md)). Not car-tested; the native service is compiled and unit-tested on CI only.

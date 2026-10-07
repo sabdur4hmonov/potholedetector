@@ -1,5 +1,12 @@
 # Next steps from the preserved tree
 
+## 2026-10-07 next actions after the roadmap implementation
+
+1. Owner road test of the CI debug APK: sensor Drive, pothole warnings, Antiradar with a small home-made camera CSV, My trips and the share card.
+2. Owner decisions: VPS + domain for the community server (`server/README.md`), then `python3 tools/set-community-server.py https://<domain>` and a new APK; request the official camera list (`CAMERA_DATA_FORMAT.md`).
+3. Tune from real drives: shock thresholds, warning distances, score weights.
+4. Later: turn-by-turn voice navigation, name moderation, PostgreSQL for scale, on-device camera model (ONDEVICE-002) once labelled frames exist.
+
 ## 2026-10-07 next actions after ALERT-002
 
 1. Owner: request the official camera list in the format of [CAMERA_DATA_FORMAT.md](CAMERA_DATA_FORMAT.md) and import it (Settings → Road cameras). For a quick check, make a CSV with 2–3 points on a road you know and drive past them with Antiradar on.
