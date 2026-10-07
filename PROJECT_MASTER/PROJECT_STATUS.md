@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-07 On-device detector: training pipeline and app contract (ONDEVICE-001)
+
+The training side and the phone-side rules exist; **no trained model exists and the app does not run one yet.** `ml/train_on_device_detector.py` turns the app's "Export labelled dataset" ZIPs into `pothole_detector.tflite` + `pothole_detector.json`. It was exercised end to end in a cloud session on a synthetic 360-frame export (CPU, ImageNet base weights, ~1.1 MB model); that run proves only that the pipeline works, and its card is marked `smoke_test_only` and refused. `OnDeviceDetectorContract.kt` validates the card (whole-frame resize, no crop, threshold, burst consistency, `validated_on_real_roads`), builds the input tensor and decides a burst. Its JVM test passed in a standalone Kotlin 2.1/org.json project in the cloud session, not in the Android Gradle build, which CI runs. Blockers: labelled Uzbekistan frames (Drive mode still needs a cloud key to start, so labelled frames today come from Photo), human licence review of base weights/data, a LiteRT runtime dependency (new NEW-002 provenance scope), Drive wiring, and a road test.
+
 ## 2026-10-06 Startup crash fixed (emulator-verified only)
 
 The debug APK crashed at startup on a phone because native plugin authorization called `WebView.getUrl()` off the main thread. Fixed and verified on a CI emulator (process stays alive, first-run Settings renders, no boot error). Not yet verified on a physical phone.

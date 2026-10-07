@@ -134,6 +134,17 @@ with tempfile.TemporaryDirectory() as tmp:
             and samples[2][2] > 220 and samples[2][0] < 30
             and samples[3][0] > 220 and samples[3][1] > 220)
 
+ondevice_training = read("ml/train_on_device_detector.py")
+ondevice_contract = (NATIVE / "OnDeviceDetectorContract.kt").read_text()
+require("on-device training and its app contract use only whole-frame inputs",
+        'RESIZE = "whole_frame_stretch"' in ondevice_training
+        and 'const val RESIZE = "whole_frame_stretch"' in ondevice_contract
+        and 'input.opt("crop") != false' in ondevice_contract
+        and all(term not in ondevice_training + ondevice_contract for term in (
+            *forbidden_identifiers, "RandomCrop", "RandomZoom", "central_crop",
+            "crop_to_bounding_box", "random_crop", ".crop(", "region_of_interest",
+        )))
+
 require("Android and documentation Web bundles exactly mirror the production sources",
         read("android-app/www/standalone.js") == client
         and read("docs/standalone.js") == client

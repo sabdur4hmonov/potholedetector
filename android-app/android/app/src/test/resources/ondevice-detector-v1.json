@@ -1,0 +1,1407 @@
+{
+ "version": 1,
+ "specs": [
+  {
+   "name": "baseline",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": true,
+   "expected": {
+    "input_width": 224,
+    "input_height": 224,
+    "threshold": 0.8,
+    "min_positive_frames": 2,
+    "field_validated": false
+   }
+  },
+  {
+   "name": "field validated model",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": true,
+     "smoke_test_only": false
+    }
+   },
+   "valid": true
+  },
+  {
+   "name": "non-square whole frame",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 320,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": true
+  },
+  {
+   "name": "unknown schema",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v0",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "other task",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "road_damage_detection",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "swapped labels",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "pothole",
+     "not_pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "model path traversal",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "../secret.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "model not tflite",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.onnx",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "crop declared",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": true
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "crop missing",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch"
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "center crop resize",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "center_crop",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "letterbox resize",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "letterbox",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "input too small",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 16,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "input too large",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 1024,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "fractional width",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224.5,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "boolean width",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": true,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "BGR order",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "BGR",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "NCHW layout",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NCHW",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "int8 input",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "int8",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "unit range",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      1
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "string range",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      "0",
+      "255"
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "grayscale",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 1,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "logit output",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "logit"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "threshold zero",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "threshold one",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 1,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "threshold string",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": "0.8",
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "threshold boolean",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": true,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "zero consistency",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 0
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "too many frames",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 9
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "validation flag missing",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "validation flag string",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": "false",
+     "smoke_test_only": false
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "smoke test model",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false,
+     "smoke_test_only": true
+    }
+   },
+   "valid": false
+  },
+  {
+   "name": "smoke flag missing",
+   "card": {
+    "schema_version": "pothole-ondevice-model-v1",
+    "task": "binary_full_frame_pothole",
+    "labels": [
+     "not_pothole",
+     "pothole"
+    ],
+    "model_file": "pothole_detector.tflite",
+    "input": {
+     "width": 224,
+     "height": 224,
+     "channels": 3,
+     "color_order": "RGB",
+     "layout": "NHWC",
+     "dtype": "float32",
+     "value_range": [
+      0,
+      255
+     ],
+     "resize": "whole_frame_stretch",
+     "crop": false
+    },
+    "output": {
+     "kind": "sigmoid_pothole_probability"
+    },
+    "decision": {
+     "threshold": 0.8,
+     "min_positive_frames": 2
+    },
+    "validation": {
+     "validated_on_real_roads": false
+    }
+   },
+   "valid": false
+  }
+ ],
+ "bursts": [
+  {
+   "name": "two of three positive",
+   "scores": [
+    0.9,
+    0.85,
+    0.2
+   ],
+   "threshold": 0.8,
+   "min_positive_frames": 2,
+   "decision": "accept",
+   "positive_frames": 2,
+   "max_score": 0.9
+  },
+  {
+   "name": "threshold is inclusive",
+   "scores": [
+    0.8,
+    0.8
+   ],
+   "threshold": 0.8,
+   "min_positive_frames": 2,
+   "decision": "accept",
+   "positive_frames": 2,
+   "max_score": 0.8
+  },
+  {
+   "name": "single strong frame is not consistent",
+   "scores": [
+    0.99,
+    0.1,
+    0.3
+   ],
+   "threshold": 0.8,
+   "min_positive_frames": 2,
+   "decision": "reject",
+   "positive_frames": 1,
+   "max_score": 0.99
+  },
+  {
+   "name": "all negative",
+   "scores": [
+    0.1,
+    0.2,
+    0.0
+   ],
+   "threshold": 0.8,
+   "min_positive_frames": 2,
+   "decision": "reject",
+   "positive_frames": 0,
+   "max_score": 0.2
+  },
+  {
+   "name": "too few frames",
+   "scores": [
+    0.95
+   ],
+   "threshold": 0.8,
+   "min_positive_frames": 2,
+   "decision": "insufficient_frames",
+   "positive_frames": 1,
+   "max_score": 0.95
+  },
+  {
+   "name": "empty burst",
+   "scores": [],
+   "threshold": 0.8,
+   "min_positive_frames": 1,
+   "decision": "insufficient_frames",
+   "positive_frames": 0,
+   "max_score": null
+  },
+  {
+   "name": "single frame policy",
+   "scores": [
+    0.81
+   ],
+   "threshold": 0.8,
+   "min_positive_frames": 1,
+   "decision": "accept",
+   "positive_frames": 1,
+   "max_score": 0.81
+  },
+  {
+   "name": "score above one",
+   "scores": [
+    0.9,
+    1.5
+   ],
+   "threshold": 0.8,
+   "min_positive_frames": 2,
+   "decision": "invalid_score",
+   "positive_frames": 0,
+   "max_score": null
+  },
+  {
+   "name": "negative score",
+   "scores": [
+    -0.1,
+    0.9
+   ],
+   "threshold": 0.8,
+   "min_positive_frames": 2,
+   "decision": "invalid_score",
+   "positive_frames": 0,
+   "max_score": null
+  },
+  {
+   "name": "not a number",
+   "scores": [
+    0.9,
+    "NaN"
+   ],
+   "threshold": 0.8,
+   "min_positive_frames": 2,
+   "decision": "invalid_score",
+   "positive_frames": 0,
+   "max_score": null
+  }
+ ],
+ "pixels": {
+  "width": 2,
+  "height": 2,
+  "argb": [
+   -65536,
+   -16711936,
+   -16776961,
+   -2146426832
+  ],
+  "rgb": [
+   255,
+   0,
+   0,
+   0,
+   255,
+   0,
+   0,
+   0,
+   255,
+   16,
+   32,
+   48
+  ]
+ }
+}

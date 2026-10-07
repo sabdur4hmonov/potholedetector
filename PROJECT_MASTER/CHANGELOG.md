@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-07 — ONDEVICE-001 on-device detector training pipeline and app contract
+
+Added `ml/train_on_device_detector.py`: trains a full-frame MobileNetV3Small pothole/not-pothole classifier from the app's labelled dataset exports, with drive-grouped splits, whole-frame-only preprocessing and augmentation, a threshold chosen on the exported TFLite model's validation scores, and a model card. Added the pure Kotlin `OnDeviceDetectorContract` (model-card validation, whole-frame input tensor, burst consistency decision) and a 33+10-case vector file shared by a JVM test and a Python test. The full-frame invariant test now covers both. No model ships, no ML runtime dependency was added, and Drive mode is unchanged.
+
 ## 2026-10-06 — Startup crash fix
 
 Fixed an app-killing crash on first native call: plugin authorization read `WebView.getUrl()` on Capacitor's background thread. It now reads the URL on the main thread and fails closed. Added an on-screen JS error overlay and a CI emulator smoke job that launches the debug APK and reports crashes and page state.

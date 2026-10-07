@@ -27,6 +27,11 @@ eval/.rad-cache/
 eval/rad-data/
 eval/rad-results/
 
+# On-device detector training: exports hold private photos and GPS positions
+ml/.out/
+ml/.exports/
+road-damage-dataset-*.zip
+
 # Python bytecode caches (test runs)
 __pycache__/
 *.pyc

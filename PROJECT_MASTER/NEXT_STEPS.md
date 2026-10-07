@@ -1,5 +1,12 @@
 # Next steps from the preserved tree
 
+## 2026-10-07 next actions after ONDEVICE-001
+
+1. Human: collect and label frames (Photo, then "Review and label frames"), export them, and run `ml/train_on_device_detector.py inspect`, then `train` (see `ml/README.md`). Several hundred frames per class from many drives, including hard negatives, is a realistic start. Review the licence of the ImageNet base weights and the data.
+2. Next coding task, **ONDEVICE-002**: add the LiteRT runtime (one new dependency; record it under NEW-002 provenance), load `assets/models/pothole_detector.{tflite,json}` only when the card passes `OnDeviceModelSpec.parse`, resize each complete frame with `Bitmap.createScaledBitmap(frame, w, h, true)`, score every burst frame, and use `decideBurst`. With no model, or with a refused card, keep today's behaviour.
+3. Then **ONDEVICE-003**: let Drive mode start without a cloud key when a runnable on-device model exists; save its accepted frames as reports marked as on-device, size unknown, "not field validated" until a human road test sets `validated_on_real_roads`. Optionally let Drive save frames for labelling without any detector.
+4. Unrelated, recorded only: `tests/sec006_ai_budget_contract_test.py` fails on the current `main` as well ("all JS builders/fallbacks and contract match have explicit ceilings"); it is not in `run-all.sh` or CI.
+
 ## 2026-10-06 next actions after the Uzbekistan refocus
 
 1. Human: decide how to get the on-device detector trained. It needs labelled Uzbek road frames and a GPU, which the cloud session does not have. The app's "save every analysed frame" option plus dataset export already collects frames labelled by the cloud model.

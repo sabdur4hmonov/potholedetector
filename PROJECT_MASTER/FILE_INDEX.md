@@ -11,6 +11,7 @@ Paths below are relative to this master center; every linked target existed when
 | Drive capture, service, inference, replay | [drive/](../android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/) |
 | Foreground drive service | [DriveForegroundService.kt](../android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/DriveForegroundService.kt) |
 | Capture sources | [NativeFrameSource.kt](../android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeFrameSource.kt), [NativeRtspFrameSource.kt](../android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeRtspFrameSource.kt) |
+| On-device detector contract (no runtime yet) | [OnDeviceDetectorContract.kt](../android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/OnDeviceDetectorContract.kt), shared vectors [ondevice-detector-v1.json](../android-app/android/app/src/test/resources/ondevice-detector-v1.json) |
 | Inference | [NativeInferenceEngine.kt](../android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeInferenceEngine.kt), [NativeInferenceTransport.kt](../android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeInferenceTransport.kt), [NativeBoundedSseReader.kt](../android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeBoundedSseReader.kt) |
 | Transport policy | [NativeRtspTransportPolicy.kt](../android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeRtspTransportPolicy.kt) |
 | JS/native bridge, evidence ownership and reconciliation | [plugin/](../android-app/android/app/src/main/java/dev/aiengg/potholereporter/plugin/), [DriveModePlugin.kt](../android-app/android/app/src/main/java/dev/aiengg/potholereporter/plugin/DriveModePlugin.kt) |
@@ -24,6 +25,7 @@ Paths below are relative to this master center; every linked target existed when
 
 | Function | Existing file / directory |
 | --- | --- |
+| On-device detector training (TFLite from labelled app exports) | [ml/](../ml/), [train_on_device_detector.py](../ml/train_on_device_detector.py), [README](../ml/README.md) |
 | Canonical web UI and behavior | [static/](../static/), [index.html](../static/index.html), [standalone.js](../static/standalone.js) |
 | Android web mirror | [android-app/www/](../android-app/www/) |
 | Generated Android packaged assets | [assets/public/](../android-app/android/app/src/main/assets/public/) — generated tree, not canonical web source |
