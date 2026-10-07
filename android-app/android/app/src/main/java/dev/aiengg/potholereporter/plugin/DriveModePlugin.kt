@@ -23,6 +23,9 @@ import dev.aiengg.potholereporter.db.ReportSyncCandidate
 import dev.aiengg.potholereporter.db.RepairTargetEntity
 import dev.aiengg.potholereporter.db.SessionEntity
 import dev.aiengg.potholereporter.drive.BumpSensitivity
+import dev.aiengg.potholereporter.drive.RoadAlertEngine
+import dev.aiengg.potholereporter.drive.RoadHazard
+import dev.aiengg.potholereporter.drive.RoadHazardKind
 import dev.aiengg.potholereporter.drive.DriveDetectionMode
 import dev.aiengg.potholereporter.drive.DriveEndSummary
 import dev.aiengg.potholereporter.drive.DriveForegroundService
@@ -251,6 +254,10 @@ class DriveModePlugin : Plugin() {
                 put("sourceIssue", status.sourceIssue)
                 put("detectionMode", status.detectionMode)
                 put("shockCount", status.shockCount)
+                put("alertText", status.alertText)
+                put("alertKind", status.alertKind)
+                put("alertAgeMs", status.alertAgeMs)
+                put("alertHazardCount", status.alertHazardCount)
             }
             notifyListeners("driveStatusChange", data)
         }
@@ -317,6 +324,9 @@ class DriveModePlugin : Plugin() {
         // Without a key Drive runs in the AI-free sensor mode; nothing is sent anywhere.
         val detectionMode = DriveDetectionMode.resolve(call.getString("detectionMode"), apiKey.isNotBlank())
         val bumpSensitivity = BumpSensitivity.fromWire(call.getString("bumpSensitivity")).wireValue
+        val roadAlerts = call.getBoolean("roadAlerts") ?: true
+        val voiceAlerts = call.getBoolean("voiceAlerts") ?: true
+        val hazards = if (roadAlerts) parseRoadHazards(call.getArray("hazards")) else emptyList()
         val existing = DriveForegroundService.status()
         if (existing.isRunning) {
             // This call did not create that session. During a phone/video-call camera
@@ -364,12 +374,15 @@ class DriveModePlugin : Plugin() {
             return
         }
         val context = context
+        DriveForegroundService.stageRoadHazards(hazards)
         val serviceIntent = Intent(context, DriveForegroundService::class.java).apply {
             action = DriveForegroundService.ACTION_START
             putExtra(DriveForegroundService.EXTRA_API_KEY,
                 if (detectionMode == DriveDetectionMode.CLOUD) apiKey else "")
             putExtra(DriveForegroundService.EXTRA_DETECTION_MODE, detectionMode)
             putExtra(DriveForegroundService.EXTRA_BUMP_SENSITIVITY, bumpSensitivity)
+            putExtra(DriveForegroundService.EXTRA_ROAD_ALERTS, roadAlerts)
+            putExtra(DriveForegroundService.EXTRA_VOICE_ALERTS, voiceAlerts)
             putExtra(DriveForegroundService.EXTRA_MODEL, model)
             putExtra(DriveForegroundService.EXTRA_DETAIL, detail)
             putExtra(DriveForegroundService.EXTRA_LANGUAGE, language)
@@ -2289,6 +2302,31 @@ class DriveModePlugin : Plugin() {
         put("sourceIssue", status.sourceIssue)
         put("detectionMode", status.detectionMode)
         put("shockCount", status.shockCount)
+        put("alertText", status.alertText)
+        put("alertKind", status.alertKind)
+        put("alertAgeMs", status.alertAgeMs)
+        put("alertHazardCount", status.alertHazardCount)
+    }
+
+    /** Bounded, validated hazards from the page's own reports; bad rows are skipped. */
+    private fun parseRoadHazards(array: JSArray?): List<RoadHazard> {
+        if (array == null) return emptyList()
+        val hazards = ArrayList<RoadHazard>(minOf(array.length(), RoadAlertEngine.MAX_HAZARDS))
+        for (index in 0 until minOf(array.length(), RoadAlertEngine.MAX_HAZARDS)) {
+            val item = array.optJSONObject(index) ?: continue
+            val kind = RoadHazardKind.fromWire(item.optString("kind")) ?: continue
+            val lat = item.optDouble("lat", Double.NaN)
+            val lng = item.optDouble("lng", Double.NaN)
+            if (!lat.isFinite() || !lng.isFinite()) continue
+            val id = item.optString("id").take(64)
+            if (id.isBlank()) continue
+            val heading = if (item.has("heading") && !item.isNull("heading"))
+                item.optDouble("heading", Double.NaN).takeIf { it.isFinite() }?.toFloat() else null
+            val limit = if (item.has("speed_limit") && !item.isNull("speed_limit"))
+                item.optInt("speed_limit", 0).takeIf { it in 5..200 } else null
+            hazards += RoadHazard(id, kind, lat, lng, heading, limit)
+        }
+        return hazards
     }
 
     private suspend fun nearbyVideoFrameDataUrls(

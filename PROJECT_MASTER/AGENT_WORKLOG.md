@@ -619,3 +619,15 @@ finding; none exists after NEW-002.
 * **Decisions/limits:** thresholds are first guesses; no claim of detection accuracy. Detecting people (seat belts, pedestrians) declined as out of scope. No new dependency.
 * **Exact next task:** owner road test with the CI debug APK, then threshold tuning from that drive.
 * **Commit/push:** session branch `ccr-aba46d05-gm456b` only.
+
+---
+
+## 2026-10-07 — ALERT-001 offline road warnings
+
+* **Date/time:** 2026-10-07 (Asia/Tashkent). **Agent/tool:** Claude in a cloud sandbox; Android build on CI only.
+* **Task/status:** Owner approved the free-for-users roadmap (PRODUCT_DECISIONS 2026-10-07) and asked to start with item 1. COMPLETE at source/JVM/browser level; not car-tested.
+* **Files changed:** new `drive/RoadAlertEngine.kt`, `drive/RoadAlertSpeaker.kt`, `test/.../RoadAlertEngineTest.kt`, `tests/road_alerts_test.py`; edited `drive/DriveForegroundService.kt` (alert lifecycle, status fields, staged hazards), `plugin/DriveModePlugin.kt` (bounded hazard parsing, switches), `AndroidManifest.xml` (TTS_SERVICE query), `static/index.html` + `static/standalone.js` and mirrors (`/api/road-hazards`, settings, banner, strings), `docs/privacy.html`, `tests/run-all.sh`, PRODUCT_DECISIONS, PROJECT_STATUS, NEXT_STEPS, CHANGELOG and this worklog.
+* **Validation:** standalone Kotlin JVM run of RoadAlertEngineTest (11), RoadBumpDetectorTest (14), OnDeviceDetectorContractTest (4) passed; `tests/road_alerts_test.py` passed; full local suite and CI results are in the chat summary.
+* **Limits:** alerts only while camera Drive runs; voice depends on installed TTS voices; no camera data.
+* **Exact next task:** ALERT-002 antiradar data format and camera-free warnings mode.
+* **Commit/push:** session branch `ccr-aba46d05-gm456b` only.

@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-07 — ALERT-001 offline road warnings
+
+Added a pure `RoadAlertEngine`: on each GPS fix it finds a known hazard ahead on the current course (30° cone, optional travel direction for cameras), warns at a speed-dependent distance (potholes 14 s ahead, 150–600 m; cameras 22 s, 300–1000 m), repeats once "right ahead" for potholes, rounds distances for speech, and re-arms after the hazard is passed. `RoadAlertSpeaker` plays a tone and speaks Uzbek, Russian or English with the phone's offline TTS. The page sends its open, located potholes and unlabelled road shocks to native Drive; the Drive screen shows an 8-second banner. Settings: warnings on/off and voice on/off. Hazard kinds already include speed, seat-belt, red-light, lane and phone cameras for ALERT-002.
+
 ## 2026-10-07 — SENSOR-001 AI-free sensor Drive mode
 
 Drive can now start without an AI key. A pure `RoadBumpDetector` projects 50 Hz accelerometer samples onto a low-pass gravity estimate, flags a short vertical peak-to-peak swing above the chosen sensitivity at 14 km/h or more, ignores phone handling, warm-up and stale speed, and holds each shock 600 ms for confirmation. `SensorDriveDetector` keeps a short ring of complete primary frames and saves the one captured about 8 m before the hit as an unverified "road shock" report; `DriveDetector` lets the service run either it or the cloud engine. Web: Settings choice (automatic / sensor only) and sensitivity, English/Uzbek text, HUD shock count, a separate native import path that never marks a shock as a pothole, deduplication of repeated shocks, and labelling/export as training data. Privacy page mentions the accelerometer.

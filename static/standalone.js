@@ -2755,6 +2755,27 @@ This is a strict before/after verification, not ordinary pothole detection:
     return toDict(rec);
   }
 
+  // Offline road warnings: every open, located pothole or road shock on this phone that the
+  // owner has not labelled as "not a pothole". Native Drive announces them ahead of the car.
+  const NOT_POTHOLE_LABELS = new Set(["not_pothole", "not_reportable"]);
+  const POTHOLE_LABELS = new Set(["pothole", "pothole_cavity"]);
+  const MAX_ROAD_HAZARDS = 20000;
+  function roadHazardsFrom(reports) {
+    return reports
+      .filter((r) => ACCEPTED_REPORT_STATUSES.has(r.status) && conditionStatus(r) !== "fixed"
+        && isRoadDamageType(r.issue_type) && finiteCoord(r.lat) && finiteCoord(r.lng)
+        && Math.abs(r.lat) <= 90 && Math.abs(r.lng) <= 180
+        && !NOT_POTHOLE_LABELS.has(r.human_label))
+      .sort((a, b) => eventTime(b) - eventTime(a))
+      .slice(0, MAX_ROAD_HAZARDS)
+      .map((r) => ({
+        id: `r${r.id}`,
+        kind: r.report_origin === "sensor_detected" && !POTHOLE_LABELS.has(r.human_label)
+          ? "road_shock" : "pothole",
+        lat: Number(r.lat), lng: Number(r.lng),
+      }));
+  }
+
   // An AI-free Drive candidate: the phone's accelerometer felt a road shock and the
   // complete camera frame from just before the hit is the evidence. It is never shown as
   // a confirmed pothole; the owner's label decides what it was.
@@ -3124,6 +3145,9 @@ This is a strict before/after verification, not ordinary pothole detection:
       return { ai_configured: CredentialBroker.hasOpenAi(), provider: "openai",
                detection_model: S.model, image_detail: S.detail, prompt_version: PROMPT_VERSION };
     }
+    if (path === "/api/road-hazards" && method === "GET") {
+      return { hazards: roadHazardsFrom(await allReports()) };
+    }
     if (path === "/api/reports" && method === "GET") {
       // Without photo_full. The evidence copy is a 4000px JPEG and the list only shows a
       // thumbnail, so shipping it here cost about a megabyte per report on every return
@@ -3380,7 +3404,7 @@ This is a strict before/after verification, not ordinary pothole detection:
     IMAGE_DECODE_POLICY, checkedImageDimensions, inspectImageHeader, readImageBounds,
     decodeBoundedImage, toDataUrl, averageLuminance, detectionEnhancementPlan,
     applyDetectionEnhancement, distMeters, roadEventMatch, sameRoadEvent, repairTargetMatch,
-    findRepairCandidateFromReports, findDuplicateReport, dataUrlToBlob, blobToDataUrl,
+    findRepairCandidateFromReports, findDuplicateReport, roadHazardsFrom, dataUrlToBlob, blobToDataUrl,
     photoToBase64, toDict, listDict, evidenceForReport, fullFramePhoto,
   };
 

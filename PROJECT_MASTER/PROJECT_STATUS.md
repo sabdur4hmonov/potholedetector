@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-07 Offline road warnings (ALERT-001)
+
+During Drive, potholes and road shocks already stored on the phone are announced ahead of the car ("500 metrdan keyin chuqur. Sekinlang."), with a tone, offline speech when the phone has a matching voice, and an on-screen banner. Covered by `RoadAlertEngineTest` (11 JVM tests on simulated drives) and `tests/road_alerts_test.py` (source contract plus real-browser hazard selection and banner). Not verified in a car; TTS voice availability depends on the phone. Warnings currently run only while Drive mode (camera) is on; a camera-free "navigator" mode is a later step. No speed-camera data is included yet.
+
 ## 2026-10-07 AI-free sensor Drive mode (SENSOR-001)
 
 Drive starts without an OpenAI key and then uses only the phone: the accelerometer feels road shocks and the frame from just before the hit becomes a local "road shock, not verified" report to label. Covered by `RoadBumpDetectorTest` (15 JVM tests on synthetic signals, run in a standalone Kotlin project in the cloud session) and `tests/sensor_drive_test.py` (source contract plus real-Chromium import, display, deduplication, refusal and export). The Android build and its JVM suite run on CI. **Not verified in a car or on a phone**: thresholds (low 11 / medium 8 / high 5.5 m/s² peak-to-peak) are first guesses that need tuning on real Uzbek roads, and the frame-selection lead (8 m) is untested.

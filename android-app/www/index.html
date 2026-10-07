@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-e86a7r5W8xti7tayG9ugqeciR4DMyaxiSG63sgoHKhU='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-70hEbZEhhxDBO2Fd60zcI5q10Hu0eWK+NjnGPSPGecs='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -117,6 +117,7 @@
         <div style="position:absolute;left:12px;right:12px;bottom:12px;background:rgba(0,0,0,.68);padding:9px 12px;border-radius:10px">
           <div class="verdict" id="nativeDriveCount" style="margin:0;font-size:16px;color:#fff">0 potholes</div>
           <div class="meta" id="nativeDriveStatus" style="color:#d5d5da">Starting camera and GPS...</div>
+          <div class="verdict hidden" id="nativeAlertBanner" role="alert" style="margin:8px 0 0;padding:8px 10px;border-radius:10px;font-size:17px;background:rgba(200,110,0,.92);color:#fff"></div>
         </div>
       </div>
       <div class="btn-row">
@@ -220,6 +221,15 @@
         <option value="high">High (small holes too; more false alarms)</option>
       </select>
       <div class="meta" id="sensorNote"></div>
+      <label id="roadAlertsSetting" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#f2f2f4">
+        <input type="checkbox" id="setRoadAlerts" style="width:18px;height:18px;accent-color:var(--accent)">
+        <span id="roadAlertsLabel">Warn me about potholes ahead while driving</span>
+      </label>
+      <label id="voiceAlertsSetting" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#f2f2f4">
+        <input type="checkbox" id="setVoiceAlerts" style="width:18px;height:18px;accent-color:var(--accent)">
+        <span id="voiceAlertsLabel">Speak the warnings aloud</span>
+      </label>
+      <div class="meta" id="roadAlertsNote"></div>
       <label id="keepFramesSetting" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#f2f2f4">
         <input type="checkbox" id="setKeepFrames" style="width:18px;height:18px;accent-color:var(--accent)">
         <span id="keepFramesLabel">Save every analysed frame to the device</span>
@@ -280,7 +290,7 @@ const CAPTURE_SOURCE_KEY = "drive_capture_source";
 const LEGACY_SETTINGS_KEYS = [
   "sender_name", "detection_model", "image_detail", "debug_mode",
   "keep_frames", "keep_tracks", "record_video", "drive_limit_minutes", "app_lang", "data_notice_version",
-  CAPTURE_SOURCE_KEY, "drive_detection", "bump_sensitivity",
+  CAPTURE_SOURCE_KEY, "drive_detection", "bump_sensitivity", "road_alerts", "voice_alerts",
 ];
 // Drive without an AI key uses the phone's accelerometer instead (native sensor mode).
 const BUMP_SENSITIVITY_OPTIONS = ["low", "medium", "high"];
@@ -291,6 +301,9 @@ function bumpSensitivity() {
 function savedDetectionMode() {
   return localStorage.getItem("drive_detection") === "sensor" ? "sensor" : "auto";
 }
+// Road warnings default on; only an explicit "0" turns them off.
+const roadAlertsEnabled = () => localStorage.getItem("road_alerts") !== "0";
+const voiceAlertsEnabled = () => localStorage.getItem("voice_alerts") !== "0";
 const normaliseDriveCaptureSource = (value) => value === DASHCAM_CAPTURE_SOURCE
   ? DASHCAM_CAPTURE_SOURCE : PHONE_CAPTURE_SOURCE;
 const savedDriveCaptureSource = () => normaliseDriveCaptureSource(
@@ -472,6 +485,9 @@ const I18N = {
     shocks_one: "{n} road shock",
     shocks_many: "{n} road shocks",
     sensor_mode_hud: "Sensor mode, no AI",
+    road_alerts_label: "Warn me about potholes ahead while driving",
+    voice_alerts_label: "Speak the warnings aloud",
+    road_alerts_note: "Works offline from the potholes and road shocks saved on this phone. The warning comes earlier the faster you drive (about 14 seconds ahead). Voice uses the phone's own speech engine; if it has no Uzbek voice, Russian or English is used, otherwise only a tone plays.",
     keep_frames_label: "Save every analysed frame to the device",
     keep_frames_note: "Writes each frame the AI checked, with its verdict, into Documents/pothole-frames on this phone. Visible in the Files app, and the raw material for building an evaluation set. Adds up fast: roughly 300 KB a frame.",
     frames_saved: "{n} frames written to Documents/{dir}.",
@@ -679,6 +695,9 @@ const I18N = {
     shocks_one: "{n} ta zarba",
     shocks_many: "{n} ta zarba",
     sensor_mode_hud: "Sensor rejimi, AI'siz",
+    road_alerts_label: "Haydash paytida oldindagi chuqurlar haqida ogohlantirish",
+    voice_alerts_label: "Ogohlantirishni ovoz bilan aytish",
+    road_alerts_note: "Bu telefonda saqlangan chuqur va zarbalar asosida internetsiz ishlaydi. Qanchalik tez yursangiz, ogohlantirish shunchalik oldinroq keladi (taxminan 14 soniya oldin). Ovoz telefonning o'z nutq dasturidan foydalanadi; o'zbekcha ovoz bo'lmasa, ruscha yoki inglizcha ishlatiladi, aks holda faqat signal chalinadi.",
     keep_frames_label: "Har bir tahlil qilingan kadrni qurilmaga saqlash",
     keep_frames_note: "AI tekshirgan har bir kadrni uning xulosasi bilan shu telefondagi Documents/pothole-frames papkasiga yozadi. Fayllar ilovasida ko'rinadi va baholash to'plamini yig'ish uchun xom material bo'ladi. Tez to'ladi: kadr uchun taxminan 300 KB.",
     frames_saved: "{n} ta kadr Documents/{dir} ga yozildi.",
@@ -901,6 +920,9 @@ function applyLang() {
     $("setBumpSensitivity").querySelector(`option[value="${level}"]`).textContent = t("bump_" + level);
   }
   $("sensorNote").textContent = t("sensor_note");
+  $("roadAlertsLabel").textContent = t("road_alerts_label");
+  $("voiceAlertsLabel").textContent = t("voice_alerts_label");
+  $("roadAlertsNote").textContent = t("road_alerts_note");
   $("keepFramesLabel").textContent = t("keep_frames_label");
   $("keepFramesNote").innerHTML = t("keep_frames_note");
   $("keepTracksLabel").textContent = t("keep_tracks_label");
@@ -2132,6 +2154,22 @@ function startNativePreview() {
   }));
 }
 
+let nativeAlertHideTimer = null;
+function showNativeRoadAlert(status) {
+  const banner = $("nativeAlertBanner");
+  if (!banner) return;
+  const age = Number(status.alertAgeMs);
+  const visibleMs = status.alertText && Number.isFinite(age) ? ROAD_ALERT_DISPLAY_MS - age : 0;
+  if (visibleMs <= 0 || status.isPaused || status.isStopping) {
+    banner.classList.add("hidden");
+    return;
+  }
+  banner.textContent = String(status.alertText);
+  banner.classList.remove("hidden");
+  clearTimeout(nativeAlertHideTimer);
+  nativeAlertHideTimer = setTimeout(() => banner.classList.add("hidden"), visibleMs);
+}
+const ROAD_ALERT_DISPLAY_MS = 8000;
 function updateNativeDriveHud(status) {
   if (!status) return;
   const captureSource = nativeStatusCaptureSource(status);
@@ -2163,6 +2201,7 @@ function updateNativeDriveHud(status) {
     + (segments ? ` · ${segments} video clip${segments === 1 ? "" : "s"} (${savedMb.toFixed(0)} MB)` : "")
     + (minutesLeft && !status.isStopping ? ` · ${minutesLeft} min left` : "");
   $("nativePauseBtn").textContent = status.isPaused ? "Resume" : "Pause";
+  showNativeRoadAlert(status);
   const badge = $("nativeCameraBadge");
   if (captureSource === DASHCAM_CAPTURE_SOURCE) {
     const sourceState = String(status.sourceState || "").toLowerCase();
@@ -2845,6 +2884,11 @@ async function startDriveAdmitted() {
       status: nativeSourceStartingStatus(captureConfig.captureSource),
     });
     show("drive");
+    // Local reports only; a failure to read them must never block Drive.
+    const roadHazards = roadAlertsEnabled()
+      ? await api("/api/road-hazards").then((r) => (r && Array.isArray(r.hazards) ? r.hazards : []))
+        .catch(() => [])
+      : [];
     try {
       const status = await nativePlugin.startDrive({
         startRequestId: ctx.startRequestId,
@@ -2858,6 +2902,9 @@ async function startDriveAdmitted() {
         captureSource: captureConfig.captureSource,
         detectionMode: savedDetectionMode() === "sensor" ? "sensor" : "cloud",
         bumpSensitivity: bumpSensitivity(),
+        roadAlerts: roadAlertsEnabled(),
+        voiceAlerts: voiceAlertsEnabled(),
+        hazards: roadHazards,
       });
       if (nativeWipeInProgress) {
         drive = null;
@@ -5030,6 +5077,8 @@ window.openSettings = (showWelcome = false, requireCompletion = false) => {
   $("setDriveLimit").value = String(driveLimitMinutes());
   $("setDetectionMode").value = savedDetectionMode();
   $("setBumpSensitivity").value = bumpSensitivity();
+  $("setRoadAlerts").checked = roadAlertsEnabled();
+  $("setVoiceAlerts").checked = voiceAlertsEnabled();
   $("setLang").value = LANG;
   $("settingsHint").textContent = showWelcome ? t("welcome_hint") : "";
   $("setBack").classList.toggle("hidden", initialSettingsActive);
@@ -5100,6 +5149,8 @@ $("setSave").onclick = async () => {
     localStorage.setItem("keep_frames", $("setKeepFrames").checked ? "1" : "0");
     localStorage.setItem("drive_detection",
       $("setDetectionMode").value === "sensor" ? "sensor" : "auto");
+    localStorage.setItem("road_alerts", $("setRoadAlerts").checked ? "1" : "0");
+    localStorage.setItem("voice_alerts", $("setVoiceAlerts").checked ? "1" : "0");
     localStorage.setItem("bump_sensitivity",
       BUMP_SENSITIVITY_OPTIONS.includes($("setBumpSensitivity").value)
         ? $("setBumpSensitivity").value : "medium");

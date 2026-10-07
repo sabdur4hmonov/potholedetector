@@ -59,7 +59,11 @@ data class DriveStatusSnapshot(
         else NativeFrameSourceState.IDLE.wireValue,
     val sourceIssue: String? = null,
     val detectionMode: String = DriveDetectionMode.CLOUD,
-    val shockCount: Int = 0
+    val shockCount: Int = 0,
+    val alertText: String? = null,
+    val alertKind: String? = null,
+    val alertAgeMs: Long? = null,
+    val alertHazardCount: Int = 0
 )
 
 data class DriveEndSummary(
@@ -81,6 +85,11 @@ class DriveForegroundService : LifecycleService() {
     private var inferenceEngine: DriveDetector? = null
     private var bumpMonitor: RoadBumpMonitor? = null
     private var detectionMode = DriveDetectionMode.CLOUD
+    private var roadAlerts: RoadAlertEngine? = null
+    private var alertSpeaker: RoadAlertSpeaker? = null
+    private var lastAlertText: String? = null
+    private var lastAlertKind: String? = null
+    private var lastAlertElapsedMs = 0L
     private var dedupeEngine: NativeDeduplicationEngine? = null
     private var repairEngine: NativeRepairStatusEngine? = null
     private lateinit var database: PotholeDatabase
@@ -224,6 +233,21 @@ class DriveForegroundService : LifecycleService() {
         const val EXTRA_MODEL = "extra_model"
         const val EXTRA_DETECTION_MODE = "extra_detection_mode"
         const val EXTRA_BUMP_SENSITIVITY = "extra_bump_sensitivity"
+        const val EXTRA_ROAD_ALERTS = "extra_road_alerts"
+        const val EXTRA_VOICE_ALERTS = "extra_voice_alerts"
+        /** Alerts show on screen for this long after they are spoken. */
+        const val ALERT_DISPLAY_MS = 8_000L
+
+        // The hazard list can be thousands of points, too large for an Intent extra. The
+        // plugin stages it in this process just before starting the service.
+        @Volatile private var stagedHazards: List<RoadHazard> = emptyList()
+
+        fun stageRoadHazards(hazards: List<RoadHazard>) {
+            stagedHazards = hazards.take(RoadAlertEngine.MAX_HAZARDS)
+        }
+
+        private fun takeStagedHazards(): List<RoadHazard> =
+            stagedHazards.also { stagedHazards = emptyList() }
         const val EXTRA_DETAIL = "extra_detail"
         const val EXTRA_LANGUAGE = "extra_language"
         const val EXTRA_DEBUG = "extra_debug"
@@ -365,7 +389,9 @@ class DriveForegroundService : LifecycleService() {
                             intent?.getStringExtra(EXTRA_DASHCAM_RTSP_URL)
                         ).getOrThrow(),
                         intent?.getStringExtra(EXTRA_DETECTION_MODE),
-                        BumpSensitivity.fromWire(intent?.getStringExtra(EXTRA_BUMP_SENSITIVITY))
+                        BumpSensitivity.fromWire(intent?.getStringExtra(EXTRA_BUMP_SENSITIVITY)),
+                        intent?.getBooleanExtra(EXTRA_ROAD_ALERTS, true) ?: true,
+                        intent?.getBooleanExtra(EXTRA_VOICE_ALERTS, true) ?: true
                     )
                     // startDriveSession marks the service running before this admission
                     // is released, so observers can never see an Idle gap in between.
@@ -449,6 +475,7 @@ class DriveForegroundService : LifecycleService() {
         terminalStatusSealed = true
         runCatching { onDriveEndedListener?.invoke(summary) }
         runCatching { stopBumpMonitor() }
+        runCatching { stopRoadAlerts() }
         runCatching { scheduleForegroundNotificationRemoval() }
         stopSelf(startId)
     }
@@ -496,7 +523,9 @@ class DriveForegroundService : LifecycleService() {
         maxDriveMinutes: Int,
         sourceConfig: NativeFrameSourceConfig,
         requestedDetectionMode: String? = null,
-        bumpSensitivity: BumpSensitivity = BumpSensitivity.MEDIUM
+        bumpSensitivity: BumpSensitivity = BumpSensitivity.MEDIUM,
+        roadAlertsEnabled: Boolean = true,
+        voiceAlerts: Boolean = true
     ) {
         // A new producer lifetime invalidates any bridge inventory completed before it.
         // The epoch cannot be overwritten by an older reconciliation pass racing here.
@@ -595,11 +624,20 @@ class DriveForegroundService : LifecycleService() {
         )
         locationProvider = NativeDriveLocationProvider(
             context = this,
-            onLocationUpdate = { mainHandler.post(::refreshCaptureInterlock) },
+            onLocationUpdate = { fix ->
+                mainHandler.post(::refreshCaptureInterlock)
+                handleRoadAlert(fix)
+            },
             onAvailabilityChange = { access ->
                 mainHandler.post { noteLocationAccess(access) }
             }
         ).also { it.startUpdates(startedAtMs) }
+        stopRoadAlerts()
+        val hazards = takeStagedHazards()
+        if (roadAlertsEnabled && hazards.isNotEmpty()) {
+            roadAlerts = RoadAlertEngine(hazards)
+            alertSpeaker = RoadAlertSpeaker(this, language, voiceAlerts)
+        }
         if (sensorDetector != null) {
             val monitor = RoadBumpMonitor(
                 this,
@@ -1689,6 +1727,27 @@ class DriveForegroundService : LifecycleService() {
         }
     }
 
+    /** Called on the main looper with every location fix. */
+    private fun handleRoadAlert(fix: GpsFix) {
+        if (!sessionRunning || isPaused || isStopping) return
+        val engine = roadAlerts ?: return
+        val alert = runCatching {
+            engine.onFix(fix.lat, fix.lng, fix.accuracy, fix.speedMps, fix.heading, fix.elapsedRealtimeMs)
+        }.getOrNull() ?: return
+        lastAlertText = alertSpeaker?.announce(alert) ?: RoadAlertPhrases.text(alert, "en")
+        lastAlertKind = alert.hazard.kind.wireValue
+        lastAlertElapsedMs = SystemClock.elapsedRealtime()
+        dispatchStatus()
+    }
+
+    private fun stopRoadAlerts() {
+        runCatching { alertSpeaker?.shutdown() }
+        alertSpeaker = null
+        roadAlerts = null
+        lastAlertText = null
+        lastAlertKind = null
+    }
+
     @Synchronized
     private fun stopBumpMonitor() {
         bumpMonitor?.stop()
@@ -2231,6 +2290,7 @@ class DriveForegroundService : LifecycleService() {
         runCatching { locationProvider?.stopUpdates() }
             .onFailure { recordStopError("Could not stop location updates", it) }
         runCatching { stopBumpMonitor() }
+        runCatching { stopRoadAlerts() }
         runCatching { releaseWakeLock() }
             .onFailure { recordStopError("Could not release the Drive Mode wake lock", it) }
         val manager = frameSource
@@ -2836,7 +2896,11 @@ class DriveForegroundService : LifecycleService() {
                 else sourceState.wireValue,
             sourceIssue = if (starting) null else sourceIssue,
             detectionMode = detectionMode,
-            shockCount = bumpMonitor?.shockCount ?: 0
+            shockCount = bumpMonitor?.shockCount ?: 0,
+            alertText = lastAlertText,
+            alertKind = lastAlertKind,
+            alertAgeMs = lastAlertText?.let { SystemClock.elapsedRealtime() - lastAlertElapsedMs },
+            alertHazardCount = roadAlerts?.hazardCount ?: 0
         )
     }
 
@@ -3005,6 +3069,7 @@ class DriveForegroundService : LifecycleService() {
             }
             runCatching { locationProvider?.stopUpdates() }
             runCatching { stopBumpMonitor() }
+            runCatching { stopRoadAlerts() }
             runCatching { inferenceEngine?.close() }
             inferenceEngine = null
             runCatching { releaseWakeLock() }

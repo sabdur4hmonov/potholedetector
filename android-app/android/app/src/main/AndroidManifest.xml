@@ -4,6 +4,10 @@
 
     <queries>
         <package android:name="com.google.android.apps.maps" />
+        <!-- Offline text-to-speech engine for spoken road warnings (Android 11+ visibility). -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 
     <application

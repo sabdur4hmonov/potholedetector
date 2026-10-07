@@ -1,5 +1,11 @@
 # Next steps from the preserved tree
 
+## 2026-10-07 next actions after ALERT-001
+
+1. Owner road test together with SENSOR-001: check that the warnings come at a useful distance and that the voice is understandable.
+2. **ALERT-002 antiradar:** define the official camera data format (coordinates, direction, type, limit), add an offline camera pack plus a loader and its validation, and add a camera-free "warnings only" Drive so alerts work without recording. Needs the official Uzbek camera list from the owner; until then, test points only and nothing shipped as real data.
+3. Then TRIP-003 (trip stats, safe-driving score, share card), then the server, then routing (see PRODUCT_DECISIONS 2026-10-07).
+
 ## 2026-10-07 next actions after SENSOR-001
 
 1. Owner road test (tonight): install the CI debug APK, leave the OpenAI key empty (or Settings → Drive detection → Phone sensor only), mount the phone firmly, drive above ~15 km/h. Note how many real potholes, speed bumps and smooth stretches produced a shock, then open each report and check whether the saved frame shows the spot. Try Medium first, then High/Low.

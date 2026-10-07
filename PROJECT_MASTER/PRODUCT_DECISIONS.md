@@ -1,5 +1,12 @@
 # Product decisions
 
+## 2026-10-07 — Free-for-users roadmap (owner approved in chat)
+
+- **Everything must be free for users, with no paid AI.** Detection comes from the phone sensor and, later, our own small on-device model; the OpenAI path stays optional only until that model works.
+- **Agreed order:** (1) alert engine + pothole warnings, (2) speed-camera warnings ("antiradar") from official Uzbek data the owner will obtain, (3) Strava-style trip statistics, a safe-driving score and an Instagram/Telegram share card, (4) a server for accounts, a shared pothole map and regional rankings (village → district → region → country), (5) routing, first without live traffic, later with traffic from our own users' anonymous speeds.
+- **Rankings reward rule-keeping, never speed.** Shared cards never show over-limit speeds and hide the start and end of a trip.
+- **Camera warnings cannot be promised error-free.** They are only as good as the official list: mobile cameras, outdated entries and GPS drift in tunnels or near parallel roads can cause misses.
+
 ## 2026-10-07 — AI-free sensor Drive mode (owner request in chat)
 
 - The owner asked for a way to run the app "without AI", the way roadside speed cameras measure without a language model. Drive now has a **sensor mode**: the phone's accelerometer feels road shocks; the complete camera frame captured just before the wheel hit and the GPS position of the hit are saved as a local report marked **"road shock, not verified"** (`report_origin: sensor_detected`, `is_pothole: null`, `decision: sensor_candidate`).
