@@ -655,3 +655,5 @@ finding; none exists after NEW-002.
 * **Validation:** see the chat report for the full local suite, Node tests and CI.
 * **Exact next task:** owner road test, then server deployment decision.
 * **Commit/push:** session branch `ccr-aba46d05-gm456b` only.
+* **CI note (same entry):** run 22 attempt 1 failed in two Node browser tests (`manual_offline_report_test`: page did not finish loading `/web-app/` within 30 s; `sec009_csp_browser_test`: fake-camera MediaRecorder blob did not load on `/`). The single re-run of the failed job on the same commit passed, and both tests passed three times in a row locally (Chromium 141). Root cause not established; watch these two tests if they fail again.
+* **Final validation:** local `tests/run-all.sh` ALL TESTS PASS, 20/20 Node tests, 29 standalone Kotlin JVM tests; CI run 22 attempt 2 green (Android debug build, JVM tests, web/browser tests, emulator smoke).
