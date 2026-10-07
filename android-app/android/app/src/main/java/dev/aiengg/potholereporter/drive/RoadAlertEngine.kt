@@ -53,9 +53,19 @@ data class RoadAlert(
     /** Rounded for speech: 50 m steps below 300 m, 100 m steps above. */
     val distanceM: Int,
     val stage: Stage,
-    val atElapsedMs: Long
+    val atElapsedMs: Long,
+    /** Speed when the alert fired, for the over-limit reminder. */
+    val speedKmh: Int = 0
 ) {
     enum class Stage { EARLY, NEAR }
+
+    val overLimit: Boolean
+        get() = hazard.speedLimitKmh?.let { speedKmh > it + OVER_LIMIT_TOLERANCE_KMH } == true
+
+    companion object {
+        /** Speedometer and GPS differ by a few km/h; do not nag at the limit itself. */
+        const val OVER_LIMIT_TOLERANCE_KMH = 3
+    }
 }
 
 class RoadAlertEngine(hazards: List<RoadHazard>) {
@@ -104,7 +114,7 @@ class RoadAlertEngine(hazards: List<RoadHazard>) {
             if (previous == RoadAlert.Stage.EARLY && hazard.kind.isCamera) continue
             if (distance < bestDistance) {
                 bestDistance = distance
-                best = RoadAlert(hazard, roundForSpeech(distance), stage, elapsedMs)
+                best = RoadAlert(hazard, roundForSpeech(distance), stage, elapsedMs, (speed * 3.6f).roundToInt())
             }
         }
         best?.let { announced[it.hazard.id] = Announcement(it.stage, elapsedMs) }
@@ -219,6 +229,16 @@ class RoadAlertEngine(hazards: List<RoadHazard>) {
 /** Spoken and displayed wording. Uzbek and English match the app; Russian is a voice fallback. */
 object RoadAlertPhrases {
     fun text(alert: RoadAlert, language: String): String {
+        val base = baseText(alert, language)
+        if (!alert.hazard.kind.isCamera || !alert.overLimit) return base
+        return base + when (language) {
+            "uz" -> " Tezlikni kamaytiring."
+            "ru" -> " Снизьте скорость."
+            else -> " Slow down."
+        }
+    }
+
+    private fun baseText(alert: RoadAlert, language: String): String {
         val d = alert.distanceM
         val near = alert.stage == RoadAlert.Stage.NEAR
         val limit = alert.hazard.speedLimitKmh

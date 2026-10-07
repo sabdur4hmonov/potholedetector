@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-07 Antiradar (ALERT-002)
+
+The app can now warn about speed, seat-belt, red-light, lane and phone cameras without the camera running: Antiradar on the home screen starts a location-only service; the camera list is imported from a CSV/JSON file in Settings. Covered by `RoadAlertEngineTest` (over-limit wording) and `tests/antiradar_test.py` (Python builder/JS parser parity on a synthetic file, error handling, import UI, hazards, service/manifest/plugin contract). **No official camera list exists in the app yet**; the owner needs to obtain it (see [CAMERA_DATA_FORMAT.md](CAMERA_DATA_FORMAT.md)). Not car-tested; the native service is compiled and unit-tested on CI only.
+
 ## 2026-10-07 Offline road warnings (ALERT-001)
 
 During Drive, potholes and road shocks already stored on the phone are announced ahead of the car ("500 metrdan keyin chuqur. Sekinlang."), with a tone, offline speech when the phone has a matching voice, and an on-screen banner. Covered by `RoadAlertEngineTest` (11 JVM tests on simulated drives) and `tests/road_alerts_test.py` (source contract plus real-browser hazard selection and banner). Not verified in a car; TTS voice availability depends on the phone. Warnings currently run only while Drive mode (camera) is on; a camera-free "navigator" mode is a later step. No speed-camera data is included yet.

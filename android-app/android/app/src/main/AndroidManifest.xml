@@ -52,6 +52,13 @@
             android:stopWithTask="false"
             android:exported="false" />
 
+        <!-- Antiradar: location-only road warnings, no camera. -->
+        <service
+            android:name=".drive.RoadAlertService"
+            android:foregroundServiceType="location"
+            android:stopWithTask="false"
+            android:exported="false" />
+
         <receiver
             android:name=".drive.NotificationActionReceiver"
             android:exported="false" />

@@ -24,26 +24,28 @@ SCENARIO = r"""
 
   const buttons = [...document.querySelectorAll("#home > button")];
   eq("order: Drive is the first home action",
-     buttons.map((button) => button.id), ["driveBtn", "captureBtn", "dashBtn"]);
+     buttons.map((button) => button.id), ["driveBtn", "alertsBtn", "captureBtn", "dashBtn"]);
   ok("hierarchy: Drive alone uses the primary style",
      buttons[0].classList.contains("primary")
        && !buttons[1].classList.contains("primary")
-       && !buttons[2].classList.contains("primary"),
+       && !buttons[2].classList.contains("primary")
+       && !buttons[3].classList.contains("primary"),
      buttons.map((button) => button.className));
   ok("hierarchy: Drive renders in the orange highlight",
      getComputedStyle(buttons[0]).backgroundColor === "rgb(255, 122, 26)",
      getComputedStyle(buttons[0]).backgroundColor);
-  ok("layout: Drive is visually above Photo and Contribution",
+  ok("layout: Drive is visually above Antiradar, Photo and Contribution",
      buttons[0].getBoundingClientRect().top < buttons[1].getBoundingClientRect().top
-       && buttons[1].getBoundingClientRect().top < buttons[2].getBoundingClientRect().top,
+       && buttons[1].getBoundingClientRect().top < buttons[2].getBoundingClientRect().top
+       && buttons[2].getBoundingClientRect().top < buttons[3].getBoundingClientRect().top,
      buttons.map((button) => button.getBoundingClientRect().top));
 
   const expected = {
-    en: ["Drive", "Photo", "Contribution"],
-    uz: ["Haydash", "Rasm", "Hissam"],
+    en: ["Drive", "Antiradar", "Photo", "Contribution"],
+    uz: ["Haydash", "Antiradar", "Rasm", "Hissam"],
   };
   for (const [language, labels] of Object.entries(expected)) {
-    const actual = [I18N[language].drive_btn, I18N[language].report_btn,
+    const actual = [I18N[language].drive_btn, I18N[language].alerts_btn, I18N[language].report_btn,
                     I18N[language].dash_btn].map(word);
     eq(`copy: ${language} home actions are the approved words`, actual, labels);
     ok(`copy: ${language} actions are each one word`,

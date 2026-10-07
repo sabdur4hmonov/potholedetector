@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-70hEbZEhhxDBO2Fd60zcI5q10Hu0eWK+NjnGPSPGecs='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-FnGcPUndD3u/yU8wHEMPJUDGC5g5labYXNji24ENu6c='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -83,6 +83,12 @@
 
   <div id="home" class="hidden">
     <button class="primary" id="driveBtn">&#128663; &nbsp;Drive</button>
+    <button class="ghost" id="alertsBtn" style="width:100%;margin-bottom:10px">&#128225; &nbsp;Antiradar</button>
+    <div class="card hidden" id="alertsPanel" style="margin-bottom:10px">
+      <div class="verdict" id="alertsSpeed" style="margin:0;font-size:28px;color:#fff">-- km/h</div>
+      <div class="meta" id="alertsStatus"></div>
+      <div class="verdict hidden" id="alertsBanner" role="alert" style="margin:8px 0 0;padding:8px 10px;border-radius:10px;font-size:17px;background:rgba(200,110,0,.92);color:#fff"></div>
+    </div>
     <button class="ghost" id="captureBtn" style="width:100%;margin-bottom:10px">&#128247; &nbsp;Photo</button>
     <button class="ghost" id="dashBtn" style="width:100%;margin-bottom:14px">&#128506;&#65039; &nbsp;Contribution</button>
     <input type="file" id="fileInput" accept="image/*" capture="environment" class="hidden">
@@ -230,6 +236,14 @@
         <span id="voiceAlertsLabel">Speak the warnings aloud</span>
       </label>
       <div class="meta" id="roadAlertsNote"></div>
+      <label id="camerasLabel" for="cameraFile">Road cameras (antiradar)</label>
+      <div class="meta" id="camerasSummary"></div>
+      <input type="file" id="cameraFile" accept=".csv,.json,text/csv,application/json,text/plain" class="hidden">
+      <div class="btn-row">
+        <button class="ghost" id="cameraImportBtn" type="button">Import camera list</button>
+        <button class="ghost danger" id="cameraClearBtn" type="button">Remove list</button>
+      </div>
+      <div class="meta" id="camerasNote"></div>
       <label id="keepFramesSetting" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#f2f2f4">
         <input type="checkbox" id="setKeepFrames" style="width:18px;height:18px;accent-color:var(--accent)">
         <span id="keepFramesLabel">Save every analysed frame to the device</span>
@@ -486,6 +500,23 @@ const I18N = {
     shocks_many: "{n} road shocks",
     sensor_mode_hud: "Sensor mode, no AI",
     road_alerts_label: "Warn me about potholes ahead while driving",
+    alerts_btn: "&#128225; &nbsp;Antiradar",
+    alerts_btn_on: "&#128225; &nbsp;Antiradar on · tap to stop",
+    alerts_status: "{cameras} cameras · {potholes} potholes · {gps}",
+    alerts_gps_ok: "GPS ready",
+    alerts_gps_wait: "waiting for GPS",
+    alerts_empty: "There are no cameras or potholes to warn about yet. Import the official camera list in Settings, or drive and report potholes first.",
+    alerts_drive_running: "Drive is running and already gives these warnings.",
+    alerts_permission: "Antiradar needs precise location and notification permission. The notification shows that location is in use.",
+    cameras_label: "Road cameras (antiradar)",
+    cameras_none: "No camera list yet.",
+    cameras_summary: "{n} cameras · {source}{updated}",
+    cameras_import: "Import camera list",
+    cameras_clear: "Remove list",
+    cameras_note: "A CSV or JSON file with columns lat, lng, type (speed, seatbelt, red_light, lane, phone, speed_bump) and optionally id, heading (direction the camera watches, 0-360), limit (km/h) and name. Warnings are only as accurate as this list: mobile cameras and outdated entries are not covered.",
+    cameras_imported: "{n} cameras imported.",
+    cameras_skipped: "{n} rows were skipped:",
+    cameras_confirm_clear: "Remove the camera list from this phone?",
     voice_alerts_label: "Speak the warnings aloud",
     road_alerts_note: "Works offline from the potholes and road shocks saved on this phone. The warning comes earlier the faster you drive (about 14 seconds ahead). Voice uses the phone's own speech engine; if it has no Uzbek voice, Russian or English is used, otherwise only a tone plays.",
     keep_frames_label: "Save every analysed frame to the device",
@@ -696,6 +727,23 @@ const I18N = {
     shocks_many: "{n} ta zarba",
     sensor_mode_hud: "Sensor rejimi, AI'siz",
     road_alerts_label: "Haydash paytida oldindagi chuqurlar haqida ogohlantirish",
+    alerts_btn: "&#128225; &nbsp;Antiradar",
+    alerts_btn_on: "&#128225; &nbsp;Antiradar yoqilgan · to'xtatish uchun bosing",
+    alerts_status: "{cameras} ta kamera · {potholes} ta chuqur · {gps}",
+    alerts_gps_ok: "GPS tayyor",
+    alerts_gps_wait: "GPS kutilmoqda",
+    alerts_empty: "Hozircha ogohlantiradigan kamera yoki chuqur yo'q. Sozlamalarda rasmiy kamera ro'yxatini yuklang yoki avval yurib chuqurlarni belgilang.",
+    alerts_drive_running: "Haydash rejimi yoqilgan va bu ogohlantirishlarni o'zi beradi.",
+    alerts_permission: "Antiradarga aniq joylashuv va bildirishnoma ruxsati kerak. Bildirishnoma joylashuv ishlatilayotganini ko'rsatib turadi.",
+    cameras_label: "Yo'l kameralari (antiradar)",
+    cameras_none: "Kamera ro'yxati hali yuklanmagan.",
+    cameras_summary: "{n} ta kamera · {source}{updated}",
+    cameras_import: "Kamera ro'yxatini yuklash",
+    cameras_clear: "Ro'yxatni o'chirish",
+    cameras_note: "lat, lng, type (speed, seatbelt, red_light, lane, phone, speed_bump) ustunli va ixtiyoriy id, heading (kamera kuzatadigan yo'nalish, 0-360), limit (km/soat) va name ustunli CSV yoki JSON fayl. Ogohlantirish shu ro'yxat qanchalik aniq bo'lsa, shunchalik aniq: ko'chma kameralar va eskirgan yozuvlar qamrab olinmaydi.",
+    cameras_imported: "{n} ta kamera yuklandi.",
+    cameras_skipped: "{n} ta qator o'tkazib yuborildi:",
+    cameras_confirm_clear: "Kamera ro'yxati bu telefondan o'chirilsinmi?",
     voice_alerts_label: "Ogohlantirishni ovoz bilan aytish",
     road_alerts_note: "Bu telefonda saqlangan chuqur va zarbalar asosida internetsiz ishlaydi. Qanchalik tez yursangiz, ogohlantirish shunchalik oldinroq keladi (taxminan 14 soniya oldin). Ovoz telefonning o'z nutq dasturidan foydalanadi; o'zbekcha ovoz bo'lmasa, ruscha yoki inglizcha ishlatiladi, aks holda faqat signal chalinadi.",
     keep_frames_label: "Har bir tahlil qilingan kadrni qurilmaga saqlash",
@@ -923,6 +971,11 @@ function applyLang() {
   $("roadAlertsLabel").textContent = t("road_alerts_label");
   $("voiceAlertsLabel").textContent = t("voice_alerts_label");
   $("roadAlertsNote").textContent = t("road_alerts_note");
+  $("camerasLabel").textContent = t("cameras_label");
+  $("cameraImportBtn").textContent = t("cameras_import");
+  $("cameraClearBtn").textContent = t("cameras_clear");
+  $("camerasNote").textContent = t("cameras_note");
+  setAlertsButton(roadAlertState.running);
   $("keepFramesLabel").textContent = t("keep_frames_label");
   $("keepFramesNote").innerHTML = t("keep_frames_note");
   $("keepTracksLabel").textContent = t("keep_tracks_label");
@@ -2154,6 +2207,118 @@ function startNativePreview() {
   }));
 }
 
+// ---------- antiradar (GPS-only road warnings) ----------
+let roadAlertState = { running: false };
+let roadAlertListenerReady = false;
+let roadAlertBannerTimer = null;
+
+function setAlertsButton(running) {
+  const button = $("alertsBtn");
+  if (button) button.innerHTML = t(running ? "alerts_btn_on" : "alerts_btn");
+}
+
+function updateRoadAlertPanel(status) {
+  roadAlertState = status || { running: false };
+  const running = !!roadAlertState.running;
+  setAlertsButton(running);
+  $("alertsPanel").classList.toggle("hidden", !running);
+  if (!running) return;
+  const speed = Number(roadAlertState.speedKmh);
+  $("alertsSpeed").textContent = Number.isFinite(speed) ? `${speed} km/h` : "-- km/h";
+  $("alertsStatus").textContent = t("alerts_status", {
+    cameras: Number(roadAlertState.cameraCount) || 0,
+    potholes: Number(roadAlertState.potholeCount) || 0,
+    gps: t(roadAlertState.gpsReady ? "alerts_gps_ok" : "alerts_gps_wait"),
+  });
+  const banner = $("alertsBanner");
+  const age = Number(roadAlertState.alertAgeMs);
+  const visibleMs = roadAlertState.alertText && Number.isFinite(age) ? ROAD_ALERT_DISPLAY_MS - age : 0;
+  if (visibleMs <= 0) { banner.classList.add("hidden"); return; }
+  banner.textContent = String(roadAlertState.alertText);
+  banner.classList.remove("hidden");
+  clearTimeout(roadAlertBannerTimer);
+  roadAlertBannerTimer = setTimeout(() => banner.classList.add("hidden"), visibleMs);
+}
+
+async function ensureRoadAlertListener() {
+  const plugin = nativeDrivePlugin();
+  if (!plugin || !plugin.getRoadAlertStatus || roadAlertListenerReady) return;
+  roadAlertListenerReady = true;
+  await plugin.addListener("roadAlertChange", updateRoadAlertPanel);
+  updateRoadAlertPanel(await plugin.getRoadAlertStatus().catch(() => ({ running: false })));
+}
+
+async function toggleRoadAlerts() {
+  const plugin = nativeDrivePlugin();
+  if (!plugin || !plugin.startRoadAlerts) { alert(t("alerts_permission")); return; }
+  await ensureRoadAlertListener();
+  if (roadAlertState.running) {
+    updateRoadAlertPanel(await plugin.stopRoadAlerts().catch(() => ({ running: false })));
+    return;
+  }
+  if (drive) { alert(t("alerts_drive_running")); return; }
+  if (!(await ensureDataConsent())) return;
+  const hazards = await api("/api/road-hazards")
+    .then((r) => (r && Array.isArray(r.hazards) ? r.hazards : [])).catch(() => []);
+  if (!hazards.length) { alert(t("alerts_empty")); return; }
+  // Location and notification only: the dashcam permission set requests no camera.
+  const permissions = await requestNativeDrivePermissions(DASHCAM_CAPTURE_SOURCE);
+  if (!permissions || !permissions.granted || permissions.notificationsGranted === false) {
+    alert(t("alerts_permission"));
+    return;
+  }
+  try {
+    updateRoadAlertPanel(await plugin.startRoadAlerts({
+      hazards, language: LANG, voice: voiceAlertsEnabled(),
+    }));
+  } catch (e) { alert(e.message || String(e)); }
+}
+
+async function refreshCameraSummary() {
+  try {
+    const summary = await api("/api/cameras");
+    $("camerasSummary").textContent = summary && summary.count
+      ? t("cameras_summary", { n: summary.count, source: summary.source || "",
+          updated: summary.updated ? ` · ${summary.updated}` : "" })
+      : t("cameras_none");
+    $("cameraClearBtn").disabled = !(summary && summary.count);
+  } catch (e) {
+    $("camerasSummary").textContent = t("cameras_none");
+  }
+}
+
+function readTextFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("Could not read the file."));
+    reader.readAsText(file);
+  });
+}
+
+$("alertsBtn").onclick = () => { toggleRoadAlerts(); };
+$("cameraImportBtn").onclick = () => $("cameraFile").click();
+$("cameraFile").onchange = async () => {
+  const file = $("cameraFile").files && $("cameraFile").files[0];
+  $("cameraFile").value = "";
+  if (!file) return;
+  try {
+    const result = await api("/api/cameras/import", {
+      method: "POST", body: JSON.stringify({ text: await readTextFile(file), name: file.name }),
+    });
+    const skipped = result.skipped && result.skipped.length
+      ? `\n\n${t("cameras_skipped", { n: result.skipped.length })}\n${result.skipped.slice(0, 10).join("\n")}` : "";
+    alert(t("cameras_imported", { n: result.count }) + skipped);
+  } catch (e) { alert(e.message || String(e)); }
+  refreshCameraSummary();
+};
+$("cameraClearBtn").onclick = async () => {
+  if (!confirm(t("cameras_confirm_clear"))) return;
+  await api("/api/cameras", { method: "DELETE" }).catch(() => null);
+  refreshCameraSummary();
+};
+if (nativeDrivePlugin()) ensureRoadAlertListener().catch(() => {});
+
 let nativeAlertHideTimer = null;
 function showNativeRoadAlert(status) {
   const banner = $("nativeAlertBanner");
@@ -2884,6 +3049,8 @@ async function startDriveAdmitted() {
       status: nativeSourceStartingStatus(captureConfig.captureSource),
     });
     show("drive");
+    // Native stops antiradar when Drive starts; Drive gives the same warnings.
+    if (roadAlertState.running) updateRoadAlertPanel({ running: false });
     // Local reports only; a failure to read them must never block Drive.
     const roadHazards = roadAlertsEnabled()
       ? await api("/api/road-hazards").then((r) => (r && Array.isArray(r.hazards) ? r.hazards : []))
@@ -5078,6 +5245,7 @@ window.openSettings = (showWelcome = false, requireCompletion = false) => {
   $("setDetectionMode").value = savedDetectionMode();
   $("setBumpSensitivity").value = bumpSensitivity();
   $("setRoadAlerts").checked = roadAlertsEnabled();
+  refreshCameraSummary();
   $("setVoiceAlerts").checked = voiceAlertsEnabled();
   $("setLang").value = LANG;
   $("settingsHint").textContent = showWelcome ? t("welcome_hint") : "";

@@ -631,3 +631,15 @@ finding; none exists after NEW-002.
 * **Limits:** alerts only while camera Drive runs; voice depends on installed TTS voices; no camera data.
 * **Exact next task:** ALERT-002 antiradar data format and camera-free warnings mode.
 * **Commit/push:** session branch `ccr-aba46d05-gm456b` only.
+
+---
+
+## 2026-10-07 — ALERT-002 antiradar
+
+* **Date/time:** 2026-10-07 (Asia/Tashkent). **Agent/tool:** Claude in a cloud sandbox; Android build on CI only.
+* **Task/status:** Owner asked for the antiradar (roadmap item 2). COMPLETE at source/JVM/browser level; no official camera data yet; not car-tested.
+* **Files changed:** new `drive/RoadAlertService.kt`, `tools/build-camera-pack.py`, `tests/antiradar_test.py`, `tests/fixtures/cameras-synthetic.csv` (synthetic, not real cameras), `PROJECT_MASTER/CAMERA_DATA_FORMAT.md`; edited `drive/RoadAlertEngine.kt` (speed on alerts, over-limit phrase), its JVM test, `plugin/DriveModePlugin.kt` (start/stop/status, Drive stops antiradar), `AndroidManifest.xml` (location-only service), `static/index.html` + `static/standalone.js` and mirrors (home Antiradar panel, camera import/remove in Settings, `/api/cameras*`, cameras in `/api/road-hazards`), `tests/home_actions_test.py` (new home button is an intended change), `tests/run-all.sh`, `docs/privacy.html`, PROJECT_STATUS, NEXT_STEPS, CHANGELOG and this worklog.
+* **Validation:** standalone Kotlin JVM tests (RoadAlertEngineTest incl. over-limit, RoadBumpDetectorTest, OnDeviceDetectorContractTest) passed; local `run-all.sh` passed after the home-actions update, all 19 Node tests passed; CI result in the chat summary.
+* **Limits:** warnings depend entirely on the imported list; mobile cameras and outdated entries are not covered; GPS drift in tunnels/near parallel roads.
+* **Exact next task:** TRIP-003 trip statistics, safe-driving score and share card.
+* **Commit/push:** session branch `ccr-aba46d05-gm456b` only.

@@ -75,6 +75,8 @@ class RoadAlertEngineTest {
         assertEquals(1, alerts.size) // a camera is announced once, with no "near" repeat
         assertEquals(RoadAlert.Stage.EARLY, alerts.single().second.stage)
         assertEquals(60, alerts.single().second.hazard.speedLimitKmh)
+        assertEquals(58, alerts.single().second.speedKmh) // 16 m/s
+        assertTrue(!alerts.single().second.overLimit)
     }
 
     @Test fun parkedOrInaccurateFixesNeverAlert() {
@@ -144,6 +146,15 @@ class RoadAlertEngineTest {
             val alert = camera.copy(hazard = camera.hazard.copy(kind = kind))
             listOf("uz", "en", "ru").forEach { assertTrue(RoadAlertPhrases.text(alert, it).isNotBlank()) }
         }
+        val fast = camera.copy(speedKmh = 85)
+        assertEquals("600 metrdan keyin tezlik kamerasi. Chegara 70. Tezlikni kamaytiring.",
+            RoadAlertPhrases.text(fast, "uz"))
+        assertEquals("Speed camera in 600 metres. Limit 70. Slow down.", RoadAlertPhrases.text(fast, "en"))
+        // Within the tolerance, and for potholes, there is no extra reminder.
+        assertEquals("600 metrdan keyin tezlik kamerasi. Chegara 70.",
+            RoadAlertPhrases.text(camera.copy(speedKmh = 72), "uz"))
+        assertEquals("500 metrdan keyin chuqur. Sekinlang.",
+            RoadAlertPhrases.text(pothole.copy(speedKmh = 120), "uz"))
         assertEquals(RoadHazardKind.SEATBELT_CAMERA, RoadHazardKind.fromWire("seatbelt_camera"))
         assertNull(RoadHazardKind.fromWire("unknown"))
     }

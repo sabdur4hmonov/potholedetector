@@ -24,6 +24,8 @@ import dev.aiengg.potholereporter.db.RepairTargetEntity
 import dev.aiengg.potholereporter.db.SessionEntity
 import dev.aiengg.potholereporter.drive.BumpSensitivity
 import dev.aiengg.potholereporter.drive.RoadAlertEngine
+import dev.aiengg.potholereporter.drive.RoadAlertService
+import dev.aiengg.potholereporter.drive.RoadAlertStatus
 import dev.aiengg.potholereporter.drive.RoadHazard
 import dev.aiengg.potholereporter.drive.RoadHazardKind
 import dev.aiengg.potholereporter.drive.DriveDetectionMode
@@ -274,6 +276,10 @@ class DriveModePlugin : Plugin() {
         DriveForegroundService.onDriveEndedListener = { summary ->
             notifyListeners("driveEnded", endSummaryObject(summary))
         }
+
+        RoadAlertService.onStatusListener = { status ->
+            notifyListeners("roadAlertChange", roadAlertObject(status))
+        }
     }
 
     @PluginMethod
@@ -374,6 +380,8 @@ class DriveModePlugin : Plugin() {
             return
         }
         val context = context
+        // Drive gives the same warnings; never let the two speak over each other.
+        RoadAlertService.stop(context)
         DriveForegroundService.stageRoadHazards(hazards)
         val serviceIntent = Intent(context, DriveForegroundService::class.java).apply {
             action = DriveForegroundService.ACTION_START
@@ -416,6 +424,66 @@ class DriveModePlugin : Plugin() {
         val host = activity ?: return false
         return !host.isFinishing && !host.isDestroyed &&
             host.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+    }
+
+    /** Antiradar: GPS-only warnings about cameras and potholes, without the camera. */
+    @PluginMethod
+    fun startRoadAlerts(call: PluginCall) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            call.reject("Precise Location permission is required for road warnings")
+            return
+        }
+        if (!hasNotificationPermission()) {
+            call.reject("Enable Pothole Reporter notifications so road warnings stay visible")
+            return
+        }
+        val drive = DriveForegroundService.status()
+        if (drive.isRunning || drive.isStarting || drive.isStopping) {
+            call.reject("Drive is running and already gives these warnings")
+            return
+        }
+        if (!activityIsVisibleForDriveStart()) {
+            call.reject("Return to Pothole Reporter and try again. Android only allows this while the app is visible")
+            return
+        }
+        val hazards = parseRoadHazards(call.getArray("hazards"))
+        val language = call.getString("language") ?: "en"
+        val voice = call.getBoolean("voice") ?: true
+        try {
+            RoadAlertService.start(context, hazards, language, voice)
+        } catch (error: Exception) {
+            call.reject("Road warnings could not start: ${error.message ?: "unknown error"}")
+            return
+        }
+        call.resolve(roadAlertObject(RoadAlertStatus(
+            running = true,
+            cameraCount = hazards.count { it.kind.isCamera },
+            potholeCount = hazards.count { !it.kind.isCamera }
+        )))
+    }
+
+    @PluginMethod
+    fun stopRoadAlerts(call: PluginCall) {
+        RoadAlertService.stop(context)
+        call.resolve(roadAlertObject(RoadAlertStatus(running = false)))
+    }
+
+    @PluginMethod
+    fun getRoadAlertStatus(call: PluginCall) {
+        call.resolve(roadAlertObject(RoadAlertService.status()))
+    }
+
+    private fun roadAlertObject(status: RoadAlertStatus) = JSObject().apply {
+        put("running", status.running)
+        put("cameraCount", status.cameraCount)
+        put("potholeCount", status.potholeCount)
+        put("speedKmh", status.speedKmh)
+        put("gpsReady", status.gpsReady)
+        put("alertText", status.alertText)
+        put("alertKind", status.alertKind)
+        put("alertAgeMs", status.alertAgeMs)
     }
 
     @PluginMethod

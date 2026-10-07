@@ -1,5 +1,11 @@
 # Next steps from the preserved tree
 
+## 2026-10-07 next actions after ALERT-002
+
+1. Owner: request the official camera list in the format of [CAMERA_DATA_FORMAT.md](CAMERA_DATA_FORMAT.md) and import it (Settings → Road cameras). For a quick check, make a CSV with 2–3 points on a road you know and drive past them with Antiradar on.
+2. Road test: warning distance, direction filtering, voice clarity, over-limit reminder, notification Stop.
+3. Next coding task, **TRIP-003**: trip statistics (time, distance, turns, hard braking from the accelerometer), a safe-driving score that rewards keeping the rules, and an Instagram/Telegram share card with trip start/end hidden.
+
 ## 2026-10-07 next actions after ALERT-001
 
 1. Owner road test together with SENSOR-001: check that the warnings come at a useful distance and that the voice is understandable.

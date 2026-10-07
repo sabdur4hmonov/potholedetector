@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-07 — ALERT-002 antiradar
+
+Added a GPS-only `RoadAlertService` (location foreground service, no camera, no network) that announces cameras and saved potholes ahead, with a Stop action in its notification; Drive and antiradar never run together. Camera lists in the `uz-road-cameras-v1` format (JSON or CSV with lat, lng, type and optional id, heading, limit, name; Uzbek/Russian type spellings accepted) are imported in Settings and stored on the phone; `tools/build-camera-pack.py` validates the same format for releases. Over-limit camera warnings add "Tezlikni kamaytiring". Home screen: Antiradar button with speed, counts, GPS state and alert banner. Data request spec: [CAMERA_DATA_FORMAT.md](CAMERA_DATA_FORMAT.md). No real camera data is shipped.
+
 ## 2026-10-07 — ALERT-001 offline road warnings
 
 Added a pure `RoadAlertEngine`: on each GPS fix it finds a known hazard ahead on the current course (30° cone, optional travel direction for cameras), warns at a speed-dependent distance (potholes 14 s ahead, 150–600 m; cameras 22 s, 300–1000 m), repeats once "right ahead" for potholes, rounds distances for speech, and re-arms after the hazard is passed. `RoadAlertSpeaker` plays a tone and speaks Uzbek, Russian or English with the phone's offline TTS. The page sends its open, located potholes and unlabelled road shocks to native Drive; the Drive screen shows an 8-second banner. Settings: warnings on/off and voice on/off. Hazard kinds already include speed, seat-belt, red-light, lane and phone cameras for ALERT-002.

@@ -2755,6 +2755,162 @@ This is a strict before/after verification, not ordinary pothole detection:
     return toDict(rec);
   }
 
+  // ---------- road camera list ("antiradar") ----------
+  // An official list of fixed cameras, imported from a JSON pack or a CSV file. It is public
+  // road information, kept only on this phone and used for offline warnings.
+  const CAMERA_PACK_KEY = "camera_pack";
+  const CAMERA_PACK_SCHEMA = "uz-road-cameras-v1";
+  const MAX_CAMERAS = 20000;
+  const CAMERA_TYPES = {
+    speed: "speed_camera", seatbelt: "seatbelt_camera", red_light: "red_light_camera",
+    lane: "lane_camera", phone: "phone_camera", speed_bump: "speed_bump",
+  };
+  // Spellings people actually type in a spreadsheet, mapped to the canonical type.
+  const CAMERA_TYPE_ALIASES = {
+    speed_camera: "speed", tezlik: "speed", skorost: "speed", "скорость": "speed", radar: "speed",
+    seatbelt_camera: "seatbelt", belt: "seatbelt", remen: "seatbelt", kamar: "seatbelt", "ремень": "seatbelt",
+    red_light_camera: "red_light", redlight: "red_light", svetofor: "red_light", "светофор": "red_light",
+    lane_camera: "lane", tasma: "lane", polosa: "lane", "полоса": "lane",
+    phone_camera: "phone", telefon: "phone", "телефон": "phone",
+    bump: "speed_bump", lejachiy: "speed_bump", "лежачий": "speed_bump",
+  };
+
+  function cameraType(value) {
+    const key = String(value == null ? "" : value).trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (CAMERA_TYPES[key]) return key;
+    return CAMERA_TYPE_ALIASES[key] || null;
+  }
+
+  function csvRows(text) {
+    // The delimiter is whichever of , ; or tab the header line uses most, so decimal
+    // commas in a semicolon file (common in Excel exports) stay inside their field.
+    const headerLine = text.split(/\r?\n/, 1)[0];
+    const delimiter = [",", ";", "\t"].map((d) => [d, headerLine.split(d).length])
+      .sort((a, b) => b[1] - a[1])[0][0];
+    const rows = [];
+    let row = [], field = "", quoted = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (quoted) {
+        if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
+        else if (ch === '"') quoted = false;
+        else field += ch;
+      } else if (ch === '"') quoted = true;
+      else if (ch === delimiter) { row.push(field); field = ""; }
+      else if (ch === "\n" || ch === "\r") {
+        if (ch === "\r" && text[i + 1] === "\n") i++;
+        row.push(field); rows.push(row); row = []; field = "";
+      } else field += ch;
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    return rows.filter((r) => r.some((cell) => String(cell).trim() !== ""));
+  }
+
+  // Accepts a uz-road-cameras-v1 JSON pack or a CSV with a header row containing at least
+  // lat, lng and type (optional: id, heading, limit, name). Bad rows are skipped and named.
+  function parseCameraPack(text, fileName) {
+    const raw = String(text == null ? "" : text).replace(/^\uFEFF/, "");
+    if (raw.length > 8 * 1024 * 1024) throw new Error("The camera file is larger than 8 MB.");
+    let items, source = String(fileName || "imported file").slice(0, 120), updated = null;
+    if (raw.trim().startsWith("{") || raw.trim().startsWith("[")) {
+      let parsed;
+      try { parsed = JSON.parse(raw); } catch (e) { throw new Error("The camera file is not valid JSON."); }
+      if (Array.isArray(parsed)) items = parsed;
+      else {
+        if (parsed.schema !== CAMERA_PACK_SCHEMA || !Array.isArray(parsed.cameras)) {
+          throw new Error(`The camera file must use the ${CAMERA_PACK_SCHEMA} format.`);
+        }
+        items = parsed.cameras;
+        if (parsed.source) source = String(parsed.source).slice(0, 120);
+        if (parsed.updated) updated = String(parsed.updated).slice(0, 32);
+      }
+    } else {
+      const rows = csvRows(raw);
+      if (!rows.length) throw new Error("The camera file is empty.");
+      const header = rows[0].map((h) => String(h).trim().toLowerCase());
+      const col = (...names) => header.findIndex((h) => names.includes(h));
+      const at = {
+        id: col("id"), lat: col("lat", "latitude", "kenglik"), lng: col("lng", "lon", "longitude", "uzunlik"),
+        type: col("type", "turi", "kind"), heading: col("heading", "direction", "yo'nalish", "yonalish"),
+        limit: col("limit", "speed_limit", "chegara"), name: col("name", "nomi", "address"),
+      };
+      if (at.lat < 0 || at.lng < 0 || at.type < 0) {
+        throw new Error("The CSV needs a header row with lat, lng and type columns.");
+      }
+      items = rows.slice(1).map((r) => {
+        const get = (i) => (i >= 0 ? r[i] : undefined);
+        return { id: get(at.id), lat: get(at.lat), lng: get(at.lng), type: get(at.type),
+                 heading: get(at.heading), limit: get(at.limit), name: get(at.name) };
+      });
+    }
+    const cameras = [], skipped = [], seen = new Set();
+    const skip = (index, reason) => { if (skipped.length < 50) skipped.push(`row ${index + 1}: ${reason}`); };
+    const number = (v) => (v == null || String(v).trim() === "" ? null : Number(String(v).trim().replace(",", ".")));
+    items.slice(0, MAX_CAMERAS * 2).forEach((item, index) => {
+      if (cameras.length >= MAX_CAMERAS) return;
+      if (!item || typeof item !== "object") return skip(index, "not a row");
+      const lat = number(item.lat), lng = number(item.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180
+        || (lat === 0 && lng === 0)) return skip(index, "bad coordinates");
+      const type = cameraType(item.type);
+      if (!type) return skip(index, `unknown type "${String(item.type || "").slice(0, 20)}"`);
+      const heading = number(item.heading);
+      if (heading != null && (!Number.isFinite(heading) || heading < 0 || heading > 360)) {
+        return skip(index, "heading must be 0-360 degrees");
+      }
+      const limit = number(item.limit);
+      if (limit != null && (!Number.isInteger(limit) || limit < 5 || limit > 200)) {
+        return skip(index, "limit must be a whole number from 5 to 200 km/h");
+      }
+      const id = String(item.id == null || String(item.id).trim() === ""
+        ? `${type}:${lat.toFixed(6)},${lng.toFixed(6)}:${heading == null ? "any" : Math.round(heading)}`
+        : item.id).trim().slice(0, 60);
+      if (seen.has(id)) return skip(index, "duplicate id");
+      seen.add(id);
+      cameras.push({ id, lat, lng, type, heading: heading == null ? null : heading % 360,
+                     limit: limit == null ? null : limit,
+                     name: item.name == null ? null : String(item.name).slice(0, 80) });
+    });
+    if (!cameras.length) throw new Error("No usable cameras were found in the file.");
+    return { schema: CAMERA_PACK_SCHEMA, source, updated, cameras, skipped };
+  }
+
+  function storedCameraPack() {
+    try {
+      const pack = JSON.parse(localStorage.getItem(CAMERA_PACK_KEY) || "null");
+      return pack && pack.schema === CAMERA_PACK_SCHEMA && Array.isArray(pack.cameras) ? pack : null;
+    } catch (e) { return null; }
+  }
+
+  function cameraSummary(pack) {
+    if (!pack) return { count: 0 };
+    const byType = {};
+    pack.cameras.forEach((c) => { byType[c.type] = (byType[c.type] || 0) + 1; });
+    return { count: pack.cameras.length, source: pack.source || null, updated: pack.updated || null,
+             imported_at: pack.imported_at || null, by_type: byType };
+  }
+
+  function importCameraPack(text, fileName) {
+    const parsed = parseCameraPack(text, fileName);
+    const pack = { schema: parsed.schema, source: parsed.source, updated: parsed.updated,
+                   imported_at: Date.now() / 1000, cameras: parsed.cameras };
+    try {
+      localStorage.setItem(CAMERA_PACK_KEY, JSON.stringify(pack));
+    } catch (e) {
+      throw new Error("The camera list is too large to store on this phone.");
+    }
+    return { ...cameraSummary(pack), skipped: parsed.skipped };
+  }
+
+  function cameraHazards(pack) {
+    if (!pack) return [];
+    return pack.cameras.map((c) => ({
+      id: `c${c.id}`, kind: CAMERA_TYPES[c.type], lat: c.lat, lng: c.lng,
+      heading: c.heading == null ? null : c.heading,
+      speed_limit: c.limit == null ? null : c.limit,
+    }));
+  }
+
   // Offline road warnings: every open, located pothole or road shock on this phone that the
   // owner has not labelled as "not a pothole". Native Drive announces them ahead of the car.
   const NOT_POTHOLE_LABELS = new Set(["not_pothole", "not_reportable"]);
@@ -3146,7 +3302,17 @@ This is a strict before/after verification, not ordinary pothole detection:
                detection_model: S.model, image_detail: S.detail, prompt_version: PROMPT_VERSION };
     }
     if (path === "/api/road-hazards" && method === "GET") {
-      return { hazards: roadHazardsFrom(await allReports()) };
+      const cameras = cameraHazards(storedCameraPack());
+      return { hazards: cameras.concat(roadHazardsFrom(await allReports())).slice(0, MAX_ROAD_HAZARDS) };
+    }
+    if (path === "/api/cameras" && method === "GET") return cameraSummary(storedCameraPack());
+    if (path === "/api/cameras" && method === "DELETE") {
+      localStorage.removeItem(CAMERA_PACK_KEY);
+      return { ok: true, count: 0 };
+    }
+    if (path === "/api/cameras/import" && method === "POST") {
+      const body = JSON.parse(opts.body || "{}");
+      return importCameraPack(body.text, body.name);
     }
     if (path === "/api/reports" && method === "GET") {
       // Without photo_full. The evidence copy is a 4000px JPEG and the list only shows a
@@ -3404,7 +3570,8 @@ This is a strict before/after verification, not ordinary pothole detection:
     IMAGE_DECODE_POLICY, checkedImageDimensions, inspectImageHeader, readImageBounds,
     decodeBoundedImage, toDataUrl, averageLuminance, detectionEnhancementPlan,
     applyDetectionEnhancement, distMeters, roadEventMatch, sameRoadEvent, repairTargetMatch,
-    findRepairCandidateFromReports, findDuplicateReport, roadHazardsFrom, dataUrlToBlob, blobToDataUrl,
+    findRepairCandidateFromReports, findDuplicateReport, roadHazardsFrom,
+    parseCameraPack, cameraHazards, CAMERA_PACK_SCHEMA, dataUrlToBlob, blobToDataUrl,
     photoToBase64, toDict, listDict, evidenceForReport, fullFramePhoto,
   };
 

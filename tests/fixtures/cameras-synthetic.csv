@@ -1,0 +1,10 @@
+id,lat,lng,type,heading,limit,name
+SYNTH-1,41.311100,69.279700,speed,90,60,Synthetic test point - not a real camera
+SYNTH-2,41.312000,69.281000,remen,,,Synthetic test point - not a real camera
+SYNTH-3,41.313000,69.282000,svetofor,270,,Synthetic test point - not a real camera
+SYNTH-4,0,0,speed,,60,bad coordinates
+SYNTH-5,41.314000,69.283000,ufo,,,unknown type
+SYNTH-6,41.315000,69.284000,speed,400,60,bad heading
+SYNTH-7,41.316000,69.285000,speed,90,61.5,bad limit
+SYNTH-1,41.317000,69.286000,speed,90,60,duplicate id
+,41.318000,"69,287000",Tezlik,180,70,"Synthetic, quoted, no id"
