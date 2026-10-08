@@ -24,6 +24,9 @@ import dev.aiengg.potholereporter.db.RepairTargetEntity
 import dev.aiengg.potholereporter.db.SessionEntity
 import dev.aiengg.potholereporter.drive.BumpSensitivity
 import dev.aiengg.potholereporter.drive.RoadAlertEngine
+import dev.aiengg.potholereporter.drive.NavManeuver
+import dev.aiengg.potholereporter.drive.NavPoint
+import dev.aiengg.potholereporter.drive.NavigationGuide
 import dev.aiengg.potholereporter.drive.RoadAlertService
 import dev.aiengg.potholereporter.drive.RoadAlertStatus
 import dev.aiengg.potholereporter.drive.RoadHazard
@@ -428,7 +431,9 @@ class DriveModePlugin : Plugin() {
 
     /** Antiradar: GPS-only warnings about cameras and potholes, without the camera. */
     @PluginMethod
-    fun startRoadAlerts(call: PluginCall) {
+    fun startRoadAlerts(call: PluginCall) = startRoadAlertsWith(call, null)
+
+    private fun startRoadAlertsWith(call: PluginCall, route: Pair<List<NavPoint>, List<NavManeuver>>?) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) !=
             PackageManager.PERMISSION_GRANTED
         ) {
@@ -452,7 +457,7 @@ class DriveModePlugin : Plugin() {
         val language = call.getString("language") ?: "en"
         val voice = call.getBoolean("voice") ?: true
         try {
-            RoadAlertService.start(context, hazards, language, voice)
+            RoadAlertService.start(context, hazards, language, voice, route)
         } catch (error: Exception) {
             call.reject("Road warnings could not start: ${error.message ?: "unknown error"}")
             return
@@ -460,8 +465,57 @@ class DriveModePlugin : Plugin() {
         call.resolve(roadAlertObject(RoadAlertStatus(
             running = true,
             cameraCount = hazards.count { it.kind.isCamera },
-            potholeCount = hazards.count { !it.kind.isCamera }
+            potholeCount = hazards.count { !it.kind.isCamera },
+            navigating = route != null
         )))
+    }
+
+    /**
+     * Voice navigation along a route from the community server. Starts the GPS-only
+     * warning service with the route, or swaps the route of a running navigation.
+     */
+    @PluginMethod
+    fun startNavigation(call: PluginCall) {
+        val route = parseRoute(call.getArray("geometry"), call.getArray("steps"))
+        if (route == null) {
+            call.reject("The route has no usable line")
+            return
+        }
+        // Already warning (antiradar or an earlier route): attach the new route in place
+        // instead of stopping and restarting the foreground service.
+        if (RoadAlertService.active != null) {
+            RoadAlertService.reroute(context, route)
+            call.resolve(roadAlertObject(RoadAlertService.status().copy(navigating = true)))
+            return
+        }
+        startRoadAlertsWith(call, route)
+    }
+
+    private fun parseRoute(geometry: JSArray?, steps: JSArray?): Pair<List<NavPoint>, List<NavManeuver>>? {
+        if (geometry == null) return null
+        val line = ArrayList<NavPoint>()
+        for (i in 0 until minOf(geometry.length(), NavigationGuide.MAX_POINTS)) {
+            val pair = geometry.optJSONArray(i) ?: continue
+            val lat = pair.optDouble(0, Double.NaN)
+            val lng = pair.optDouble(1, Double.NaN)
+            if (lat.isFinite() && lng.isFinite()) line += NavPoint(lat, lng)
+        }
+        if (line.size < 2) return null
+        val maneuvers = ArrayList<NavManeuver>()
+        for (i in 0 until minOf(steps?.length() ?: 0, NavigationGuide.MAX_MANEUVERS)) {
+            val step = steps?.optJSONObject(i) ?: continue
+            val lat = step.optDouble("lat", Double.NaN)
+            val lng = step.optDouble("lng", Double.NaN)
+            if (!lat.isFinite() || !lng.isFinite()) continue
+            maneuvers += NavManeuver(
+                lat, lng,
+                type = step.optString("type").take(20).ifBlank { "turn" },
+                modifier = if (step.isNull("modifier")) null else step.optString("modifier").take(20).ifBlank { null },
+                exit = if (step.has("exit") && !step.isNull("exit")) step.optInt("exit").takeIf { it in 1..20 } else null,
+                name = if (step.isNull("name")) "" else step.optString("name").take(80)
+            )
+        }
+        return line to maneuvers
     }
 
     @PluginMethod
@@ -484,6 +538,15 @@ class DriveModePlugin : Plugin() {
         put("alertText", status.alertText)
         put("alertKind", status.alertKind)
         put("alertAgeMs", status.alertAgeMs)
+        put("navigating", status.navigating)
+        put("navText", status.navText)
+        put("navNext", status.navNext)
+        put("distanceToNextM", status.distanceToNextM)
+        put("remainingM", status.remainingM)
+        put("offRoute", status.offRoute)
+        put("arrived", status.arrived)
+        put("lat", status.lat)
+        put("lng", status.lng)
     }
 
     @PluginMethod

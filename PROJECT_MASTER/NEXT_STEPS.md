@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## 2026-10-08 after NAV-001
+
+Voice navigation is ready for testing as soon as the server is deployed (`server/README.md`) and the APK is rebuilt with `tools/set-community-server.py`. Road-test turn timing, roundabouts and rerouting.
+
 ## 2026-10-07 next actions after the roadmap implementation
 
 1. Owner road test of the CI debug APK: sensor Drive, pothole warnings, Antiradar with a small home-made camera CSV, My trips and the share card.

@@ -46,14 +46,23 @@ internal class RoadAlertSpeaker(
     }
 
     /** Returns the on-screen text in the app language. */
-    fun announce(alert: RoadAlert): String {
+    fun announce(alert: RoadAlert, interrupt: Boolean = true): String {
         runCatching { tone?.startTone(ToneGenerator.TONE_PROP_BEEP2, TONE_MS) }
+        return say(alert.hazard.id, interrupt) { RoadAlertPhrases.text(alert, it) }
+    }
+
+    /**
+     * Speaks [textFor] in the best available voice language and returns it in the app
+     * language. [interrupt] replaces whatever is being said; otherwise it waits its turn.
+     */
+    fun say(utteranceId: String, interrupt: Boolean, textFor: (String) -> String): String {
         speechLanguage?.let { spoken ->
             runCatching {
-                tts?.speak(RoadAlertPhrases.text(alert, spoken), TextToSpeech.QUEUE_FLUSH, null, alert.hazard.id)
+                tts?.speak(textFor(spoken),
+                    if (interrupt) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, utteranceId)
             }
         }
-        return RoadAlertPhrases.text(alert, language)
+        return textFor(language)
     }
 
     fun shutdown() {

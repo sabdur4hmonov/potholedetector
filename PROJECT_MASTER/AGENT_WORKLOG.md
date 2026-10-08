@@ -657,3 +657,14 @@ finding; none exists after NEW-002.
 * **Commit/push:** session branch `ccr-aba46d05-gm456b` only.
 * **CI note (same entry):** run 22 attempt 1 failed in two Node browser tests (`manual_offline_report_test`: page did not finish loading `/web-app/` within 30 s; `sec009_csp_browser_test`: fake-camera MediaRecorder blob did not load on `/`). The single re-run of the failed job on the same commit passed, and both tests passed three times in a row locally (Chromium 141). Root cause not established; watch these two tests if they fail again.
 * **Final validation:** local `tests/run-all.sh` ALL TESTS PASS, 20/20 Node tests, 29 standalone Kotlin JVM tests; CI run 22 attempt 2 green (Android debug build, JVM tests, web/browser tests, emulator smoke).
+
+---
+
+## 2026-10-08 — NAV-001 voice turn-by-turn navigation
+
+* **Agent/tool:** Claude in a cloud sandbox; Android build on CI only. **Status:** COMPLETE at source/JVM/browser/server-test level; not road-tested; needs the community server.
+* **Files changed:** new `drive/NavigationGuide.kt`, `test/.../NavigationGuideTest.kt`, `tests/navigation_test.py`; edited `drive/RoadAlertService.kt` (navigation mode, reroute action, status fields), `drive/RoadAlertSpeaker.kt` (queued speech), `plugin/DriveModePlugin.kt` (startNavigation, bounded route parsing), `server/community_server.py` (OSRM steps), `tests/community_server_test.py`, `static/index.html` and mirrors (Route screen navigation), `tests/run-all.sh`, `docs/privacy.html` (navigation paragraph), docs.
+* **Tests performed:** standalone Kotlin JVM project, 36/36 passing (7 new NavigationGuide tests). All 20 Node `tests/*.cjs` pass. In `tests/run-all.sh` everything passed, including the new `navigation_test` (12 checks), except two asset-mirror checks (`android_release_optimization_test`, `hybrid_drive_contract_test`). Those failed only because the packaged Android assets were stale; both pass after `npx cap sync android`. No Gradle Android build or device run here; CI builds the APK.
+* **Decisions:** turn instructions take priority over hazard warnings spoken in the same second (the hazard is queued, not dropped); reroute reuses the running service; rerouting is debounced to one request per 15 s.
+* **Exact next task:** deploy the server, rebuild the APK, road-test navigation.
+* **Commit/push:** session branch `ccr-aba46d05-gm456b` only.

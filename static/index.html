@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-ZPFdF1DuEfw+RlYjytEJ3UsjZCk7zywIstVg0DTCNMA='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-jvpEhyZCf+7C0bsMxPG3F6CsB0NkUmygrcHRFoRzGqM='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -171,6 +171,15 @@
       <div class="btn-row"><button class="send" id="routeSearch">Search</button></div>
       <div id="routeResults"></div>
       <div class="meta" id="routeSummary"></div>
+      <div class="btn-row">
+        <button class="send hidden" id="navStart">Start navigation</button>
+        <button class="ghost danger hidden" id="navStop">Stop navigation</button>
+      </div>
+    </div>
+    <div class="card hidden" id="navPanel" role="status">
+      <div class="verdict" id="navDistance" style="margin:0;font-size:34px;color:#fff"></div>
+      <div class="verdict" id="navAction" style="margin:4px 0;font-size:20px;color:#ff7a1a"></div>
+      <div class="meta" id="navRemaining"></div>
     </div>
     <div class="card" style="padding:0;overflow:hidden">
       <div id="routeMap" style="height:52vh;background:#0c0d0f"></div>
@@ -514,6 +523,12 @@ const I18N = {
     stat_drives: "drives",
     trips_title: "My trips",
     route_btn: "&#129517; &nbsp;Route",
+    nav_start: "Start voice navigation",
+    nav_stop: "Stop navigation",
+    nav_remaining: "{km} km to go",
+    nav_off_route: "You left the route. Finding a new one...",
+    nav_arrived: "You have arrived.",
+    nav_needs_app: "Voice navigation works in the phone app.",
     route_title: "Route",
     route_query: "Where to?",
     route_search: "Search",
@@ -786,6 +801,12 @@ const I18N = {
     stat_drives: "safarlar",
     trips_title: "Safarlarim",
     route_btn: "&#129517; &nbsp;Marshrut",
+    nav_start: "Ovozli navigatsiyani boshlash",
+    nav_stop: "Navigatsiyani to'xtatish",
+    nav_remaining: "Manzilgacha {km} km",
+    nav_off_route: "Marshrutdan chiqdingiz. Yangi yo'l hisoblanmoqda...",
+    nav_arrived: "Manzilga yetib keldingiz.",
+    nav_needs_app: "Ovozli navigatsiya telefondagi ilovada ishlaydi.",
     route_title: "Marshrut",
     route_query: "Qayerga?",
     route_search: "Qidirish",
@@ -1141,6 +1162,8 @@ function applyLang() {
   $("routeSearch").textContent = t("route_search");
   $("routeNote").textContent = t("route_note");
   $("routeBack").textContent = t("back");
+  $("navStart").textContent = t("nav_start");
+  $("navStop").textContent = t("nav_stop");
   $("rankTitle").textContent = t("rank_title");
   for (const level of ["village", "district", "region", "country"]) {
     $("rank" + level[0].toUpperCase() + level.slice(1)).textContent = t("rank_" + level);
@@ -2399,6 +2422,7 @@ function setAlertsButton(running) {
 
 function updateRoadAlertPanel(status) {
   roadAlertState = status || { running: false };
+  updateNavPanel(roadAlertState);
   const running = !!roadAlertState.running;
   setAlertsButton(running);
   $("alertsPanel").classList.toggle("hidden", !running);
@@ -5360,8 +5384,87 @@ async function planRoute(place) {
     $("routeSummary").innerHTML = escapeHtml(t("route_summary", { ...fmt(best), live: Math.round(best.live_share * 100) }))
       + others.slice(0, 2).map((r) => `<div>${escapeHtml(t("route_alt", fmt(r)))}</div>`).join("");
     drawRoute(result.routes, here, place);
+    navPlan = { place, route: best };
+    $("navStart").classList.remove("hidden");
   } catch (e) { $("routeSummary").textContent = e.message || String(e); }
 }
+
+// ---------- voice navigation (native GPS-only service speaks the turns) ----------
+let navPlan = null;
+let navRerouting = false;
+const fmtNavDistance = (m) => m == null ? "" : m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m / 10) * 10} m`;
+
+async function startNavigation(route) {
+  const plugin = nativeDrivePlugin();
+  if (!plugin || !plugin.startNavigation) { alert(t("nav_needs_app")); return null; }
+  await ensureRoadAlertListener();
+  if (drive) { alert(t("alerts_drive_running")); return null; }
+  const permissions = await requestNativeDrivePermissions(DASHCAM_CAPTURE_SOURCE);
+  if (!permissions || !permissions.granted || permissions.notificationsGranted === false) {
+    alert(t("alerts_permission"));
+    return null;
+  }
+  const hazards = await api("/api/road-hazards")
+    .then((r) => (r && Array.isArray(r.hazards) ? r.hazards : [])).catch(() => []);
+  const status = await plugin.startNavigation({ geometry: route.geometry, steps: route.steps || [],
+    hazards, language: LANG, voice: true });
+  updateRoadAlertPanel(status);
+  return status;
+}
+
+function updateNavPanel(status) {
+  const navigating = !!(status && status.running && status.navigating);
+  $("navPanel").classList.toggle("hidden", !navigating);
+  $("navStop").classList.toggle("hidden", !navigating);
+  if (navigating) $("navStart").classList.add("hidden");
+  if (!navigating) return;
+  if (status.arrived) {
+    $("navDistance").textContent = "";
+    $("navAction").textContent = t("nav_arrived");
+    $("navRemaining").textContent = "";
+    return;
+  }
+  if (status.offRoute) {
+    $("navDistance").textContent = "";
+    $("navAction").textContent = t("nav_off_route");
+    rerouteNavigation(status);
+  } else {
+    $("navDistance").textContent = fmtNavDistance(status.distanceToNextM);
+    $("navAction").textContent = status.navNext || "";
+  }
+  $("navRemaining").textContent = status.remainingM == null ? ""
+    : t("nav_remaining", { km: (status.remainingM / 1000).toFixed(1) });
+}
+
+// Off the route: ask the server again from where the car is now and swap the route in.
+async function rerouteNavigation(status) {
+  if (navRerouting || !navPlan || !Number.isFinite(status.lat) || !Number.isFinite(status.lng)) return;
+  navRerouting = true;
+  try {
+    const result = await api(`/api/community/route?from=${status.lat},${status.lng}&to=${navPlan.place.lat},${navPlan.place.lng}`);
+    navPlan.route = result.routes[0];
+    const plugin = nativeDrivePlugin();
+    if (plugin && plugin.startNavigation) {
+      updateRoadAlertPanel(await plugin.startNavigation({ geometry: navPlan.route.geometry,
+        steps: navPlan.route.steps || [], hazards: [], language: LANG, voice: true }));
+    }
+    if (window.L && routeMapObj) drawRoute(result.routes, { lat: status.lat, lng: status.lng }, navPlan.place);
+  } catch (e) {
+    // Keep guiding on the old route; the next off-route fix tries again.
+  } finally {
+    setTimeout(() => { navRerouting = false; }, 15000);
+  }
+}
+
+$("navStart").onclick = () => {
+  if (navPlan) startNavigation(navPlan.route).catch((e) => alert(e.message || String(e)));
+};
+$("navStop").onclick = async () => {
+  const plugin = nativeDrivePlugin();
+  if (plugin && plugin.stopRoadAlerts) updateRoadAlertPanel(await plugin.stopRoadAlerts().catch(() => ({ running: false })));
+  navPlan = null;
+  $("navPanel").classList.add("hidden");
+};
 
 function drawRoute(routes, here, place) {
   if (!window.L) return;

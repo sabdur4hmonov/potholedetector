@@ -457,7 +457,7 @@ class Api:
             return lat, lng
         start, end = point("from"), point("to")
         url = (f"{self.osrm_url}/route/v1/driving/{start[1]},{start[0]};{end[1]},{end[0]}"
-               "?alternatives=3&overview=full&geometries=geojson&steps=false&annotations=distance,duration")
+               "?alternatives=3&overview=full&geometries=geojson&steps=true&annotations=distance,duration")
         try:
             with urllib.request.urlopen(url, timeout=10) as response:
                 data = json.loads(response.read(5 * 1024 * 1024))
@@ -492,7 +492,19 @@ class Api:
                             adjusted += seg_s
                 else:
                     adjusted = float(r["duration"])
-                results.append({"index": index, "distance_m": round(r["distance"]),
+                steps = []
+                for leg in r.get("legs", []):
+                    for step in leg.get("steps", [])[:2000]:
+                        m = step.get("maneuver") or {}
+                        loc = m.get("location") or []
+                        if len(loc) != 2:
+                            continue
+                        steps.append({"lat": loc[1], "lng": loc[0], "type": str(m.get("type") or "turn")[:20],
+                                      "modifier": str(m.get("modifier") or "")[:20] or None,
+                                      "exit": m.get("exit") if isinstance(m.get("exit"), int) else None,
+                                      "name": str(step.get("name") or "")[:80],
+                                      "distance_m": round(float(step.get("distance") or 0))})
+                results.append({"index": index, "distance_m": round(r["distance"]), "steps": steps,
                                 "free_flow_s": round(r["duration"]), "duration_s": round(adjusted),
                                 "live_share": round(live_m / r["distance"], 2) if r["distance"] else 0,
                                 "geometry": [[c[1], c[0]] for c in coords]})

@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-08 Voice navigation (NAV-001)
+
+Turn-by-turn voice guidance exists in code (`NavigationGuideTest` 7 JVM tests on simulated drives, `tests/navigation_test.py`, server step test). It depends on the community server and OSRM being deployed, so it is hidden in current builds exactly like Route. Not road-tested.
+
 ## 2026-10-07 Free-for-users roadmap items 1–5 implemented (code level)
 
 All five agreed items now exist in code and tests: (1) offline pothole warnings, (2) antiradar with an importable official camera list, (3) My trips with a safe-driving score and a story share card, (4) an optional community server with profiles, village→country rankings and a shared pothole map, (5) traffic-aware routing through a self-hosted OSRM using drivers' anonymous speeds. Nothing needs a paid AI. **Not done / not verified:** no road or phone test of any of this; no official camera data; the community server is not deployed (needs a VPS, a domain and `tools/set-community-server.py`), so community and routing are hidden in current builds; live traffic needs many opted-in drivers; there is no turn-by-turn voice navigation; the on-device camera model still needs labelled data.

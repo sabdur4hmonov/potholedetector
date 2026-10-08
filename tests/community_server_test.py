@@ -27,9 +27,11 @@ def require(label, condition):
 # ---- fake OSRM: two alternatives; route 0 is shorter in free flow ----
 def osrm_route(coords, seg_m, seg_s):
     n = len(coords) - 1
+    steps = [{"maneuver": {"location": coords[0], "type": "depart"}, "name": "Start", "distance": seg_m * n},
+             {"maneuver": {"location": coords[-1], "type": "arrive"}, "name": "", "distance": 0}]
     return {"distance": seg_m * n, "duration": seg_s * n,
             "geometry": {"type": "LineString", "coordinates": coords},
-            "legs": [{"annotation": {"distance": [seg_m] * n, "duration": [seg_s] * n}}]}
+            "legs": [{"annotation": {"distance": [seg_m] * n, "duration": [seg_s] * n}, "steps": steps}]}
 
 
 MAIN = [[69.2700 + i * 0.002, 41.3000] for i in range(11)]           # straight east
@@ -171,6 +173,10 @@ require("live speeds move the best route to the free side street",
         and routed["routes"][1]["duration_s"] > routed["routes"][1]["free_flow_s"] * 3
         and routed["routes"][1]["live_share"] == 1.0)
 require("route geometry is lat,lng for the map", routed["routes"][0]["geometry"][0] == [41.3, 69.27])
+require("routing returns the turn-by-turn steps",
+        "steps=true" in FakeOsrm.last_path
+        and [st["type"] for st in routed["routes"][0]["steps"]] == ["depart", "arrive"]
+        and routed["routes"][0]["steps"][0]["lat"] == 41.3)
 clock["now"] += 3600
 _, later, _ = call("GET", "/v1/route?from=41.3,69.27&to=41.3,69.29")
 require("old speeds expire and the free-flow choice returns", later["best"] == 0)

@@ -26,7 +26,16 @@ data class RoadAlertStatus(
     val gpsReady: Boolean = false,
     val alertText: String? = null,
     val alertKind: String? = null,
-    val alertAgeMs: Long? = null
+    val alertAgeMs: Long? = null,
+    val navigating: Boolean = false,
+    val navText: String? = null,
+    val navNext: String? = null,
+    val distanceToNextM: Int? = null,
+    val remainingM: Int? = null,
+    val offRoute: Boolean = false,
+    val arrived: Boolean = false,
+    val lat: Double? = null,
+    val lng: Double? = null
 )
 
 /**
@@ -49,6 +58,10 @@ class RoadAlertService : Service() {
     @Volatile private var lastAlertKind: String? = null
     @Volatile private var lastAlertElapsedMs = 0L
     private var lastNotifiedText: String? = null
+    private var guide: NavigationGuide? = null
+    @Volatile private var lastNavText: String? = null
+    @Volatile private var lastLat: Double? = null
+    @Volatile private var lastLng: Double? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -58,6 +71,11 @@ class RoadAlertService : Service() {
                 intent.getStringExtra(EXTRA_LANGUAGE) ?: "en",
                 intent.getBooleanExtra(EXTRA_VOICE, true)
             )
+            ACTION_REROUTE -> if (active === this) {
+                takeStagedRoute()?.let { (line, steps) -> guide = NavigationGuide(line, steps) }
+                lastNavText = null
+                publish()
+            }
             else -> stopNow()
         }
         return START_NOT_STICKY
@@ -79,6 +97,8 @@ class RoadAlertService : Service() {
         speaker?.shutdown()
         speaker = RoadAlertSpeaker(this, language, voice)
         engine = RoadAlertEngine(hazards)
+        guide = takeStagedRoute()?.let { (line, steps) -> NavigationGuide(line, steps) }
+        lastNavText = null
         locationProvider?.stopUpdates()
         locationProvider = NativeDriveLocationProvider(this, onLocationUpdate = ::onFix)
             .also { it.startUpdates(System.currentTimeMillis()) }
@@ -91,11 +111,21 @@ class RoadAlertService : Service() {
         if (active !== this) return
         lastFixElapsedMs = SystemClock.elapsedRealtime()
         lastSpeedKmh = fix.speedMps?.takeIf { it.isFinite() && it >= 0f }?.let { (it * 3.6f).roundToInt() }
+        lastLat = fix.lat
+        lastLng = fix.lng
+        // Turn instructions first; a hazard warning in the same second waits behind it.
+        val navEvent = runCatching { guide?.onFix(fix.lat, fix.lng, fix.accuracy, fix.speedMps) }.getOrNull()
+        if (navEvent != null) {
+            lastNavText = speaker?.say("nav", interrupt = true) { NavigationPhrases.text(navEvent, it) }
+                ?: NavigationPhrases.text(navEvent, language)
+            updateNotification(lastNavText)
+        }
         val alert = runCatching {
             engine?.onFix(fix.lat, fix.lng, fix.accuracy, fix.speedMps, fix.heading, fix.elapsedRealtimeMs)
         }.getOrNull()
         if (alert != null) {
-            lastAlertText = speaker?.announce(alert) ?: RoadAlertPhrases.text(alert, language)
+            lastAlertText = speaker?.announce(alert, interrupt = navEvent == null)
+                ?: RoadAlertPhrases.text(alert, language)
             lastAlertKind = alert.hazard.kind.wireValue
             lastAlertElapsedMs = SystemClock.elapsedRealtime()
             updateNotification(lastAlertText)
@@ -113,7 +143,20 @@ class RoadAlertService : Service() {
             gpsReady = lastFixElapsedMs > 0L && now - lastFixElapsedMs < GPS_STALE_MS,
             alertText = lastAlertText,
             alertKind = lastAlertKind,
-            alertAgeMs = lastAlertText?.let { now - lastAlertElapsedMs }
+            alertAgeMs = lastAlertText?.let { now - lastAlertElapsedMs },
+            navigating = guide != null,
+            navText = lastNavText,
+            navNext = guide?.progress()?.let { p ->
+                p.nextManeuver?.let { m ->
+                    NavigationPhrases.action(m, language) + (m.name.takeIf { it.isNotBlank() }?.let { " · $it" } ?: "")
+                }
+            },
+            distanceToNextM = guide?.progress()?.distanceToNextM,
+            remainingM = guide?.progress()?.remainingM,
+            offRoute = guide?.progress()?.offRoute == true,
+            arrived = guide?.progress()?.arrived == true,
+            lat = lastLat,
+            lng = lastLng
         )
     }
 
@@ -145,7 +188,12 @@ class RoadAlertService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val uz = language == "uz"
-        val title = if (uz) "Antiradar yoqilgan · faqat GPS" else "Road warnings on · GPS only"
+        val title = when {
+            guide != null && uz -> "Navigatsiya · faqat GPS"
+            guide != null -> "Navigation · GPS only"
+            uz -> "Antiradar yoqilgan · faqat GPS"
+            else -> "Road warnings on · GPS only"
+        }
         val summary = if (uz) "$cameraCount ta kamera, $potholeCount ta chuqur · kamera ishlatilmaydi"
             else "$cameraCount cameras, $potholeCount potholes · camera not used"
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -176,6 +224,7 @@ class RoadAlertService : Service() {
         runCatching { speaker?.shutdown() }
         speaker = null
         engine = null
+        guide = null
         if (active === this) {
             active = null
             runCatching { onStatusListener?.invoke(RoadAlertStatus(running = false)) }
@@ -191,6 +240,7 @@ class RoadAlertService : Service() {
     companion object {
         const val ACTION_START = "dev.aiengg.potholereporter.ROAD_ALERTS_START"
         const val ACTION_STOP = "dev.aiengg.potholereporter.ROAD_ALERTS_STOP"
+        const val ACTION_REROUTE = "dev.aiengg.potholereporter.ROAD_ALERTS_REROUTE"
         const val EXTRA_LANGUAGE = "extra_language"
         const val EXTRA_VOICE = "extra_voice"
         const val CHANNEL_ID = "road_alert_channel"
@@ -201,11 +251,20 @@ class RoadAlertService : Service() {
             private set
         @Volatile var onStatusListener: ((RoadAlertStatus) -> Unit)? = null
         @Volatile private var staged: List<RoadHazard> = emptyList()
+        @Volatile private var stagedRoute: Pair<List<NavPoint>, List<NavManeuver>>? = null
 
         fun status(): RoadAlertStatus = active?.snapshot() ?: RoadAlertStatus(running = false)
 
-        fun start(context: Context, hazards: List<RoadHazard>, language: String, voice: Boolean) {
+        /** Starts warnings; with a route it also gives turn-by-turn guidance. */
+        fun start(
+            context: Context,
+            hazards: List<RoadHazard>,
+            language: String,
+            voice: Boolean,
+            route: Pair<List<NavPoint>, List<NavManeuver>>? = null
+        ) {
             staged = hazards.take(RoadAlertEngine.MAX_HAZARDS)
+            stagedRoute = route
             ContextCompat.startForegroundService(
                 context,
                 Intent(context, RoadAlertService::class.java)
@@ -220,7 +279,17 @@ class RoadAlertService : Service() {
             context.startService(Intent(context, RoadAlertService::class.java).setAction(ACTION_STOP))
         }
 
+        /** Replaces the route of a running navigation, after the driver left the old one. */
+        fun reroute(context: Context, route: Pair<List<NavPoint>, List<NavManeuver>>) {
+            if (active == null) return
+            stagedRoute = route
+            context.startService(Intent(context, RoadAlertService::class.java).setAction(ACTION_REROUTE))
+        }
+
         private fun takeStaged(): List<RoadHazard> = staged.also { staged = emptyList() }
+
+        private fun takeStagedRoute(): Pair<List<NavPoint>, List<NavManeuver>>? =
+            stagedRoute.also { stagedRoute = null }
 
         fun createChannel(context: Context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
