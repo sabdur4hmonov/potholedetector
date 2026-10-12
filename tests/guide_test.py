@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""The in-app guide opens from the header, shows every section in the chosen language as
-plain text, and returns Home."""
+"""The in-app guide opens from the Help tab, shows every section in the chosen language as
+plain text, and the Home tab returns to the home screen."""
 from playwright.sync_api import sync_playwright
 
 APP = "http://localhost:8765/"
@@ -15,8 +15,8 @@ def require(label, condition):
 with sync_playwright() as p:
     browser = p.chromium.launch(args=["--disable-web-security"])
     for lang, title, first, safety in (
-        ("en", "How to use", "1. Mount the phone", "8. Safety"),
-        ("uz", "Qanday ishlatish", "1. Telefonni o'rnatish", "8. Xavfsizlik"),
+        ("en", "Help", "1. Mount the phone", "8. Safety"),
+        ("uz", "Yordam", "1. Telefonni o'rnatish", "8. Xavfsizlik"),
     ):
         context = browser.new_context(viewport={"width": 390, "height": 844})
         context.add_init_script("localStorage.setItem('openai_key', 'test-key-never-sent');"
@@ -25,9 +25,10 @@ with sync_playwright() as p:
         page.goto(APP)
         page.wait_for_function("() => typeof renderGuide === 'function' && "
                                "!document.getElementById('home').classList.contains('hidden')")
-        require(f"{lang}: the header button is labelled for screen readers",
-                page.get_attribute("#guideBtn", "aria-label") == title)
-        page.click("#guideBtn")
+        require(f"{lang}: the Help tab is labelled for screen readers and on screen",
+                page.get_attribute("#tabGuide", "aria-label") == title
+                and page.locator("#tabGuide .tab-lbl").text_content() == title)
+        page.click("#tabGuide")
         page.wait_for_selector("#guide:not(.hidden)")
         heads = page.locator("#guideBody h2").all_text_contents()
         bodies = page.locator("#guideBody .meta").all_text_contents()
@@ -38,9 +39,12 @@ with sync_playwright() as p:
                 not any("&" in b or "<" in b or "guide_" in b for b in heads + bodies))
         require(f"{lang}: the guide is plain text, not HTML",
                 page.evaluate("() => document.querySelectorAll('#guideBody *').length") == 17)
-        page.click("#guideBack")
+        require(f"{lang}: the Help tab is marked as the current page",
+                page.get_attribute("#tabGuide", "aria-current") == "page")
+        page.click("#tabHome")
         page.wait_for_selector("#home:not(.hidden)")
-        require(f"{lang}: Back returns Home", page.is_hidden("#guide"))
+        require(f"{lang}: the Home tab returns Home", page.is_hidden("#guide")
+                and page.get_attribute("#tabHome", "aria-current") == "page")
         context.close()
     browser.close()
 

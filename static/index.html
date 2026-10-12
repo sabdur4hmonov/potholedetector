@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-AUcGja0+QAuB7QLhuHrSGAPkcBV+pOJi3lvj736xrW0='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-kErMYZgfoPJAxXJrJuYNYrqtubbLzeG/ycX8hEEqJ5E='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-9H0RVCcFbCRyQB0JqswAOR9E9J2L+lMqwGWSMZmjjkc='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-wlaE1DQjV6xJcI5jXb0zogeHVf4DDj+qegVbM3C77J4='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -165,6 +165,31 @@
   #rankLevels button.send { background:#636366; color:#fff; box-shadow:0 3px 8px rgba(0,0,0,.25); }
   .trip-share { background:rgba(10,132,255,.16); color:#64b5ff; border:0; }
   .chip { font-weight:600; }
+  /* ---------- DESIGN-003: tab bar, titles, colour meaning ---------- */
+  body.has-tabbar { padding-bottom:calc(env(safe-area-inset-bottom) + 96px); }
+  .tabbar { position:fixed; left:0; right:0; bottom:0; z-index:40; display:flex; justify-content:center;
+          padding:6px 8px calc(env(safe-area-inset-bottom) + 6px); background:rgba(22,22,24,.86);
+          -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px);
+          border-top:.5px solid rgba(84,84,88,.6); }
+  .tabbar .tab { flex:1; max-width:110px; display:flex; flex-direction:column; align-items:center; gap:2px; min-height:52px;
+          padding:4px 2px; background:transparent; color:rgba(235,235,245,.55); font-size:11px; font-weight:600; border-radius:12px; }
+  .tabbar .tab.active { color:var(--accent2); }
+  .tabbar .tab:active { background:var(--fill); }
+  body.has-tabbar .sticky-save { bottom:calc(env(safe-area-inset-bottom) + 78px); }
+  #settingsTitle, #routeTitle, #guideBody > .verdict:first-child { display:none; }
+  /* With the tab bar on screen, the header shortcuts and Back buttons would only repeat it. */
+  body.has-tabbar #guideBtn, body.has-tabbar #gearBtn { display:none; }
+  body.has-tabbar .btn-row:has(> #dashBack), body.has-tabbar .btn-row:has(> #routeBack),
+  body.has-tabbar .btn-row:has(> #guideBack) { display:none; }
+  /* Colour meaning: orange = Drive, blue = do it, green = yes / safe, red = delete / danger. */
+  .send { background-color:var(--blue); color:#fff; }
+  #lblPothole, #privacyAccept { background-color:var(--ok); color:#06210f; }
+  .stat { flex:1 1 30%; min-width:96px; background:var(--card2); border-radius:14px; padding:12px 8px; text-align:center; }
+  .stat-n { font-size:24px; font-weight:800; letter-spacing:-.02em; color:#fff; }
+  .stat-na { display:inline-block; font-size:14px; font-weight:600; color:var(--mut); letter-spacing:0; padding:6px 0; }
+  #dashStats .stat:nth-child(1) .stat-n { color:var(--accent2); }
+  #dashStats .stat:nth-child(2) .stat-n { color:var(--ok); }
+  #dashStats .stat:nth-child(4) .stat-n, #dashStats .stat:nth-child(5) .stat-n { color:#64b5ff; }
   .sticky-save { background:rgba(28,28,30,.82); border:0; -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px); }
   html.native-preview-active, html.native-preview-active body { background:transparent !important; }
   html.native-preview-active #nativePreviewFrame,
@@ -174,7 +199,7 @@
 <body>
   <div class="row" style="justify-content:space-between;align-items:flex-start">
     <div>
-      <h1>Pothole Reporter</h1>
+      <h1 id="appTitle">Pothole Reporter</h1>
       <div class="sub" id="subTitle">Mount it. Drive. Potholes are found and mapped automatically.</div>
     </div>
     <div class="row" style="flex:none;gap:8px">
@@ -476,6 +501,16 @@
     </div>
   </div>
 
+  <!-- Bottom tab bar, within thumb reach. It only switches between the main screens and
+       uses the same handlers (and locks) as the header and home buttons. -->
+  <nav id="tabBar" class="tabbar hidden" aria-label="Main">
+    <button class="tab" id="tabHome" data-tab="home"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/></svg><span class="tab-lbl"></span></button>
+    <button class="tab" id="tabDash" data-tab="dash"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg><span class="tab-lbl"></span></button>
+    <button class="tab hidden" id="tabRoute" data-tab="route"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.5"/></svg><span class="tab-lbl"></span></button>
+    <button class="tab" id="tabGuide" data-tab="guide"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.8-2.5 2.3-2.5 4"/><path d="M12 17.5h.01"/></svg><span class="tab-lbl"></span></button>
+    <button class="tab" id="tabSettings" data-tab="settings"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="tab-lbl"></span></button>
+  </nav>
+
   <div id="viewer" class="hidden">
     <img id="viewerImg" alt="">
     <button id="viewerClose">&times;</button>
@@ -676,6 +711,11 @@ const I18N = {
     comm_delete: "Delete my online data",
     comm_note: "Nothing is sent until you save a profile. Your name and village appear in rankings; no phone number is needed. Delete removes your profile, trips and pothole confirmations from the server.",
     comm_saved: "Profile saved.",
+    tab_home: "Home",
+    tab_dash: "My trips",
+    tab_route: "Route",
+    tab_guide: "Help",
+    tab_settings: "Settings",
     sec_general: "General",
     sec_ai: "Cloud AI (optional)",
     sec_drive: "Drive",
@@ -998,6 +1038,11 @@ const I18N = {
     comm_delete: "Onlayn ma'lumotlarimni o'chirish",
     comm_note: "Profil saqlanmaguncha hech narsa yuborilmaydi. Ismingiz va qishlog'ingiz reytingda ko'rinadi; telefon raqami kerak emas. O'chirish profilingiz, safarlaringiz va chuqur tasdiqlaringizni serverdan o'chiradi.",
     comm_saved: "Profil saqlandi.",
+    tab_home: "Asosiy",
+    tab_dash: "Hissam",
+    tab_route: "Marshrut",
+    tab_guide: "Yordam",
+    tab_settings: "Sozlamalar",
     sec_general: "Umumiy",
     sec_ai: "Bulutli AI (ixtiyoriy)",
     sec_drive: "Haydash",
@@ -1252,6 +1297,7 @@ function show(screen) {
   for (const s of ["home", "progress", "detail", "drive", "settings", "review", "dash", "route", "guide", "dataConsent"]) {
     $(s).classList.toggle("hidden", s !== screen);
   }
+  updateScreenChrome(screen);
   window.scrollTo(0, 0);
   return true;
 }
@@ -1265,6 +1311,23 @@ function tileHtml(html, extra = "") {
     + `<span class="tile-lbl">${html.slice(at + 6).trim()}${extra}</span>`;
 }
 const UZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
+// Large title per main screen and the bottom tab bar, as on iOS. The tab bar hides during
+// Drive, analysis, review, first-run settings and the privacy prompt.
+const TAB_SCREENS = new Set(["home", "dash", "route", "guide", "settings"]);
+function updateScreenChrome(screen) {
+  const tabbed = TAB_SCREENS.has(screen) && !initialSettingsActive;
+  $("tabBar").classList.toggle("hidden", !tabbed);
+  document.body.classList.toggle("has-tabbar", tabbed);
+  document.querySelectorAll("[data-tab]").forEach((el) => {
+    const on = el.dataset.tab === screen;
+    el.classList.toggle("active", on);
+    if (on) el.setAttribute("aria-current", "page"); else el.removeAttribute("aria-current");
+  });
+  const titles = { dash: "tab_dash", route: "tab_route", guide: "guide_title", settings: "settings_title" };
+  $("appTitle").textContent = titles[screen] ? t(titles[screen]) : "Pothole Reporter";
+  $("subTitle").classList.toggle("hidden", screen !== "home");
+}
+
 function fmtDate(ts) {
   const d = new Date(ts * 1000);
   if (LANG === "uz") {
@@ -1340,6 +1403,10 @@ function withoutLeadingSentences(value, count) {
 function applyLang() {
   $("subTitle").textContent = t("sub");
   document.querySelectorAll("[data-section]").forEach((el) => { el.textContent = t(el.dataset.section); });
+  document.querySelectorAll("[data-tab]").forEach((el) => {
+    el.querySelector(".tab-lbl").textContent = t("tab_" + el.dataset.tab);
+    el.setAttribute("aria-label", t("tab_" + el.dataset.tab));
+  });
   for (const [id, key] of [["driveBtn", "home_drive_sub"], ["alertsBtn", "home_alerts_sub"], ["routeBtn", "home_route_sub"],
                            ["captureBtn", "home_photo_sub"], ["dashBtn", "home_dash_sub"]]) {
     if ($(id)) $(id).dataset.sub = t(key);
@@ -2499,6 +2566,7 @@ function applyNativeMutationLocks() {
   $("captureBtn").disabled = disabled;
   $("gearBtn").disabled = disabled;
   $("guideBtn").disabled = disabled;
+  document.querySelectorAll("[data-tab]").forEach((el) => { el.disabled = disabled; });
   $("wipeBtn").disabled = disabled;
   $("setSave").disabled = disabled;
   $("setBack").disabled = disabled;
@@ -5598,6 +5666,7 @@ let routeMapObj = null;
 async function refreshCommunity() {
   communityState = await api("/api/community/status").catch(() => ({ configured: false }));
   $("communityHome").classList.toggle("hidden", !communityState.configured);
+  $("tabRoute").classList.toggle("hidden", !communityState.configured);
   $("communitySettings").classList.toggle("hidden", !communityState.configured);
   return communityState;
 }
@@ -5845,8 +5914,8 @@ async function openDash() {
   const trip = TripStats.summarizeDrives(drives);
   renderTrips(drives, reports);
   communityAfterDash(drives);
-  const tripValue = (value, scale = 1) => value == null ? escapeHtml(t("trip_unknown"))
-    : (value * scale).toFixed(1);
+  const tripValue = (value, scale = 1) => value == null
+    ? `<span class="stat-na">${escapeHtml(t("trip_unknown"))}</span>` : (value * scale).toFixed(1);
 
   const days = new Set(holes.map((r) => new Date(r.created_at * 1000).toDateString())).size;
   const first = holes.length ? fmtDate(Math.min(...holes.map((r) => r.created_at))) : "";
@@ -5856,8 +5925,8 @@ async function openDash() {
   const dayTxt = days === 1 ? t("day_one") : t("day_many", { n: days });
   $("dashRange").innerHTML = holes.length ? t("dash_range", { days: dayTxt, first }) : t("dash_empty");
 
-  const tile = (n, label) => `<div class="card" style="flex:1 1 30%;min-width:96px;margin:0;text-align:center">
-      <div class="verdict" style="font-size:22px;margin:0">${n}</div>
+  const tile = (n, label) => `<div class="stat">
+      <div class="stat-n">${n}</div>
       <div class="meta">${label}</div></div>`;
   $("dashStats").innerHTML =
     tile(holes.length, t("stat_found")) +
@@ -5878,7 +5947,7 @@ async function openDash() {
       (rows.length ? rows.map(([k, v]) => `<div style="margin:6px 0">
           <div class="meta" style="display:flex;justify-content:space-between"><span>${escapeHtml(k)}</span><span>${escapeHtml(v)}</span></div>
           <div style="height:6px;background:#26272c;border-radius:6px;overflow:hidden">
-            <div style="height:6px;width:${(v / max * 100).toFixed(0)}%;background:var(--accent)"></div></div>
+            <div style="height:6px;width:${(v / max * 100).toFixed(0)}%;background:linear-gradient(90deg, var(--blue), var(--teal))"></div></div>
         </div>`).join("") : `<div class="meta">&mdash;</div>`);
   };
   const byType = {}, bySize = {}, byArea = {};
@@ -6169,6 +6238,15 @@ $("guideBtn").onclick = () => {
   show("guide");
 };
 $("guideBack").onclick = () => show("home");
+// Each tab presses the existing button for that screen, so it keeps that button's checks.
+const TAB_TARGETS = { dash: "dashBtn", route: "routeBtn", guide: "guideBtn", settings: "gearBtn" };
+for (const button of document.querySelectorAll("[data-tab]")) {
+  button.onclick = () => {
+    const tab = button.dataset.tab;
+    if (tab === "home") { if (show("home")) loadReports(); return; }
+    if ($(TAB_TARGETS[tab])) $(TAB_TARGETS[tab]).click();
+  };
+}
 $("gearBtn").onclick = () => {
   if (nativeFinishPromise || (drive && drive.native && drive.stopping)) return;
   openSettings(initialSettingsRequired, initialSettingsRequired);

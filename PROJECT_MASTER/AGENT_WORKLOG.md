@@ -723,3 +723,11 @@ finding; none exists after NEW-002.
 * **Tests performed:** phone-width screenshots of home, settings, trips, report detail and the antiradar panel, plus the story card. These browser tests pass: home actions, first-run, UI text, trip card, guide, stored XSS, consent, wipe, antiradar, road alerts, sensor Drive, community client, navigation, track retention, dashcam source, start/stop, background Drive, unit and full-frame. The CSP browser test also passes.
 * **Decisions:** no bottom tab bar (it would duplicate the tested header and home navigation); the page background is kept at #111214 for the CSP style check; the Drive orange is unchanged; the switches are drawn with gradients only (no pseudo-elements on inputs) for WebView compatibility.
 * **Exact next task:** owner road test.
+
+## 2026-10-12 — DESIGN-003 whole-app usability pass
+
+* **Agent/tool:** Claude in a cloud sandbox. **Task:** the owner said the iOS look was "not complete" and asked for a very convenient design with matching colours. **Status:** COMPLETE at browser level. Not seen on a real phone.
+* **Files changed:** `static/index.html` (tab bar markup with inline SVG icons, `updateScreenChrome()` called from `show()`, tab handlers that press the existing buttons, locks, colour meaning, dashboard tiles) and mirrors; `tests/guide_test.py` (tab navigation); CHANGELOG and this worklog.
+* **Tests performed:** 18 browser tests (home, first-run, UI text, trip card, guide, XSS, consent, wipe, antiradar, road alerts, sensor Drive, community client, navigation, retention, start/stop, background Drive, unit) plus the CSP and trip-stats browser tests. Three native contract tests that failed during a full run started mid-edit pass when rerun. Phone-width screenshots of the tab flow (Home, Hissam, Sozlamalar, Yordam).
+* **Decisions:** the tab bar reuses the existing buttons rather than duplicating navigation logic. The header buttons stay in the DOM (hidden only while the tab bar shows) because tests and first-run settings use them. "Unavailable" stays as text (a Node test reads it) but is styled small.
+* **Exact next task:** owner road test.

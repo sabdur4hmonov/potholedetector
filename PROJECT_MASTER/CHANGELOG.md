@@ -1,5 +1,12 @@
 # Recorded work history
 
+## 2026-10-12 — DESIGN-003 whole-app usability pass
+
+* A bottom tab bar (Home, My trips, Route when the server is configured, Help, Settings) with icons, frosted glass and the current tab in orange, within thumb reach. Each tab presses the existing button for its screen, so the same locks and checks apply; it hides during Drive, analysis, review, first-run settings and the privacy prompt, and is disabled under the native locks.
+* Each main screen has its own large title (Hissam, Sozlamalar, Qanday ishlatish…). The subtitle shows only on Home. With the tab bar on screen, the header ?/⚙️ shortcuts and the Back buttons it duplicates are hidden; Settings keeps Back/Save above the tab bar.
+* Colour meaning across the app: orange = Drive, blue = do it (Save, Search, Share, Start navigation), green = yes/safe (Pothole label, Continue, good scores), red = delete/danger. Dashboard numbers are iOS-style tiles with coloured values; unavailable values are small and grey; bars are blue-to-teal.
+* `tests/guide_test.py` now opens Help from its tab and returns with the Home tab, and checks `aria-current`.
+
 ## 2026-10-12 — DESIGN-002 iOS-style look
 
 On the owner's request the UI follows iOS dark design. It uses the system colours (green #30d158, blue #0a84ff, red #ff453a, purple, indigo, yellow; grades and the story card use them too) and a 28 px large title with round grey header buttons. Home actions are iOS Settings-style rows with a coloured rounded icon tile, a subtitle and a chevron; the Drive hero keeps its exact orange. Checkboxes become iOS switches on the right of their row; selects get a chevron; Settings section headers are small and grey. The ranking levels are a segmented control, Share is a tinted blue pill, and the Save bar is frosted. The button text content is unchanged (the emoji sits in an `aria-hidden` tile), as are ids, order and the page background the CSP test checks.
