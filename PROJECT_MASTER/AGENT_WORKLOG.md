@@ -706,3 +706,12 @@ finding; none exists after NEW-002.
 * **Tests performed:** `DriveCaptureTuningTest` 5/5 (standalone JVM). Full-frame invariant, durable replay, hybrid, camera red-team, capture safety, capture cadence, inference resources, background Drive, unit, dashcam and start/stop tests all pass locally. The CI result for `901712a` was pending when this was written.
 * **Decisions:** no ViewPort/UseCaseGroup, since those would crop all use cases to a common smaller field and the invariant test forbids them. Optical stabilisation is left alone; electronic is off. Noise-reduction and edge modes stay at defaults to avoid frame-rate drops. No absolute blur gate until road data exists. Video stays SD, now at 4:3.
 * **Exact next task:** owner road test, including camera checks (4:3 evidence size, night blur, low-end smoothness).
+
+## 2026-10-12 — DESIGN-001 friendlier UI and SHARE-002 story card
+
+* **Agent/tool:** Claude in a cloud sandbox. **Task:** the owner asked for the most pleasant, easy design and a better-looking Instagram share card, so that only bug testing remains for the car test. **Status:** COMPLETE at browser level. Not seen on a real phone or posted to Instagram.
+* **Commits:** `12b50aa` design pass; `ff2e5be` story card; a route-note/docs commit; this background-colour fix.
+* **Files changed:** `static/index.html` (styles, home `data-sub` lines, Settings sections and sticky Save bar, trip rows, Uzbek dates, new card strings, `drawTripCard` rewrite, route note) and mirrors; `tests/trip_card_test.py`; CHANGELOG and PROJECT_STATUS.
+* **Tests performed:** phone-width screenshots before and after (home, settings, trips, guide, report list and detail, route, antiradar panel; cards in en/uz, green and red). The full `tests/run-all.sh` passes. All 20 Node tests pass, after restarting the test server (run-all stops it) and after one real fix: `sec009_csp_browser_test` checks the body background `rgb(17, 18, 20)` as proof the stylesheet applied under the CSP. The new darker `--bg` broke that, so `--bg` is back to `#111214`. The test was not changed.
+* **Decisions:** home button text stays one word (the subtitle comes from CSS `attr(data-sub)`), so the accessibility and home tests are unchanged. The Drive background colour is kept exact. Settings ids and order are unchanged. Card content is kept inside the story safe area.
+* **Exact next task:** owner road test (bugs only), then server deployment.
