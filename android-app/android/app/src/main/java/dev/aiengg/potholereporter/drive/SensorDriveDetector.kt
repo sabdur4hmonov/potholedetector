@@ -276,6 +276,5 @@ class SensorDriveDetector internal constructor(
         private val UNSAFE_COMPONENT = Regex("[^A-Za-z0-9_-]")
 
         private fun safeComponent(value: String) = value.replace(UNSAFE_COMPONENT, "_").take(128)
-        }
     }
 }
