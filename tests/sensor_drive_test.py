@@ -65,9 +65,9 @@ require("the accelerometer needs no permission and runs at 50 Hz",
 require("the web app lets native Drive start without a key but keeps browser Drive gated",
         "if (!window.CredentialBroker.hasOpenAi() && !nativePlugin) {" in web
         and 'detectionMode: savedDetectionMode() === "sensor" ? "sensor" : "cloud",' in web)
-require("both languages describe the sensor mode",
-        web.count("sensor_verdict:") == 2 and web.count("sensor_note:") == 2
-        and web.count("damage_road_shock:") == 2)
+require("every written language describes the sensor mode",
+        web.count("sensor_verdict:") == 3 and web.count("sensor_note:") == 3
+        and web.count("damage_road_shock:") == 3)
 require("mirrors carry the same web assets",
         (ROOT / "android-app/www/index.html").read_text() == web
         and (ROOT / "android-app/www/standalone.js").read_text() == engine

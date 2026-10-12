@@ -57,8 +57,8 @@ require("antiradar refuses to start without location or while Drive runs, and Dr
         and plugin.index("RoadAlertService.stop(context)") < plugin.index("DriveForegroundService.stageRoadHazards(hazards)"))
 require("the home screen asks only for location and notification permission",
         "requestNativeDrivePermissions(DASHCAM_CAPTURE_SOURCE)" in web)
-require("both languages describe antiradar and camera import",
-        web.count("cameras_note:") == 2 and web.count("alerts_empty:") == 2)
+require("every written language (en, uz, ru) describes antiradar and camera import",
+        web.count("cameras_note:") == 3 and web.count("alerts_empty:") == 3)
 
 with sync_playwright() as p:
     browser = p.chromium.launch(args=["--disable-web-security"])

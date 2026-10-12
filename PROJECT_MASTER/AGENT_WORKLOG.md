@@ -740,3 +740,11 @@ finding; none exists after NEW-002.
 * **Tests performed:** progress 8/8 and data flow 16/16. 18 browser tests and 4 Node tests pass after the change, plus screenshots with saved trips and a report.
 * **Decisions (ethics):** motivation comes only from real actions and the rule is shown in the app. There are no notifications, no streak guilt, nothing during Drive and no reward for speed. "Guaranteed accuracy" is limited to what tests can prove; the road test is still the real check.
 * **Exact next task:** owner road test.
+
+## 2026-10-12 — LANG-001 Russian and Uzbek Cyrillic
+
+* **Agent/tool:** Claude in a cloud sandbox. **Task:** the owner asked for Russian and Uzbek Cyrillic as well as Uzbek. **Status:** COMPLETE at browser level. Translations are machine-authored, so **a native Russian speaker and an Uzbek Cyrillic reader should review the wording** before release.
+* **Files changed:** `static/index.html` (ru dictionary, generated `I18N["uz-Cyrl"]`, `UI_LANGS`, `nativeLang()`, selector, dates), `static/standalone.js` (`UI_LANGS`, `acceptLanguage()`, `descriptionLanguage()`, `uzLatinToCyrillic()`, ru progress messages) and mirrors; new `tests/language_test.py`; `ui_text_test`, `antiradar_test`, `navigation_test`, `road_alerts_test`, `sensor_drive_test` and `trip_card_test` updated to three written languages; `tests/run-all.sh`; CHANGELOG and this worklog.
+* **Tests performed:** language 23/23, plus 16 other browser tests. Screenshots in ru and uz-Cyrl (home and story card).
+* **Decisions:** Cyrillic is generated rather than written separately, so the two Uzbek scripts cannot drift apart. Exceptions handle words that cannot carry an apostrophe in Latin, such as the #Uzbekiston hashtag. Native Kotlin phrases were already uz/ru/en.
+* **Exact next task:** owner road test; have the translations reviewed.

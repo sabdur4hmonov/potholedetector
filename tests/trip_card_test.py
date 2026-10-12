@@ -41,8 +41,8 @@ REPORTS = [{"id": 1, "drive_id": "smooth", "status": "draft"},
 
 source = (ROOT / "static/index.html").read_text()
 require("the card never draws a top speed", "max_interval_speed" not in source.split("function drawTripCard")[1].split("async function shareTripCard")[0])
-require("both languages label the card", source.count("card_privacy:") == 2 and source.count("grade_green:") == 2
-        and source.count("card_hashtag:") == 2 and source.count("card_out_of:") == 2)
+require("every written language labels the card", source.count("card_privacy:") == 3 and source.count("grade_green:") == 3
+        and source.count("card_hashtag:") == 3 and source.count("card_out_of:") == 3)
 card_source = source.split("function drawTripCard")[1].split("async function shareTripCard")[0]
 require("the card draws only the trimmed share route, never the raw track",
         "TripStats.shareRoute(d.gps_track)" in card_source and "d.gps_track.forEach" not in card_source

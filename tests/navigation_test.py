@@ -34,7 +34,7 @@ require("route input from the page is bounded",
         and "minOf(steps?.length() ?: 0, NavigationGuide.MAX_MANEUVERS)" in plugin)
 require("a running service gets the new route in place instead of stop-and-start",
         "RoadAlertService.reroute(context, route)" in plugin and "ACTION_REROUTE" in service)
-require("both languages label navigation", web.count("nav_start:") == 2 and web.count("nav_off_route:") == 2)
+require("every written language labels navigation", web.count("nav_start:") == 3 and web.count("nav_off_route:") == 3)
 
 ROUTE = {"index": 0, "distance_m": 2500, "duration_s": 300, "free_flow_s": 280, "live_share": 0.4,
          "geometry": [[41.30, 69.27], [41.30, 69.29], [41.31, 69.29]],

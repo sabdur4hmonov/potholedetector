@@ -44,8 +44,8 @@ require("the hazard list is bounded and staged in-process, not in an Intent extr
 require("the page sends its hazards and both switches to native Drive",
         "hazards: roadHazards," in web and "roadAlerts: roadAlertsEnabled()," in web
         and "voiceAlerts: voiceAlertsEnabled()," in web)
-require("both languages describe the warnings",
-        web.count("road_alerts_label:") == 2 and web.count("road_alerts_note:") == 2)
+require("every written language describes the warnings",
+        web.count("road_alerts_label:") == 3 and web.count("road_alerts_note:") == 3)
 require("mirrors carry the same web assets",
         (ROOT / "android-app/www/index.html").read_text() == web
         and (ROOT / "docs/standalone.js").read_text() == js)

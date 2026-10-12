@@ -5,13 +5,14 @@ Two bugs this guards against, both of which shipped once:
   - HTML entities inside strings applied with textContent, which render literally.
   - Translated strings drifting behind the English ones and describing an older build.
 
-Supported languages: English and Uzbek (every key must exist in both).
+Written languages: English, Uzbek (Latin) and Russian (every key must exist in all three).
+Uzbek Cyrillic is generated from the Latin dictionary at runtime and checked in language_test.
 """
 import re, sys, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 fails = []
-LANGS = ("English", "Uzbek")
+LANGS = ("English", "Uzbek", "Russian")
 
 for name in ("static/index.html", "android-app/www/index.html", "docs/index.html"):
     s = (ROOT / name).read_text(encoding="utf-8")
@@ -24,8 +25,8 @@ for name in ("static/index.html", "android-app/www/index.html", "docs/index.html
 
     # Disclosure: the user must be told the photo leaves the device in every language.
     notes = re.findall(r'settings_note: "([^"]+)"', s)
-    if len(notes) != 2:
-        fails.append(f"{name}: expected 2 settings_note strings, found {len(notes)}")
+    if len(notes) != 3:
+        fails.append(f"{name}: expected 3 settings_note strings, found {len(notes)}")
     else:
         for language, note in zip(LANGS, notes):
             if "OpenAI" not in note:
@@ -38,17 +39,17 @@ for name in ("static/index.html", "android-app/www/index.html", "docs/index.html
                    "grievance", "India", "GBA", "Gaurav Sen"):
         if banned in s:
             fails.append(f"{name}: leftover India-specific text {banned!r}")
-    for language, value in (("English", "en"), ("Uzbek", "uz")):
+    for language, value in (("English", "en"), ("Uzbek", "uz"), ("Uzbek Cyrillic", "uz-Cyrl"), ("Russian", "ru")):
         if f'<option value="{value}">' not in s:
             fails.append(f"{name}: {language} is missing from the language selector")
 
     # Both dictionaries must define exactly the same keys.
-    blocks = re.findall(r"^  (en|uz): \{(.*?)^  \},?\s*$", s, re.S | re.M)
+    blocks = re.findall(r"^  (en|uz|ru): \{(.*?)^  \},?\s*$", s, re.S | re.M)
     keysets = {lang: set(re.findall(r"^    ([A-Za-z0-9_]+):", body, re.M)) for lang, body in blocks}
-    if set(keysets) != {"en", "uz"}:
-        fails.append(f"{name}: could not find both the en and uz dictionaries")
+    if set(keysets) != {"en", "uz", "ru"}:
+        fails.append(f"{name}: could not find the en, uz and ru dictionaries")
     else:
-        for lang, other in (("uz", "en"), ("en", "uz")):
+        for lang, other in (("uz", "en"), ("en", "uz"), ("ru", "en"), ("en", "ru")):
             missing = sorted(keysets[other] - keysets[lang])
             if missing:
                 fails.append(f"{name}: {lang} dictionary lacks {len(missing)} keys, e.g. {missing[:5]}")
@@ -57,7 +58,7 @@ for name in ("static/index.html", "android-app/www/index.html", "docs/index.html
     # or clear/probable wording creep back into the visible result or labelling UI.
     detected = re.findall(r'^\s{4}verdict_detected: "([^"]+)"', s, re.MULTILINE)
     rejected = re.findall(r'^\s{4}verdict_rejected: "([^"]+)"', s, re.MULTILINE)
-    if len(detected) != 2 or len(rejected) != 2:
+    if len(detected) != 3 or len(rejected) != 3:
         fails.append(f"{name}: expected two localized binary pothole verdict pairs")
     elif detected[0] != "Pothole: YES" or rejected[0] != "Pothole: NO":
         fails.append(f"{name}: English detection verdict is not binary YES/NO")

@@ -1,5 +1,12 @@
 # Recorded work history
 
+## 2026-10-12 — LANG-001 Russian and Uzbek Cyrillic
+
+* **Russian:** a full written dictionary covering all 356 strings, with the same keys, `{placeholders}` and HTML entities as English, plus Russian progress messages in `standalone.js`.
+* **Uzbek Cyrillic:** generated at runtime from the Latin Uzbek dictionary by `uzLatinToCyrillic()`, so both scripts always say the same thing. It uses the official letter correspondences (sh→ш, ch→ч, o'→ў, g'→ғ, q→қ, h→ҳ, x→х, j→ж, ya/yu/yo/ye→я/ю/ё/е, word-initial e→э, the tutuq belgisi→ъ) and keeps capitals. Brand names, abbreviations, CSV column names, links, file paths, anything containing digits, entities and placeholders are left as they are; "OpenAI'ga" becomes "OpenAI'га".
+* The selector offers English, O'zbekcha, Ўзбекча (кирилл) and Русский; `<html lang>` follows it. The phone's voice and native texts get `uz` for both Uzbek scripts and `ru` for Russian. The geocoder asks for street names in the chosen language, and the cloud model is asked to describe in it. Dates are localised (Uzbek month names, transliterated in Cyrillic; Russian locale).
+* Tests: new `tests/language_test.py` (23 checks across all four languages); `ui_text_test` now requires matching en/uz/ru dictionaries; the per-language string counts in five tests are now 3.
+
 ## 2026-10-12 — HUMAN-001 crafted look, MOTIV-001 progress and achievements, DATA-001 data flow
 
 * **HUMAN-001.** One drawn line-icon set replaces emoji on the home actions. Decorative glows are removed (page glow, title dot, Drive glow and gradient). Home subtitles are one short line.

@@ -209,10 +209,74 @@
     get detail() { return normaliseDetail(localStorage.getItem("image_detail"), this.model); },
   };
 
+  // UI languages: English, Uzbek (Latin), Uzbek (Cyrillic, generated from Latin) and Russian.
+  const UI_LANGS = ["en", "uz", "uz-Cyrl", "ru"];
   const LANG = () => {
     const value = localStorage.getItem("app_lang");
-    return value === "uz" ? "uz" : "en";
+    return UI_LANGS.includes(value) ? value : "en";
   };
+  // Street names and search results in the driver's language first.
+  const acceptLanguage = () => ({ ru: "ru,uz,en", uz: "uz,ru,en", "uz-Cyrl": "uz,ru,en" })[LANG()] || "en";
+  // The free-text description the cloud model writes, in the UI language.
+  const descriptionLanguage = () => ({ uz: "Uzbek (Latin script)", "uz-Cyrl": "Uzbek (Cyrillic script)",
+    ru: "Russian" })[LANG()] || null;
+  // Uzbek Latin -> Uzbek Cyrillic, by the official letter correspondences. Entities,
+  // {placeholders}, tags, links, file paths and anything with digits are left as they are,
+  // and so are brand names, technical abbreviations and the English CSV column names.
+  const UZ_CYRL_KEEP = new Set(["OpenAI", "OpenStreetMap", "Nominatim", "Instagram", "Telegram", "Google",
+    "Android", "Keystore", "WebView", "Pothole", "Reporter", "Documents", "pothole", "frames", "Files", "Wi", "Fi",
+    "LiteRT", "GPS", "AI", "API", "CSV", "JSON", "RTSP", "rtsps", "MB", "GB", "KB", "URL", "ID", "OSRM",
+    "lat", "lng", "type", "speed", "seatbelt", "red_light", "lane", "phone", "speed_bump", "id", "heading", "limit", "name",
+    "gpt", "high", "mini", "original"]);
+  const UZ_CYRL_LETTERS = { a: "а", b: "б", d: "д", e: "е", f: "ф", g: "г", h: "ҳ", i: "и", j: "ж", k: "к",
+    l: "л", m: "м", n: "н", o: "о", p: "п", q: "қ", r: "р", s: "с", t: "т", u: "у", v: "в", x: "х", y: "й",
+    z: "з", c: "с", w: "в" };
+  const UZ_APOSTROPHES = "'ʻʼ‘’`";
+  // Words written without their apostrophe in Latin (hashtags cannot hold one).
+  const UZ_CYRL_WORDS = { Uzbekiston: "Ўзбекистон" };
+  function uzCyrillicWord(word) {
+    const lower = word.toLowerCase();
+    const apos = (ch) => !!ch && UZ_APOSTROPHES.includes(ch);
+    let out = "";
+    for (let i = 0; i < word.length;) {
+      const c = lower[i], n = lower[i + 1];
+      let cyr, len = 1;
+      if (c === "y" && n === "o" && apos(lower[i + 2])) { cyr = "йў"; len = 3; }
+      else if (c === "o" && apos(n)) { cyr = "ў"; len = 2; }
+      else if (c === "g" && apos(n)) { cyr = "ғ"; len = 2; }
+      else if (c === "s" && n === "h") { cyr = "ш"; len = 2; }
+      else if (c === "c" && n === "h") { cyr = "ч"; len = 2; }
+      else if (c === "y" && n === "o") { cyr = "ё"; len = 2; }
+      else if (c === "y" && n === "u") { cyr = "ю"; len = 2; }
+      else if (c === "y" && n === "a") { cyr = "я"; len = 2; }
+      else if (c === "y" && n === "e") { cyr = "е"; len = 2; }
+      else if (c === "e") cyr = i === 0 ? "э" : "е";
+      else if (apos(c)) cyr = "ъ";
+      else cyr = UZ_CYRL_LETTERS[c] || word[i];
+      const src = word.slice(i, i + len);
+      out += src[0] !== lower[i] ? cyr[0].toUpperCase() + cyr.slice(1) : cyr;
+      i += len;
+    }
+    // A word written in capitals stays in capitals.
+    return word.length > 1 && word === word.toUpperCase() && /[A-Z]/.test(word) ? out.toUpperCase() : out;
+  }
+  function uzLatinToCyrillic(text) {
+    return String(text == null ? "" : text)
+      .split(/(&#?\w+;|\{\w+\}|<[^>]*>|[A-Za-z]+:\/\/\S*|\S*\d\S*|\b\w+_\w+\b)/)
+      .map((part, i) => i % 2 ? part : part.replace(/[A-Za-z][A-Za-z'ʻʼ‘’`]*/g, (word, at, whole) => {
+        const hashtag = whole[at - 1] === "#";
+        const keep = (w) => UZ_CYRL_KEEP.has(w) || (!hashtag && /[a-z][A-Z]/.test(w));
+        const cut = word.search(/['ʻʼ‘’`]/);
+        if (UZ_CYRL_WORDS[word]) return UZ_CYRL_WORDS[word];
+        if (cut < 0) return keep(word) ? word : uzCyrillicWord(word);
+        // "OpenAI'ga", "Android'da": the name stays, the Uzbek ending is converted.
+        const head = word.slice(0, cut), rest = word.slice(cut + 1);
+        if (keep(head)) return head + "'" + (rest ? uzCyrillicWord(rest) : "");
+        return uzCyrillicWord(word);
+      }))
+      .join("");
+  }
+
   const PROGRESS = {
     en: { compress: "Preparing photo...", capture: "Preparing road views...",
           detect: "AI checking: pothole YES or NO...", finalize: "Checking location...",
@@ -222,8 +286,13 @@
           detect: "AI tekshirmoqda: chuqur HA yoki YO'Q...", finalize: "Joylashuv tekshirilmoqda...",
           repair: "Qayta o'tish saqlangan chuqur bilan solishtirilmoqda...",
           write: "Hisobot saqlanmoqda..." },
+    ru: { compress: "Готовлю фото...", capture: "Готовлю виды дороги...",
+          detect: "ИИ проверяет: яма ДА или НЕТ...", finalize: "Проверяю местоположение...",
+          repair: "Сравниваю повторный проезд с сохранённой ямой...",
+          write: "Сохраняю отчёт..." },
   };
-  const pmsg = (k) => (PROGRESS[LANG()] && PROGRESS[LANG()][k]) || PROGRESS.en[k];
+  const pmsg = (k) => LANG() === "uz-Cyrl" ? uzLatinToCyrillic(PROGRESS.uz[k] || PROGRESS.en[k])
+    : (PROGRESS[LANG()] && PROGRESS[LANG()][k]) || PROGRESS.en[k];
 
   const DEFAULT_MODEL = "gpt-5-mini";
   // Live private-media regression on the exact Drive contract found materially better
@@ -1184,7 +1253,7 @@ This is a strict before/after verification, not ordinary pothole detection:
       // or self-hosted instance; nothing else in the app depends on this response.
       await waitForNominatimSlot();
       const res = await fetchWithTimeout(
-        `${NOMINATIM_REVERSE_ENDPOINT}?lat=${lat}&lon=${lng}&format=jsonv2&zoom=17&addressdetails=1&accept-language=${LANG() === "uz" ? "uz,ru,en" : "en"}`,
+        `${NOMINATIM_REVERSE_ENDPOINT}?lat=${lat}&lon=${lng}&format=jsonv2&zoom=17&addressdetails=1&accept-language=${acceptLanguage()}`,
         {}, 12000);
       if (!res.ok) return null;
       const d = await readJson(res);
@@ -2261,7 +2330,7 @@ This is a strict before/after verification, not ordinary pothole detection:
     const current = fullViews.filter(Boolean);
     const images = [{ url: oldEvidence }, { url: contextDataUrl },
       ...current.map((url) => ({ url }))];
-    const language = LANG() === "uz" ? "\n- Write description in clear Uzbek (Latin script)." : "";
+    const language = descriptionLanguage() ? `\n- Write description in clear ${descriptionLanguage()}.` : "";
     return analyzeImage(images, REPAIR_PROMPT + language, "road_repair_verification",
       REPAIR_SCHEMA, model, null, false, detail);
   }
@@ -2510,8 +2579,8 @@ This is a strict before/after verification, not ordinary pothole detection:
       : "\n- Capture layout: one user-framed full image.";
     const promptVersion = driveMode ? PROMPT_VERSION : PHOTO_PROMPT_VERSION;
     const detectPrompt = DETECT_PROMPT + (driveMode ? "" : PHOTO_ONLY_PROMPT_SUFFIX)
-      + sequenceNote + (LANG() === "uz"
-      ? "\n- Write the description field in clear Uzbek (Latin script)."
+      + sequenceNote + (descriptionLanguage()
+      ? `\n- Write the description field in clear ${descriptionLanguage()}.`
       : "");
     const detectionModel = driveMode ? DRIVE_DETECTION_MODEL : S.model;
     const detectionDetail = driveMode ? DRIVE_DETECTION_DETAIL : S.detail;
@@ -2763,7 +2832,7 @@ This is a strict before/after verification, not ordinary pothole detection:
     await waitForNominatimSlot();
     const res = await fetchWithTimeout(
       `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=uz&limit=5`
-      + `&accept-language=${LANG() === "uz" ? "uz,ru,en" : "en"}&q=${encodeURIComponent(q)}`, {}, 12000);
+      + `&accept-language=${acceptLanguage()}&q=${encodeURIComponent(q)}`, {}, 12000);
     if (!res.ok) throw new Error("Place search is unavailable right now.");
     const rows = await readJson(res);
     return (Array.isArray(rows) ? rows : []).map((r) => ({
@@ -3864,10 +3933,12 @@ This is a strict before/after verification, not ordinary pothole detection:
     findRepairCandidateFromReports, findDuplicateReport, roadHazardsFrom,
     parseCameraPack, cameraHazards, CAMERA_PACK_SCHEMA, communityTripPayloads,
     communityPotholePayloads, communitySpeedPayloads, communityGonePayloads, communityHazards, dataUrlToBlob, blobToDataUrl,
-    photoToBase64, toDict, listDict, evidenceForReport, fullFramePhoto,
+    photoToBase64, toDict, listDict, evidenceForReport, fullFramePhoto, uzLatinToCyrillic, acceptLanguage,
+    descriptionLanguage,
   };
 
   window.StandaloneAPI = { __pure, handle, prewarm };
+  window.uzLatinToCyrillic = uzLatinToCyrillic;
 
   // The home screen remains usable without an AI key because Garbage and Manhole are
   // explicit user reports. Pothole and Drive open Settings when their key is missing.
