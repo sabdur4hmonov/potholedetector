@@ -731,3 +731,12 @@ finding; none exists after NEW-002.
 * **Tests performed:** 18 browser tests (home, first-run, UI text, trip card, guide, XSS, consent, wipe, antiradar, road alerts, sensor Drive, community client, navigation, retention, start/stop, background Drive, unit) plus the CSP and trip-stats browser tests. Three native contract tests that failed during a full run started mid-edit pass when rerun. Phone-width screenshots of the tab flow (Home, Hissam, Sozlamalar, Yordam).
 * **Decisions:** the tab bar reuses the existing buttons rather than duplicating navigation logic. The header buttons stay in the DOM (hidden only while the tab bar shows) because tests and first-run settings use them. "Unavailable" stays as text (a Node test reads it) but is styled small.
 * **Exact next task:** owner road test.
+
+## 2026-10-12 — HUMAN-001, MOTIV-001, DATA-001
+
+* **Agent/tool:** Claude in a cloud sandbox. **Task:** the owner asked for a human-made (not AI-looking) design, thought through psychologically, that people enjoy, keep using and that motivates finding potholes, and for reports and data to work accurately. **Status:** COMPLETE at browser/Node level. Not phone-tested.
+* **Commits:** `b3e76ea` (HUMAN-001, MOTIV-001 and the map fix) plus this DATA-001/docs commit.
+* **Files changed:** `static/index.html` (icon set, progress strip, last-trip card, achievements, calmer styles, map fallback fix), `static/trip-stats.js` (`PROGRESS`, `progressSummary`) and mirrors; new `tests/progress_test.cjs` and `tests/report_data_flow_test.py`; `tests/run-all.sh`; CHANGELOG and this worklog.
+* **Tests performed:** progress 8/8 and data flow 16/16. 18 browser tests and 4 Node tests pass after the change, plus screenshots with saved trips and a report.
+* **Decisions (ethics):** motivation comes only from real actions and the rule is shown in the app. There are no notifications, no streak guilt, nothing during Drive and no reward for speed. "Guaranteed accuracy" is limited to what tests can prove; the road test is still the real check.
+* **Exact next task:** owner road test.

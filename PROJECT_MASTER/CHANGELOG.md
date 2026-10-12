@@ -1,5 +1,12 @@
 # Recorded work history
 
+## 2026-10-12 — HUMAN-001 crafted look, MOTIV-001 progress and achievements, DATA-001 data flow
+
+* **HUMAN-001.** One drawn line-icon set replaces emoji on the home actions. Decorative glows are removed (page glow, title dot, Drive glow and gradient). Home subtitles are one short line.
+* **MOTIV-001.** `TripStats.progressSummary()` computes points from real data only: 10 per found pothole, 2 per km, 5 per calm trip, 3 per labelled frame, and never anything for speed. From the points it derives six levels, this week's numbers, a local-day streak, 10 achievements and the last trip of the past 6 hours. Home shows a level strip and a "Last trip" card with Share; My trips shows the achievements and the rule. Nothing appears during Drive, there are no notifications and no penalty for missed days.
+* **DATA-001.** `tests/report_data_flow_test.py` follows one road event end to end: native import (field types and normalised values), duplicate merge across drives, refusals (missing photo, overclaims, wrong source, impossible location), labelling, the export ZIP's `labels.json` and image, road warnings, community payloads (coordinates and kind only, take-back after "not a pothole"), progress counts and deletion.
+* Fixed: a Leaflet error when map tiles fail. The offline fallback removed the map inside the tile layer's own load event; it now runs a tick later and detaches the tiles first.
+
 ## 2026-10-12 — DESIGN-003 whole-app usability pass
 
 * A bottom tab bar (Home, My trips, Route when the server is configured, Help, Settings) with icons, frosted glass and the current tab in orange, within thumb reach. Each tab presses the existing button for its screen, so the same locks and checks apply; it hides during Drive, analysis, review, first-run settings and the privacy prompt, and is disabled under the native locks.
