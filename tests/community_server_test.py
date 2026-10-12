@@ -108,6 +108,20 @@ require("unknown tokens are refused", call("GET", "/v1/devices/me", token="x" * 
 status, me, _ = call("PATCH", "/v1/devices/me", {"display_name": "Ali aka"}, token=ali["token"])
 require("a profile can be renamed", status == 200 and me["display_name"] == "Ali aka")
 
+ABUSE = ["S.1.K", "сик", "Fuck you", "Suka", "qo'toq", "Хуй", "B L Y A T", "siiikaman", "ЙҲХХ", "YHXX boshlig'i",
+         "Admin", "Prezident", "t.me/kanal", "@kanal", "www.site.uz", "+998 90 123 45 67"]
+ORDINARY = ["Abdurahmon", "Aminjon", "Sikandar", "Assalom", "Hokimjon", "Kotibjon", "Ахмед Алиев", "Shitov",
+            "Mandarin", "Admiral", "Vaziraxon", "Shahrixon", "Ishtixon", "Shayxontohur", "Jasur_77", "Ulug'bek 2005"]
+require("abusive, official-looking and contact names are refused with a stable code",
+        all(call("POST", "/v1/devices", {"display_name": n, "region": "fargona", "district": "a",
+                                         "village": "b"})[1].get("code") == "name_not_allowed" for n in ABUSE))
+require("ordinary Uzbek names and place names pass the filter",
+        [n for n in ORDINARY + ["Sho'rariq", "Qo'shtepa", "Sassiqko'l", "Sayxunobod"] if not cs.name_allowed(n)] == [])
+require("a rename to an abusive name, or an abusive village, is refused",
+        call("PATCH", "/v1/devices/me", {"display_name": "suka"}, token=ali["token"])[1].get("code") == "name_not_allowed"
+        and call("PATCH", "/v1/devices/me", {"village": "pizda"}, token=ali["token"])[0] == 400
+        and call("GET", "/v1/devices/me", token=ali["token"])[1]["display_name"] == "Ali aka")
+
 
 def trip(token, client_id, km, score):
     return call("POST", "/v1/trips", {"client_id": client_id, "started_day": "2027-01-15",
@@ -138,6 +152,20 @@ _, country, _ = call("GET", "/v1/rankings?level=country")
 require("the country ranking includes every region and needs no token",
         [e["name"] for e in country["entries"]] == ["Vali", "Ali aka", "Toshkentlik", "Sami"] and country["me"] is None)
 require("a ranking without a place is refused", call("GET", "/v1/rankings?level=region")[0] == 400)
+
+import argparse  # noqa: E402  (operator command line, used only here)
+moderation = argparse.Namespace(list_names=False, hide_name="Sami", unhide_name=None)
+require("the operator can hide a name; it shows as a placeholder",
+        cs.moderate(api.store, moderation) == 0
+        and [e["name"] for e in call("GET", "/v1/rankings?level=country")[1]["entries"]]
+        == ["Vali", "Ali aka", "Toshkentlik", cs.HIDDEN_NAME])
+moderation.hide_name, moderation.unhide_name = None, "Sami"
+cs.moderate(api.store, moderation)
+api.store.db.execute("UPDATE devices SET display_name='Blyat' WHERE display_name='Toshkentlik'")
+require("a name caught by a newer list is hidden without operator action, and unhiding restores a name",
+        [e["name"] for e in call("GET", "/v1/rankings?level=country")[1]["entries"]]
+        == ["Vali", "Ali aka", cs.HIDDEN_NAME, "Sami"])
+api.store.db.execute("UPDATE devices SET display_name='Toshkentlik' WHERE display_name='Blyat'")
 clock["now"] += 40 * 86400
 require("old trips leave the 30-day ranking", call("GET", "/v1/rankings?level=country")[1]["entries"] == [])
 clock["now"] -= 40 * 86400

@@ -148,6 +148,18 @@ with sync_playwright() as p:
     require("nothing is sent before a profile is saved",
             call("/api/community/sync", "POST", {"drives": [DRIVE]}) == {"skipped": True} and SENT == [])
 
+    with page.expect_event("dialog") as refused:
+        page.evaluate("""() => { document.getElementById('commName').value = 'S.u.k.a';
+            document.getElementById('commRegion').value = 'fargona';
+            document.getElementById('commDistrict').value = "Bag'dod";
+            document.getElementById('commVillage').value = "Sho'rariq";
+            setTimeout(() => document.getElementById('commSave').click(), 0); }""")
+    dialogs = [refused.value.message]
+    refused.value.accept()
+    require("a refused name gets a plain explanation and registers nothing",
+            dialogs and "cannot be shown in rankings" in dialogs[0]
+            and call("/api/community/status")["registered"] is False)
+
     saved = call("/api/community/profile", "POST", {"display_name": "Ali", "region": "fargona",
         "district": "Bag'dod", "village": "Sho'rariq", "rank": True, "share_potholes": True, "share_speeds": True})
     require("saving a profile registers the device", saved["registered"] and saved["rank"]

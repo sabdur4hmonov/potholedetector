@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-jvpEhyZCf+7C0bsMxPG3F6CsB0NkUmygrcHRFoRzGqM='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-ez5r2KkxZ9Jl+f0R+wMXU8UqgfmoTcuTx8TX/9A8lFw='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -553,6 +553,7 @@ const I18N = {
     comm_delete: "Delete my online data",
     comm_note: "Nothing is sent until you save a profile. Your name and village appear in rankings; no phone number is needed. Delete removes your profile, trips and pothole confirmations from the server.",
     comm_saved: "Profile saved.",
+    comm_name_not_allowed: "This name or place cannot be shown in rankings. Please choose another one (no insults, official titles, links or phone numbers).",
     comm_deleted: "Your online data was deleted.",
     comm_confirm_delete: "Delete your profile, trips and pothole confirmations from the server?",
     trips_empty: "No trip with a GPS track yet. Drive with track keeping on.",
@@ -831,6 +832,7 @@ const I18N = {
     comm_delete: "Onlayn ma'lumotlarimni o'chirish",
     comm_note: "Profil saqlanmaguncha hech narsa yuborilmaydi. Ismingiz va qishlog'ingiz reytingda ko'rinadi; telefon raqami kerak emas. O'chirish profilingiz, safarlaringiz va chuqur tasdiqlaringizni serverdan o'chiradi.",
     comm_saved: "Profil saqlandi.",
+    comm_name_not_allowed: "Bu ism yoki joy nomini reytingda ko'rsatib bo'lmaydi. Boshqasini tanlang (haqorat, rasmiy unvon, havola yoki telefon raqamisiz).",
     comm_deleted: "Onlayn ma'lumotlaringiz o'chirildi.",
     comm_confirm_delete: "Profilingiz, safarlaringiz va chuqur tasdiqlaringiz serverdan o'chirilsinmi?",
     trips_empty: "GPS treki bor safar hali yo'q. Trek saqlash yoqilgan holda yuring.",
@@ -5315,7 +5317,7 @@ $("commSave").onclick = async () => {
       share_speeds: $("commShareSpeeds").checked,
     }) });
     alert(t("comm_saved"));
-  } catch (e) { alert(e.message || String(e)); }
+  } catch (e) { alert(e && e.code === "name_not_allowed" ? t("comm_name_not_allowed") : (e.message || String(e))); }
   refreshCommunitySettings();
 };
 $("commDelete").onclick = async () => {

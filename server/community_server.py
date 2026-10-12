@@ -85,10 +85,11 @@ CREATE TABLE IF NOT EXISTS usage (
 
 
 class ApiError(Exception):
-    def __init__(self, status: int, message: str):
+    def __init__(self, status: int, message: str, code: str | None = None):
         super().__init__(message)
         self.status = status
         self.message = message
+        self.code = code
 
 
 # ---------- validation helpers ----------
@@ -102,7 +103,72 @@ def normalise_place(value, field: str, required: bool = True) -> str:
         raise ApiError(400, f"{field} is required")
     if len(text) > 60:
         raise ApiError(400, f"{field} is too long")
+    if text and not name_allowed(text):
+        raise ApiError(400, f"this {field} name is not allowed", "name_not_allowed")
     return text
+
+
+# ---------- name moderation ----------
+# Names and places typed by drivers are shown to other drivers in rankings, so obvious abuse,
+# impersonation of officials and contact spam are refused. The lists are matched on a
+# "skeleton": Cyrillic transliterated, look-alike digits mapped, accents and separators
+# removed and repeated letters collapsed, so "S.1.K", "сик" and "siiik" all compare equal.
+# The operator can still hide any name by hand: see --list-names / --hide-name.
+_CYRILLIC = dict(zip("абвгдеёжзийклмнопрстуфхцчшщъыьэюяўқғҳ",
+                     ["a", "b", "v", "g", "d", "e", "yo", "j", "z", "i", "y", "k", "l", "m", "n", "o",
+                      "p", "r", "s", "t", "u", "f", "x", "ts", "ch", "sh", "sh", "", "i", "", "e", "yu",
+                      "ya", "o", "q", "g", "h"]))
+_LOOKALIKE = str.maketrans({"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a",
+                            "$": "s", "!": "i", "h": "x", "q": "k", "w": "v", "y": "i", "c": "k"})
+# Matched anywhere inside the name.
+BLOCKED_STEMS = (
+    # Russian
+    "xuy", "xuil", "pizd", "eban", "ebal", "ebat", "eblan", "yoban", "yobt", "blyad", "blyat",
+    "pidor", "pidar", "pidr", "mudak", "mudil", "gandon", "zalup", "shlyux", "dolboy", "dolboe",
+    "mraz", "suchk",
+    # Uzbek
+    "sikay", "sikam", "sikib", "sikdi", "sikis", "siktir", "qotoq", "qo'toq", "jalab",
+    "dalbayo", "dalbayop", "haromi", "itvachcha", "qanjiq", "amingni", "amingga", "onangni sik",
+    # English
+    "fuck", "fuk", "bitch", "nigger", "nigga", "whore", "porn", "rapist",
+    # impersonation of officials or the app
+    "gibdd", "politsiya", "militsiya", "police", "admin", "moderator",
+    "prezident", "president", "hokimiyat", "rasmiy", "official",
+)
+# Matched only as a whole word, because they occur inside ordinary names.
+BLOCKED_WORDS = ("sik", "kot", "am", "ass", "dick", "shit", "sex", "seks", "suka", "manda",
+                 "cunt", "gai", "iib", "hokim", "vazir", "support")
+# Abbreviations whose skeleton is too short to match safely; compared on the plain text.
+BLOCKED_ABBREVIATIONS = ("yhxx", "dyhxx")
+_CONTACT = re.compile(r"https?:|www\.|\.(?:com|uz|ru|net|org|me)\b|t\.me|@\w|\d[\d\s()+-]{6,}\d",
+                      re.IGNORECASE)
+
+
+def _plain(text: str) -> str:
+    text = "".join(_CYRILLIC.get(ch, ch) for ch in unicodedata.normalize("NFKC", text).lower())
+    return "".join(ch for ch in unicodedata.normalize("NFKD", text) if not unicodedata.combining(ch))
+
+
+def skeleton(text: str) -> str:
+    letters = re.sub(r"[^a-z]", "", _plain(text).translate(_LOOKALIKE))
+    return re.sub(r"(.)\1+", r"\1", letters)
+
+
+_STEM_SKELETONS = tuple({skeleton(w) for w in BLOCKED_STEMS})
+_WORD_SKELETONS = frozenset(skeleton(w) for w in BLOCKED_WORDS)
+
+
+def name_allowed(text: str) -> bool:
+    """False for abuse, impersonation of officials and contact details."""
+    if _CONTACT.search(text or ""):
+        return False
+    if any(abbr in _plain(text or "") for abbr in BLOCKED_ABBREVIATIONS):
+        return False
+    whole = skeleton(text or "")
+    if any(stem in whole for stem in _STEM_SKELETONS):
+        return False
+    words = {skeleton(w) for w in re.split(r"[\s,;:/|_.\-+]+", _plain(text or "")) if w}
+    return not (words | {whole}) & _WORD_SKELETONS
 
 
 def display_name(value) -> str:
@@ -110,7 +176,19 @@ def display_name(value) -> str:
     text = re.sub(r"\s+", " ", text)
     if not 2 <= len(text) <= 24:
         raise ApiError(400, "display_name must be 2-24 characters")
+    if not name_allowed(text):
+        raise ApiError(400, "this name is not allowed", "name_not_allowed")
     return text
+
+
+HIDDEN_NAME = "Haydovchi"
+
+
+def shown_name(row) -> str:
+    """Names hidden by the operator, or caught by a list added after they were saved,
+    appear as a neutral placeholder."""
+    name = row["display_name"]
+    return HIDDEN_NAME if row["name_hidden"] or not name_allowed(name) else name
 
 
 def number(value, field: str, low: float, high: float) -> float:
@@ -156,6 +234,9 @@ class Store:
         if path != ":memory:":
             self.db.execute("PRAGMA journal_mode = WAL")
         self.db.executescript(SCHEMA)
+        columns = {row["name"] for row in self.db.execute("PRAGMA table_info(devices)")}
+        if "name_hidden" not in columns:
+            self.db.execute("ALTER TABLE devices ADD COLUMN name_hidden INTEGER NOT NULL DEFAULT 0")
 
     def tx(self):
         store = self
@@ -260,6 +341,8 @@ class Api:
         with self.store.tx() as db:
             row = self.device(db, headers)
             if fields:
+                if "display_name" in fields and fields["display_name"] != row["display_name"]:
+                    fields["name_hidden"] = 0
                 sets = ", ".join(f"{k}=?" for k in fields)
                 db.execute(f"UPDATE devices SET {sets} WHERE id=?", (*fields.values(), row["id"]))
             row = db.execute("SELECT * FROM devices WHERE id=?", (row["id"],)).fetchone()
@@ -331,13 +414,13 @@ class Api:
                 params.append(value)
                 area[key] = value
             since = self.now() - period * 86400
-            sql = ("SELECT d.id, d.display_name, SUM(t.distance_m) AS m, "
+            sql = ("SELECT d.id, d.display_name, d.name_hidden, SUM(t.distance_m) AS m, "
                    "SUM(t.score * t.distance_m) / SUM(t.distance_m) AS s "
                    "FROM trips t JOIN devices d ON d.id = t.device_id WHERE t.submitted_at >= ? "
                    + "".join(" AND " + w for w in where) +
                    " GROUP BY d.id HAVING m >= ? ORDER BY s DESC, m DESC, d.created_at ASC")
             rows = db.execute(sql, (since, *params, RANKING_MIN_KM * 1000)).fetchall()
-        entries = [{"rank": i + 1, "name": r["display_name"], "score": round(r["s"], 1),
+        entries = [{"rank": i + 1, "name": shown_name(r), "score": round(r["s"], 1),
                     "km": round(r["m"] / 1000, 1)} for i, r in enumerate(rows)]
         mine = None
         if me is not None:
@@ -581,7 +664,7 @@ def make_handler(api: Api, allowed_origins: set[str], trust_proxy: bool = False)
                 ip = (forwarded or self.client_address[0]).split(",")[-1].strip()
                 self.reply(200, api.dispatch(method, parsed.path, query, body, self.headers, ip))
             except ApiError as error:
-                self.reply(error.status, {"error": error.message})
+                self.reply(error.status, {"error": error.message, **({"code": error.code} if error.code else {})})
             except json.JSONDecodeError:
                 self.reply(400, {"error": "invalid JSON"})
             except Exception:  # never leak internals
@@ -610,11 +693,33 @@ def serve(host: str, port: int, db_path: str, osrm_url: str | None, origins: set
     return server
 
 
+def moderate(store: Store, args) -> int:
+    with store.tx() as db:
+        if args.list_names:
+            for row in db.execute("SELECT display_name, COUNT(*) AS n, MAX(name_hidden) AS hidden "
+                                  "FROM devices GROUP BY display_name ORDER BY display_name"):
+                flag = "hidden" if row["hidden"] else ("filtered" if not name_allowed(row["display_name"]) else "")
+                print(f"{row['display_name']}\t{row['n']}\t{flag}")
+            return 0
+        name = args.hide_name or args.unhide_name
+        changed = db.execute("UPDATE devices SET name_hidden=? WHERE display_name=?",
+                             (1 if args.hide_name else 0, name)).rowcount
+    print(f"{changed} device(s) updated")
+    return 0 if changed else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
+    parser.add_argument("--list-names", action="store_true",
+                        help="print every display name with its device count and hidden state, then exit")
+    parser.add_argument("--hide-name", metavar="NAME",
+                        help="show NAME as a neutral placeholder in rankings, then exit")
+    parser.add_argument("--unhide-name", metavar="NAME", help="undo --hide-name, then exit")
     args = parser.parse_args()
+    if args.list_names or args.hide_name or args.unhide_name:
+        return moderate(Store(os.environ.get("DB_PATH", "community.db")), args)
     origins = {o.strip() for o in os.environ.get(
         "ALLOWED_ORIGINS", "https://localhost,capacitor://localhost,http://localhost").split(",") if o.strip()}
     server = serve(args.host, args.port, os.environ.get("DB_PATH", "community.db"),

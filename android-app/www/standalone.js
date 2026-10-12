@@ -2801,7 +2801,11 @@ This is a strict before/after verification, not ordinary pothole detection:
       method, headers, body: body == null ? undefined : JSON.stringify(body),
     }, COMMUNITY_TIMEOUT_MS);
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data && data.error ? String(data.error) : `Server error ${res.status}`);
+    if (!res.ok) {
+      const error = new Error(data && data.error ? String(data.error) : `Server error ${res.status}`);
+      if (data && typeof data.code === "string") error.code = data.code;
+      throw error;
+    }
     return data;
   }
 

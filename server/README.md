@@ -42,8 +42,24 @@ alternatives and re-times each segment with live speeds reported in the last 30 
 OSRM's typical speed is used. Live traffic is only as good as the number of drivers who
 opt in to sharing speeds.
 
+## Names in rankings
+
+Display names, districts and villages are checked when they are saved. Insults (Uzbek,
+Russian, English, also in Cyrillic and with look-alike digits or dots between letters),
+names posing as officials (YHXX, GAI, police, admin, prezident…) and links or phone numbers
+are refused, and the app explains why. A name that a later version of the list catches is
+shown as "Haydovchi" without anything else to do.
+
+Anything the list misses can be hidden by hand on the VPS:
+
+    docker compose exec community python3 /app/community_server.py --list-names
+    docker compose exec community python3 /app/community_server.py --hide-name "Bad name"
+    docker compose exec community python3 /app/community_server.py --unhide-name "Bad name"
+
+A hidden name shows as "Haydovchi" until its owner renames the profile; the new name is
+checked again.
+
 ## Not done yet
 
-* Turn-by-turn voice navigation (the app draws the route and the time only).
-* Moderation tools for display names and a dispute flow for wrong potholes.
+* A dispute flow for wrong potholes, and an in-app "report this name" button.
 * Phone-number accounts or other anti-cheat beyond plausibility checks and daily limits.
