@@ -616,7 +616,7 @@ class DriveForegroundService : LifecycleService() {
             ?: NativeInferenceEngine(applicationContext, apiKey, model, detail, language, debug)
         jobChannel = Channel(
             // A remote model cannot consume raw camera bursts at capture cadence. Do not
-            // add a buffered ~10.5 MiB ARGB burst beyond the two explicitly bounded live
+            // add a buffered ~17.8 MiB ARGB burst beyond the two explicitly bounded live
             // consumers. Every selected burst is durable before this rendezvous, so a
             // failed send safely defers model work to bounded post-drive replay.
             capacity = Channel.RENDEZVOUS,

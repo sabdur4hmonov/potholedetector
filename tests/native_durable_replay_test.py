@@ -121,7 +121,7 @@ check(
 )
 check(
     "browser burst selection scores the complete frame with its aspect ratio preserved",
-    "const scale = Math.min(1, 160 / video.videoWidth, 96 / video.videoHeight);" in quality
+    "const scale = Math.min(1, 320 / Math.max(video.videoWidth, video.videoHeight));" in quality
     and "Math.round(video.videoWidth * scale)" in quality
     and "Math.round(video.videoHeight * scale)" in quality
     and "video.videoWidth, video.videoHeight, 0, 0, width, height" in quality

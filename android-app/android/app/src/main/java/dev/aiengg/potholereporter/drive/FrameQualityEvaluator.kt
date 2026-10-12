@@ -152,6 +152,7 @@ internal object DetectionImageEnhancement {
 
 object FrameQualityEvaluator {
     internal const val MAX_PREPARED_FRAME_DIMENSION = 1280
+    internal const val QUALITY_SAMPLE_DIMENSION = 320
 
     fun scoreRoadPixels(pixels: IntArray, width: Int, height: Int): QualityScore {
         val gray = FloatArray(width * height)
@@ -195,10 +196,11 @@ object FrameQualityEvaluator {
     fun evaluateFrameQuality(fullBitmap: Bitmap): QualityScore {
         // Quality selection obeys the same invariant as inference: inspect the complete
         // field of view. Downscaling preserves every source pixel without choosing an ROI.
+        // 320 px keeps enough detail for motion blur to lower the sharpness score.
         val (width, height) = NativePreparedImageScale.downscaleOnly(
             fullBitmap.width,
             fullBitmap.height,
-            160
+            QUALITY_SAMPLE_DIMENSION
         )
         val scaled = if (fullBitmap.width == width && fullBitmap.height == height) fullBitmap
         else Bitmap.createScaledBitmap(fullBitmap, width, height, true)

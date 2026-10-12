@@ -145,6 +145,24 @@ require("on-device training and its app contract use only whole-frame inputs",
             "crop_to_bounding_box", "random_crop", ".crop(", "region_of_interest",
         )))
 
+# A 4:3 phone sensor delivers a 16:9 stream by cutting off its top and bottom, so a 16:9
+# request is a crop. Every Drive use case must ask for the sensor's own 4:3 shape, and
+# electronic stabilisation (which crops) must be off.
+tuning = (NATIVE / "DriveCaptureTuning.kt").read_text()
+require("native Drive analysis, preview and video keep the whole 4:3 sensor image",
+        "setTargetResolution" not in camera
+        and camera.count("AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY") == 2
+        and ".setAspectRatio(AspectRatio.RATIO_4_3)" in camera
+        and "Size(DriveCaptureTuning.ANALYSIS_WIDTH, DriveCaptureTuning.ANALYSIS_HEIGHT)" in camera
+        and "ANALYSIS_WIDTH = 1440" in tuning and "ANALYSIS_HEIGHT = 1080" in tuning
+        and "RATIO_16_9" not in camera and "Size(1280, 720)" not in camera)
+require("electronic stabilisation, which crops, is turned off on every tuned use case",
+        "CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_OFF" in camera
+        and camera.count("applyCaptureTuning(it, tuning)") == 2)
+require("browser Drive asks for the sensor's 4:3 shape, not 16:9",
+        "aspectRatio: { ideal: 4 / 3 }" in web and "width: { ideal: 1920 }" not in web
+        and "height: { ideal: 1080 }, frameRate" in web)
+
 ondevice_runtime = (NATIVE / "OnDevicePotholeModel.kt").read_text()
 require("the on-device model runtime stretches the complete frame and never takes a subset",
         "Bitmap.createScaledBitmap(frame, spec.inputWidth, spec.inputHeight, true)" in ondevice_runtime

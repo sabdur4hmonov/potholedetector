@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-fjsE84cV6ZVYs41YGVaBe0WvLqxJ64FXp3E/Jhh8FCc='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-sg9Lqy9XrhN+vw+8iVFLSzEga73+A19U4tkqOLBHpmU='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -3436,8 +3436,9 @@ async function startDriveAdmitted() {
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 },
-               height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+      // 4:3 is the camera sensor's own shape; a 16:9 request cuts off its top and bottom.
+      video: { facingMode: { ideal: "environment" }, aspectRatio: { ideal: 4 / 3 },
+               width: { ideal: 1440 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
       audio: false,
     });
   } catch (e) { driveStarting = false; alert(t("camera_failed") + e.message); return; }
@@ -3585,7 +3586,8 @@ function scoreRoadPixels(rgba, width, height) {
 }
 
 function roadFrameQuality(video) {
-  const scale = Math.min(1, 160 / video.videoWidth, 96 / video.videoHeight);
+  // The complete frame, downscaled so its longer side is 320 px: enough to see blur.
+  const scale = Math.min(1, 320 / Math.max(video.videoWidth, video.videoHeight));
   const width = Math.max(1, Math.round(video.videoWidth * scale));
   const height = Math.max(1, Math.round(video.videoHeight * scale));
   const c = document.createElement("canvas");

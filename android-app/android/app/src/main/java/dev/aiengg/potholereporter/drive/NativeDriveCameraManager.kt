@@ -4,16 +4,30 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraMetadata
+import android.hardware.camera2.CaptureRequest
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Range
 import android.util.Size
+import androidx.annotation.OptIn
+import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.Camera2Interop
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
+import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExtendableBuilder
 import androidx.camera.core.CameraState
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.FileOutputOptions
@@ -204,6 +218,44 @@ internal class NativeDriveCameraManager(
         }, ContextCompat.getMainExecutor(context))
     }
 
+    /** What this phone's back camera offers, read once per graph. Null fields keep defaults. */
+    private class CaptureTuning(val aeFpsRange: Range<Int>?, val afMode: Int?)
+
+    @OptIn(ExperimentalCamera2Interop::class)
+    private fun captureTuning(provider: ProcessCameraProvider): CaptureTuning = try {
+        val info: CameraInfo? = CameraSelector.DEFAULT_BACK_CAMERA
+            .filter(provider.availableCameraInfos).firstOrNull()
+        val camera2 = info?.let { Camera2CameraInfo.from(it) }
+        val ranges = camera2
+            ?.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)
+            ?.map { it.lower to it.upper }
+            .orEmpty()
+        val fps = DriveCaptureTuning.pickAeFpsRange(ranges)?.let { (low, high) -> Range(low, high) }
+        val af = DriveCaptureTuning.pickAfMode(
+            camera2?.getCameraCharacteristic(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES),
+            CameraMetadata.CONTROL_AF_MODE_CONTINUOUS_VIDEO
+        )
+        CaptureTuning(fps, af)
+    } catch (_: Exception) {
+        CaptureTuning(null, null)
+    }
+
+    /**
+     * Short exposures (a frame-rate floor), smooth autofocus and no electronic
+     * stabilisation, which would crop the frame. Options the phone does not offer are left
+     * at its defaults.
+     */
+    @OptIn(ExperimentalCamera2Interop::class)
+    private fun <T> applyCaptureTuning(builder: ExtendableBuilder<T>, tuning: CaptureTuning) {
+        val extender = Camera2Interop.Extender(builder)
+        extender.setCaptureRequestOption(
+            CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
+            CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_OFF
+        )
+        tuning.aeFpsRange?.let { extender.setCaptureRequestOption(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, it) }
+        tuning.afMode?.let { extender.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, it) }
+    }
+
     @SuppressLint("UnsafeOptInUsageError")
     private fun bindCameraUseCases(transitionReason: String? = null): Boolean {
         val provider = cameraProvider ?: return false
@@ -228,9 +280,23 @@ internal class NativeDriveCameraManager(
             provider.unbindAll()
             previewIsBound = false
 
+            // Every use case asks for the sensor's own 4:3 shape so none of them loses the
+            // top and bottom of the image, and the preview shows what is analysed.
+            val tuning = captureTuning(provider)
             val analysis = ImageAnalysis.Builder()
-                .setTargetResolution(Size(1280, 720))
+                .setResolutionSelector(
+                    ResolutionSelector.Builder()
+                        .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+                        .setResolutionStrategy(
+                            ResolutionStrategy(
+                                Size(DriveCaptureTuning.ANALYSIS_WIDTH, DriveCaptureTuning.ANALYSIS_HEIGHT),
+                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER
+                            )
+                        )
+                        .build()
+                )
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .also { applyCaptureTuning(it, tuning) }
                 .build().also { analysis ->
                     imageAnalysis = analysis
                     analysis.setAnalyzer(cameraExecutor) { imageProxy ->
@@ -241,13 +307,23 @@ internal class NativeDriveCameraManager(
             val desiredPreviewProvider = synchronized(previewStateLock) {
                 previewSurfaceProvider
             }
-            val preview = Preview.Builder().build().also { preview ->
+            val preview = Preview.Builder()
+                .setResolutionSelector(
+                    ResolutionSelector.Builder()
+                        .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+                        .build()
+                )
+                .also { applyCaptureTuning(it, tuning) }
+                .build().also { preview ->
                 previewUseCase = preview
                 desiredPreviewProvider?.let(preview::setSurfaceProvider)
             }
 
             fun bindWithVideo(selector: QualitySelector): Camera {
-                val recorder = Recorder.Builder().setQualitySelector(selector).build()
+                val recorder = Recorder.Builder()
+                    .setQualitySelector(selector)
+                    .setAspectRatio(AspectRatio.RATIO_4_3)
+                    .build()
                 val candidate = VideoCapture.withOutput(recorder)
                 val camera = if (desiredPreviewProvider != null) {
                     provider.bindToLifecycle(

@@ -25,8 +25,9 @@ Languages: **English** and **O&#8216;zbekcha** (Uzbek, Latin script).
   requires a localized cavity, an eroded edge or material-height transition, visible surface
   loss, usable imagery and consistent Drive views. Flat patches, utility-cover repairs, gravel
   texture, ruts, broad breakup, puddle ambiguity, construction beds and speed breakers are No.
-- Each accepted pothole keeps the full-resolution photo, coordinates, time, GPS accuracy and a
-  street name (looked up from OpenStreetMap when online).
+- Each accepted pothole keeps the complete photo (Drive frames: the whole 4:3 camera image,
+  about 1440 × 1080, stored at up to 1600 px on the long side), coordinates, time, GPS accuracy
+  and a street name (looked up from OpenStreetMap when online).
 - Nearby repeat observations are grouped into one report; Debug mode retains each one.
 - On a later live drive, **Fixed** requires a separate before/after check that clearly sees the
   same footprint covered by completed, intact repair material. Probable, obstructed,
