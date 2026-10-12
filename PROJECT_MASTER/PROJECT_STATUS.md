@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-12 Camera field of view fixed (CAM-001)
+
+Drive analysis was receiving a 16:9 crop of the 4:3 sensor. It now gets the whole 4:3 image at about 1440×1080, with a frame-rate floor against motion blur, continuous-video focus and no cropping stabilisation. Verified by JVM tests of the selection rules and by static tests; CI compiles it. **Not verified on a phone:** the actual stream size, exposure behaviour at night and memory use on low-end devices still need the road test.
+
 ## 2026-10-12 All code-side work items done (NAME-REPORT, DISPUTE-001, ONDEVICE-003)
 
 Every feature the owner asked for exists in code and tests: offline pothole warnings, antiradar, trips/score/share, community profiles and rankings with name filtering and reporting, the shared pothole map with "gone" votes, traffic-aware routing, voice navigation, the in-app guide, and the on-device model runtime with camera-only candidates. The tests are server, browser, JVM and static, plus CI with an emulator launch. **Still not verified:** no phone or road test; the community server is not deployed, so community, routing and navigation are hidden in current builds; there is no official camera list; there is no trained on-device model; no signed release has been built (that needs the owner's keystore).

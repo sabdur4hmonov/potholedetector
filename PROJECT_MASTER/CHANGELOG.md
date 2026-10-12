@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-12 — CAM-001 whole 4:3 sensor image and capture tuning
+
+The Drive analysis stream used the deprecated `setTargetResolution(1280×720)`. On a 4:3 phone sensor, that 16:9 stream drops the top and bottom of the image, a full-frame violation: the preview (4:3, FIT_CENTER) showed more road than the detector received. Analysis, preview and optional video now all request 4:3 through `ResolutionSelector`. Analysis targets 1440×1080, so evidence goes from 720p to about 1440×1080. Video stays SD, at 4:3. Camera2 interop sets an auto-exposure frame-rate floor (the highest range from 20 to 30 fps the phone offers), continuous-video autofocus when available, and electronic stabilisation off, because it crops. Burst sharpness is measured at 320 px instead of 160. Browser Drive requests 4:3 1440×1080 instead of 1920×1080. `full_frame_invariant_test` now fails on any 16:9 or `setTargetResolution` regression. There is deliberately no absolute blur gate until road data exists.
+
 ## 2026-10-12 — NAME-REPORT, DISPUTE-001, ONDEVICE-003
 
 * **NAME-REPORT.** Ranking entries carry a random public reference instead of the device id. A flag button on other drivers' rows reports a name. One report counts per driver, and 3 different drivers hide it as "Haydovchi". Renaming clears the reports. Drivers cannot report themselves, and reports have a daily limit.

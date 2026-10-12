@@ -696,3 +696,13 @@ finding; none exists after NEW-002.
 * **Decisions:** hide thresholds are 3 name reporters and 2 "gone" voters, and a new sighting restores a pothole. Camera-only candidates are unverified drafts warned as road shocks. Shocks always come first. The version stays 1.38.0/67 until the owner releases.
 * **Remaining blockers (owner):** road test, server and domain, official camera list, trained model, keystore and application-ID decision for the Play release.
 * **Exact next task:** owner road test of the CI debug APK.
+
+## 2026-10-12 — CAM-001 camera field of view and capture tuning
+
+* **Agent/tool:** Claude in a cloud sandbox. **Trigger:** the owner pasted an external camera analysis and asked for my opinion. **Status:** COMPLETE at source/JVM/static level. Not phone-tested.
+* **Verified claims:** (1) the analysis stream was 16:9 via the deprecated `setTargetResolution(1280×720)`, which crops the 4:3 sensor (a full-frame invariant violation; the preview showed more); (2) evidence was capped at 720p; (3) there was no AE frame-rate floor, AF choice or stabilisation decision; (4) sharpness was measured at 160 px with no absolute gate; (5) video is SD, pinned by a test. Also verified: the earlier ONDEVICE-003 run 33 is green.
+* **Commit:** `901712a` (plus this docs commit). Session branch only.
+* **Files changed:** new `drive/DriveCaptureTuning.kt` and its JVM test; `drive/NativeDriveCameraManager.kt` (4:3 ResolutionSelector for analysis and preview, 4:3 Recorder, Camera2 interop tuning); `drive/FrameQualityEvaluator.kt` (320 px sample); `NativeLiveInferencePolicy.kt` and `DriveForegroundService.kt` (memory comments only); `static/index.html` (4:3 getUserMedia, 320 px quality sample) and mirrors; `tests/full_frame_invariant_test.py`, `tests/native_durable_replay_test.py`; `README.md`; CHANGELOG, PROJECT_STATUS and NEXT_STEPS.
+* **Tests performed:** `DriveCaptureTuningTest` 5/5 (standalone JVM). Full-frame invariant, durable replay, hybrid, camera red-team, capture safety, capture cadence, inference resources, background Drive, unit, dashcam and start/stop tests all pass locally. The CI result for `901712a` was pending when this was written.
+* **Decisions:** no ViewPort/UseCaseGroup, since those would crop all use cases to a common smaller field and the invariant test forbids them. Optical stabilisation is left alone; electronic is off. Noise-reduction and edge modes stay at defaults to avoid frame-rate drops. No absolute blur gate until road data exists. Video stays SD, now at 4:3.
+* **Exact next task:** owner road test, including camera checks (4:3 evidence size, night blur, low-end smoothness).

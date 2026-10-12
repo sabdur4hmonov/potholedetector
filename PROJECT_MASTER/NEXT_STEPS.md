@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## 2026-10-12 after CAM-001
+
+During the road test, also check the camera: the debug log or a saved Drive photo should be 4:3 (for example 1440×1080). Check that night frames are not smeared at 40–60 km/h, and that a low-end phone stays smooth with 4:3 bursts. Use the saved frames to choose an absolute "too blurry" threshold; none is set yet on purpose.
+
 ## 2026-10-12 after NAME-REPORT / DISPUTE-001 / ONDEVICE-003
 
 No coding task is open that can be done without the owner. In order:
