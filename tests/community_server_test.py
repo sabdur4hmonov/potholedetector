@@ -166,6 +166,30 @@ require("a name caught by a newer list is hidden without operator action, and un
         [e["name"] for e in call("GET", "/v1/rankings?level=country")[1]["entries"]]
         == ["Vali", "Ali aka", cs.HIDDEN_NAME, "Sami"])
 api.store.db.execute("UPDATE devices SET display_name='Toshkentlik' WHERE display_name='Blyat'")
+
+entries = call("GET", "/v1/rankings?level=country")[1]["entries"]
+refs = {e["name"]: e["ref"] for e in entries}
+require("ranking entries carry an opaque reference, not the device id",
+        all(len(r) == 16 for r in refs.values())
+        and not set(refs.values()) & {row[0] for row in api.store.db.execute("SELECT id FROM devices")})
+report = lambda token, name: call("POST", "/v1/name-reports", {"ref": refs[name]}, token=token)
+require("you cannot report your own name, an unknown reference or without a profile",
+        report(tosh["token"], "Toshkentlik")[0] == 400
+        and call("POST", "/v1/name-reports", {"ref": "0" * 16}, token=ali["token"])[0] == 404
+        and call("POST", "/v1/name-reports", {"ref": refs["Toshkentlik"]})[0] == 401)
+first_two = [report(ali["token"], "Toshkentlik")[1], report(vali["token"], "Toshkentlik")[1],
+             report(vali["token"], "Toshkentlik")[1]]
+require("one driver counts once and two reports do not hide a name",
+        [r["hidden"] for r in first_two] == [False, False, False]
+        and "Toshkentlik" in [e["name"] for e in call("GET", "/v1/rankings?level=country")[1]["entries"]])
+require("the third driver's report hides the name",
+        report(sami["token"], "Toshkentlik")[1] == {"reported": True, "hidden": True}
+        and [e["name"] for e in call("GET", "/v1/rankings?level=country")[1]["entries"]]
+        == ["Vali", "Ali aka", cs.HIDDEN_NAME, "Sami"])
+call("PATCH", "/v1/devices/me", {"display_name": "Toshkent aka"}, token=tosh["token"])
+require("a new name starts clean",
+        "Toshkent aka" in [e["name"] for e in call("GET", "/v1/rankings?level=country")[1]["entries"]]
+        and api.store.db.execute("SELECT COUNT(*) FROM name_reports").fetchone()[0] == 0)
 clock["now"] += 40 * 86400
 require("old trips leave the 30-day ranking", call("GET", "/v1/rankings?level=country")[1]["entries"] == [])
 clock["now"] -= 40 * 86400
@@ -249,6 +273,31 @@ require("deleting a profile removes its trips and its pothole confirmations",
         call("DELETE", "/v1/devices/me", token=vali["token"])[1] == {"deleted": True}
         and call("GET", "/v1/devices/me", token=vali["token"])[0] == 401
         and sorted(p["confirmations"] for p in call("GET", "/v1/potholes")[1]["potholes"]) == [1, 1, 1])
+
+# ---- a shared pothole that is gone or repaired ----
+g1 = register("Birinchi", ip="10.0.0.2")
+g2 = register("Ikkinchi", ip="10.0.0.2")
+spot = {"lat": 41.32500, "lng": 69.29000, "kind": "pothole"}
+for driver in (g1, g2, ali):
+    call("POST", "/v1/potholes", {"points": [spot]}, token=driver["token"])
+listed_here = lambda: [p for p in call("GET", "/v1/potholes?min_confirmations=1")[1]["potholes"]
+                       if abs(p["lat"] - spot["lat"]) < 1e-4]
+gone = lambda driver, point: call("POST", "/v1/potholes/gone",
+                                  {"points": [{"lat": point["lat"], "lng": point["lng"]}]}, token=driver["token"])
+require("one driver saying a pothole is gone takes back only their own confirmation",
+        gone(g1, {**spot, "lat": 41.32505})[1] == {"voted": 1, "removed": 0, "unknown": 0}
+        and [p["confirmations"] for p in listed_here()] == [2])
+require("a second driver saying so hides it from everyone",
+        gone(g2, spot)[1]["voted"] == 1 and listed_here() == [])
+clock["now"] += 60
+call("POST", "/v1/potholes", {"points": [spot]}, token=ali["token"])
+require("a new sighting after that brings it back", [p["confirmations"] for p in listed_here()] == [1])
+require("the only confirmer saying it is gone deletes it; far points are unknown",
+        gone(ali, spot)[1] == {"voted": 0, "removed": 1, "unknown": 0} and listed_here() == []
+        and gone(ali, {"lat": 41.40, "lng": 69.40})[1] == {"voted": 0, "removed": 0, "unknown": 1})
+require("gone votes need a profile and valid points",
+        call("POST", "/v1/potholes/gone", {"points": [{"lat": 41.3, "lng": 69.3}]})[0] == 401
+        and call("POST", "/v1/potholes/gone", {"points": [{"lat": 51.5, "lng": -0.1}]}, token=ali["token"])[0] == 400)
 
 server.shutdown()
 osrm.shutdown()

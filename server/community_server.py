@@ -52,7 +52,10 @@ POTHOLE_MERGE_M = 15.0
 RANKING_MIN_KM = 20.0
 LIVE_SPEED_MAX_AGE_S = 30 * 60
 LIVE_SPEED_MIN_SAMPLES = 3
-DAILY_LIMITS = {"trips": 50, "potholes": 2_000, "speeds": 20_000, "register_ip": 10}
+DAILY_LIMITS = {"trips": 50, "potholes": 2_000, "speeds": 20_000, "register_ip": 10,
+                "name_reports": 20, "gone": 500}
+NAME_REPORTS_TO_HIDE = 3      # distinct drivers who report a name before it is hidden
+GONE_VOTES_TO_HIDE = 2        # distinct drivers saying a shared pothole is gone
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS devices (
@@ -78,6 +81,14 @@ CREATE TABLE IF NOT EXISTS pothole_sightings (
 CREATE TABLE IF NOT EXISTS speed_cells (
   cell_lat INTEGER NOT NULL, cell_lng INTEGER NOT NULL, sector INTEGER NOT NULL, bin INTEGER NOT NULL,
   samples INTEGER NOT NULL, sum_kmh REAL NOT NULL, PRIMARY KEY (cell_lat, cell_lng, sector, bin));
+CREATE TABLE IF NOT EXISTS name_reports (
+  target_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  reporter_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  reported_at INTEGER NOT NULL, PRIMARY KEY (target_id, reporter_id));
+CREATE TABLE IF NOT EXISTS pothole_gone (
+  pothole_id INTEGER NOT NULL REFERENCES potholes(id) ON DELETE CASCADE,
+  device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  voted_at INTEGER NOT NULL, PRIMARY KEY (pothole_id, device_id));
 CREATE TABLE IF NOT EXISTS usage (
   subject TEXT NOT NULL, kind TEXT NOT NULL, day TEXT NOT NULL, used INTEGER NOT NULL,
   PRIMARY KEY (subject, kind, day));
@@ -237,6 +248,12 @@ class Store:
         columns = {row["name"] for row in self.db.execute("PRAGMA table_info(devices)")}
         if "name_hidden" not in columns:
             self.db.execute("ALTER TABLE devices ADD COLUMN name_hidden INTEGER NOT NULL DEFAULT 0")
+        if "public_ref" not in columns:
+            self.db.execute("ALTER TABLE devices ADD COLUMN public_ref TEXT")
+        # Rankings name drivers by this reference, never by the device id.
+        for row in self.db.execute("SELECT id FROM devices WHERE public_ref IS NULL").fetchall():
+            self.db.execute("UPDATE devices SET public_ref=? WHERE id=?", (secrets.token_hex(8), row["id"]))
+        self.db.execute("CREATE UNIQUE INDEX IF NOT EXISTS devices_by_ref ON devices(public_ref)")
 
     def tx(self):
         store = self
@@ -326,9 +343,9 @@ class Api:
         with self.store.tx() as db:
             self.store.charge(db, "ip:" + hashlib.sha256(ip.encode()).hexdigest()[:16], "register_ip", 1, now)
             db.execute("INSERT INTO devices(id, token_hash, display_name, region, district, village, "
-                       "created_at, last_seen) VALUES(?,?,?,?,?,?,?,?)",
+                       "created_at, last_seen, public_ref) VALUES(?,?,?,?,?,?,?,?,?)",
                        (device_id, token_hash(token), fields["display_name"], fields["region"],
-                        fields["district"], fields["village"], now, now))
+                        fields["district"], fields["village"], now, now, secrets.token_hex(8)))
         return {"device_id": device_id, "token": token, **fields}
 
     def me(self, query, body, headers, ip):
@@ -342,7 +359,9 @@ class Api:
             row = self.device(db, headers)
             if fields:
                 if "display_name" in fields and fields["display_name"] != row["display_name"]:
+                    # A new name starts clean: earlier reports were about the old one.
                     fields["name_hidden"] = 0
+                    db.execute("DELETE FROM name_reports WHERE target_id=?", (row["id"],))
                 sets = ", ".join(f"{k}=?" for k in fields)
                 db.execute(f"UPDATE devices SET {sets} WHERE id=?", (*fields.values(), row["id"]))
             row = db.execute("SELECT * FROM devices WHERE id=?", (row["id"],)).fetchone()
@@ -414,13 +433,13 @@ class Api:
                 params.append(value)
                 area[key] = value
             since = self.now() - period * 86400
-            sql = ("SELECT d.id, d.display_name, d.name_hidden, SUM(t.distance_m) AS m, "
+            sql = ("SELECT d.id, d.display_name, d.name_hidden, d.public_ref, SUM(t.distance_m) AS m, "
                    "SUM(t.score * t.distance_m) / SUM(t.distance_m) AS s "
                    "FROM trips t JOIN devices d ON d.id = t.device_id WHERE t.submitted_at >= ? "
                    + "".join(" AND " + w for w in where) +
                    " GROUP BY d.id HAVING m >= ? ORDER BY s DESC, m DESC, d.created_at ASC")
             rows = db.execute(sql, (since, *params, RANKING_MIN_KM * 1000)).fetchall()
-        entries = [{"rank": i + 1, "name": shown_name(r), "score": round(r["s"], 1),
+        entries = [{"rank": i + 1, "name": shown_name(r), "ref": r["public_ref"], "score": round(r["s"], 1),
                     "km": round(r["m"] / 1000, 1)} for i, r in enumerate(rows)]
         mine = None
         if me is not None:
@@ -464,6 +483,7 @@ class Api:
                     added += 1
                 db.execute("INSERT INTO pothole_sightings VALUES(?,?,?) ON CONFLICT(pothole_id, device_id) "
                            "DO UPDATE SET observed_at=excluded.observed_at", (pothole_id, device["id"], now))
+                db.execute("DELETE FROM pothole_gone WHERE pothole_id=? AND device_id=?", (pothole_id, device["id"]))
                 count = db.execute("SELECT COUNT(*) AS n FROM pothole_sightings WHERE pothole_id=?",
                                    (pothole_id,)).fetchone()["n"]
                 db.execute("UPDATE potholes SET confirmations=?, last_seen=? WHERE id=?", (count, now, pothole_id))
@@ -477,8 +497,12 @@ class Api:
             raise ApiError(400, "min_confirmations and since_days must be whole numbers")
         if not 1 <= minimum <= 100 or not 1 <= since_days <= 730:
             raise ApiError(400, "min_confirmations 1-100, since_days 1-730")
-        sql = "SELECT id, lat, lng, kind, confirmations, last_seen FROM potholes WHERE confirmations>=? AND last_seen>=?"
-        params = [minimum, self.now() - since_days * 86400]
+        # Hidden once enough drivers said it is gone after it was last confirmed; a new
+        # sighting after that brings it back.
+        sql = ("SELECT id, lat, lng, kind, confirmations, last_seen FROM potholes p "
+               "WHERE confirmations>=? AND last_seen>=? AND (SELECT COUNT(*) FROM pothole_gone g "
+               "WHERE g.pothole_id=p.id AND g.voted_at>=p.last_seen) < ?")
+        params = [minimum, self.now() - since_days * 86400, GONE_VOTES_TO_HIDE]
         if "bbox" in query:
             try:
                 min_lat, min_lng, max_lat, max_lng = (float(v) for v in query["bbox"].split(","))
@@ -490,6 +514,68 @@ class Api:
         with self.store.tx() as db:
             rows = db.execute(sql, params).fetchall()
         return {"potholes": [dict(r) for r in rows]}
+
+    def potholes_gone(self, query, body, headers, ip):
+        """A driver says shared potholes at these points are gone or repaired."""
+        points = body.get("points")
+        if not isinstance(points, list) or not 1 <= len(points) <= 200:
+            raise ApiError(400, "points must be a list of 1-200 items")
+        cleaned = []
+        for i, p in enumerate(points):
+            if not isinstance(p, dict):
+                raise ApiError(400, f"points[{i}] must be an object")
+            cleaned.append((number(p.get("lat"), f"points[{i}].lat", 37.0, 46.0),
+                            number(p.get("lng"), f"points[{i}].lng", 55.0, 74.0)))
+        now = self.now()
+        voted = removed = unknown = 0
+        with self.store.tx() as db:
+            device = self.device(db, headers)
+            self.store.charge(db, device["id"], "gone", len(cleaned), now)
+            for lat, lng in cleaned:
+                cell_lat, cell_lng = round(lat * 10_000), round(lng * 10_000)
+                near = db.execute(
+                    "SELECT * FROM potholes WHERE cell_lat BETWEEN ? AND ? AND cell_lng BETWEEN ? AND ?",
+                    (cell_lat - 2, cell_lat + 2, cell_lng - 3, cell_lng + 3)).fetchall()
+                best = min(near, key=lambda r: distance_m(lat, lng, r["lat"], r["lng"]), default=None)
+                if best is None or distance_m(lat, lng, best["lat"], best["lng"]) > POTHOLE_MERGE_M:
+                    unknown += 1
+                    continue
+                db.execute("DELETE FROM pothole_sightings WHERE pothole_id=? AND device_id=?",
+                           (best["id"], device["id"]))
+                count = db.execute("SELECT COUNT(*) AS n FROM pothole_sightings WHERE pothole_id=?",
+                                   (best["id"],)).fetchone()["n"]
+                if count == 0:
+                    db.execute("DELETE FROM potholes WHERE id=?", (best["id"],))
+                    removed += 1
+                    continue
+                db.execute("UPDATE potholes SET confirmations=? WHERE id=?", (count, best["id"]))
+                db.execute("INSERT INTO pothole_gone VALUES(?,?,?) ON CONFLICT(pothole_id, device_id) "
+                           "DO UPDATE SET voted_at=excluded.voted_at", (best["id"], device["id"], now))
+                voted += 1
+        return {"voted": voted, "removed": removed, "unknown": unknown}
+
+    def report_name(self, query, body, headers, ip):
+        """A driver reports another driver's ranking name; enough reports hide it."""
+        ref = body.get("ref")
+        if not isinstance(ref, str) or not re.fullmatch(r"[0-9a-f]{16}", ref):
+            raise ApiError(400, "ref must be a ranking reference")
+        now = self.now()
+        with self.store.tx() as db:
+            reporter = self.device(db, headers)
+            target = db.execute("SELECT * FROM devices WHERE public_ref=?", (ref,)).fetchone()
+            if target is None:
+                raise ApiError(404, "unknown ranking reference")
+            if target["id"] == reporter["id"]:
+                raise ApiError(400, "you cannot report your own name")
+            self.store.charge(db, reporter["id"], "name_reports", 1, now)
+            db.execute("INSERT INTO name_reports VALUES(?,?,?) ON CONFLICT(target_id, reporter_id) "
+                       "DO NOTHING", (target["id"], reporter["id"], now))
+            reports = db.execute("SELECT COUNT(*) AS n FROM name_reports WHERE target_id=?",
+                                 (target["id"],)).fetchone()["n"]
+            hidden = bool(target["name_hidden"]) or reports >= NAME_REPORTS_TO_HIDE
+            if hidden and not target["name_hidden"]:
+                db.execute("UPDATE devices SET name_hidden=1 WHERE id=?", (target["id"],))
+        return {"reported": True, "hidden": hidden}
 
     def submit_speeds(self, query, body, headers, ip):
         samples = body.get("samples")
@@ -602,6 +688,7 @@ class Api:
         ("POST", "/v1/trips"): "submit_trip", ("GET", "/v1/rankings"): "rankings",
         ("POST", "/v1/potholes"): "submit_potholes", ("GET", "/v1/potholes"): "list_potholes",
         ("POST", "/v1/speeds"): "submit_speeds", ("GET", "/v1/route"): "route",
+        ("POST", "/v1/potholes/gone"): "potholes_gone", ("POST", "/v1/name-reports"): "report_name",
     }
 
     def dispatch(self, method, path, query, body, headers, ip):
@@ -696,10 +783,12 @@ def serve(host: str, port: int, db_path: str, osrm_url: str | None, origins: set
 def moderate(store: Store, args) -> int:
     with store.tx() as db:
         if args.list_names:
-            for row in db.execute("SELECT display_name, COUNT(*) AS n, MAX(name_hidden) AS hidden "
-                                  "FROM devices GROUP BY display_name ORDER BY display_name"):
+            for row in db.execute(
+                    "SELECT d.display_name, COUNT(DISTINCT d.id) AS n, MAX(d.name_hidden) AS hidden, "
+                    "COUNT(r.reporter_id) AS reports FROM devices d LEFT JOIN name_reports r "
+                    "ON r.target_id = d.id GROUP BY d.display_name ORDER BY reports DESC, d.display_name"):
                 flag = "hidden" if row["hidden"] else ("filtered" if not name_allowed(row["display_name"]) else "")
-                print(f"{row['display_name']}\t{row['n']}\t{flag}")
+                print(f"{row['display_name']}\t{row['n']}\treports={row['reports']}\t{flag}")
             return 0
         name = args.hide_name or args.unhide_name
         changed = db.execute("UPDATE devices SET name_hidden=? WHERE display_name=?",

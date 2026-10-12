@@ -4,6 +4,7 @@ OSRM. The page is served with COMMUNITY_SERVER and its CSP pointed at https://ap
 whose requests Playwright forwards to the local server. Checks opt-in, what is sent,
 rankings, shared potholes in warnings, routing, deletion, and the build tool."""
 import importlib.util
+import base64
 import json
 import math
 import pathlib
@@ -189,10 +190,12 @@ with sync_playwright() as p:
             (lambda r: r["trips"] == 0 and r["potholes"] == 0)(call("/api/community/sync", "POST", {"drives": [DRIVE]})))
 
     # Two other drivers confirm a pothole elsewhere; it comes back for offline warnings.
+    others = {}
     for name in ("Vali", "Sami"):
         req = urllib.request.Request(LOCAL + "/v1/devices", method="POST", headers={"Content-Type": "application/json"},
             data=json.dumps({"display_name": name, "region": "fargona", "district": "bag'dod", "village": "sho'rariq"}).encode())
         token = json.loads(urllib.request.urlopen(req).read())["token"]
+        others[name] = token
         urllib.request.urlopen(urllib.request.Request(LOCAL + "/v1/potholes", method="POST",
             headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
             data=json.dumps({"points": [{"lat": 41.32, "lng": 69.30, "kind": "pothole"}]}).encode()))
@@ -202,6 +205,42 @@ with sync_playwright() as p:
             any(h["id"].startswith("s") and h["lat"] == 41.32 for h in hazards)
             and any(h["id"] == "r1" or h["id"].startswith("r") for h in hazards))
 
+    # Map tiles are not fetched from the internet in tests; a blank tile keeps the real map.
+    page.route("https://tile.openstreetmap.org/**", lambda r: r.fulfill(status=200, content_type="image/png",
+        body=base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")))
+    shared = call("/api/community/shared-potholes")["potholes"]
+    require("the shared potholes are available for the map", [p["confirmations"] for p in shared] == [2])
+    page.on("dialog", lambda d: d.accept())
+    page.evaluate("(shared) => { show('dash'); drawMap([], shared); }", shared)
+    page.wait_for_function("() => document.querySelectorAll('#map path.leaflet-interactive').length === 1")
+    page.evaluate("() => document.querySelector('#map path.leaflet-interactive').dispatchEvent(new MouseEvent('click', {bubbles: true}))")
+    page.wait_for_selector("#map .leaflet-popup button")
+    require("a shared pothole on the map offers 'no pothole here'",
+            "confirmed by 2" in page.locator("#map .leaflet-popup").text_content()
+            and page.locator("#map .leaflet-popup button").text_content() == "No pothole here / repaired")
+    page.click("#map .leaflet-popup button")
+    page.wait_for_function("() => document.querySelectorAll('#map path.leaflet-interactive').length === 0")
+    require("saying it is gone votes on the server and drops it from this phone's warnings at once",
+            api.store.db.execute("SELECT COUNT(*) FROM pothole_gone").fetchone()[0] == 1
+            and not any(h["id"].startswith("s") for h in call("/api/road-hazards")["hazards"]))
+
+    # Vali drives enough to be ranked; Ali can report Vali's name but not their own.
+    urllib.request.urlopen(urllib.request.Request(LOCAL + "/v1/trips", method="POST",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {others['Vali']}"},
+        data=json.dumps({"client_id": "v1", "started_day": time.strftime("%Y-%m-%d"), "distance_m": 25000,
+                         "moving_s": 1500, "score": 70, "hard_brake": 1, "hard_accel": 0, "sharp_turn": 0,
+                         "turns": 4}).encode()))
+    page.evaluate("() => { show('dash'); document.getElementById('dashRanking').classList.remove('hidden'); renderRanking('village'); }")
+    page.wait_for_function("() => document.getElementById('rankList').textContent.includes('Vali')")
+    buttons = page.locator("#rankList [data-rankreport]")
+    require("only other drivers' rows have a report button",
+            buttons.count() == 1 and "Vali" in page.locator("#rankList > div").nth(1).text_content()
+            and page.locator("#rankList > div").nth(1).locator("[data-rankreport]").count() == 1)
+    buttons.first.click()
+    page.wait_for_timeout(500)
+    require("reporting a name reaches the server once",
+            api.store.db.execute("SELECT COUNT(*) FROM name_reports").fetchone()[0] == 1)
+
     ranking = call("/api/community/rankings?level=village")
     require("the village ranking shows the driver", ranking["entries"][0]["name"] == "Ali" and ranking["me"]["rank"] == 1)
     page.evaluate("() => renderRanking('village')")
@@ -210,6 +249,17 @@ with sync_playwright() as p:
     require("routing works through the server", route["routes"][0]["distance_m"] == 1000)
     page.evaluate("""(r) => drawRoute(r.routes, {lat: 41.3, lng: 69.27}, {lat: 41.3, lng: 69.28})""", route)
     require("the route is drawn on the map", page.locator("#routeMap path.leaflet-interactive").count() >= 1)
+
+    own = next(h for h in call("/api/road-hazards")["hazards"] if h["id"].startswith("r"))
+    call(f"/api/reports/{own['id'][1:]}/label", "POST", {"label": "not_pothole"})
+    SENT.clear()
+    resync = call("/api/community/sync", "POST", {"drives": [DRIVE]})
+    require("a shared report later labelled not a pothole is taken back on the next sync, once",
+            resync["gone"] == 1
+            and [b for m, path, b in SENT if path == "/v1/potholes/gone"] == [{"points": [{"lat": own["lat"], "lng": own["lng"]}]}]
+            and api.store.db.execute("SELECT COUNT(*) FROM potholes WHERE ABS(lat - ?) < 0.0001",
+                                     (own["lat"],)).fetchone()[0] == 0
+            and call("/api/community/sync", "POST", {"drives": [DRIVE]})["gone"] == 0)
 
     gone = call("/api/community/profile", "DELETE")
     require("deleting removes the profile on the server and locally",

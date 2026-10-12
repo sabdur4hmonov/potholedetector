@@ -2779,6 +2779,7 @@ This is a strict before/after verification, not ordinary pothole detection:
   const COMMUNITY_PROFILE_KEY = "community_profile";
   const COMMUNITY_SENT_TRIPS_KEY = "community_sent_trips";
   const COMMUNITY_SENT_POTHOLES_KEY = "community_sent_potholes";
+  const COMMUNITY_SENT_GONE_KEY = "community_sent_gone";
   const COMMUNITY_SENT_SPEEDS_KEY = "community_sent_speeds";
   const COMMUNITY_HAZARDS_KEY = "community_hazards";
   const COMMUNITY_TIMEOUT_MS = 15000;
@@ -2843,7 +2844,7 @@ This is a strict before/after verification, not ordinary pothole detection:
       await communityFetch("/v1/devices/me", { method: "DELETE" });
     }
     [COMMUNITY_TOKEN_KEY, COMMUNITY_PROFILE_KEY, COMMUNITY_SENT_TRIPS_KEY, COMMUNITY_SENT_POTHOLES_KEY,
-     COMMUNITY_SENT_SPEEDS_KEY, COMMUNITY_HAZARDS_KEY, "community_rank", "community_share_potholes",
+     COMMUNITY_SENT_SPEEDS_KEY, COMMUNITY_SENT_GONE_KEY, COMMUNITY_HAZARDS_KEY, "community_rank", "community_share_potholes",
      "community_share_speeds"].forEach((key) => localStorage.removeItem(key));
     return communityStatus();
   }
@@ -2868,6 +2869,36 @@ This is a strict before/after verification, not ordinary pothole detection:
     return roadHazardsFrom(reports)
       .filter((h) => !sent.includes(h.id) && h.lat >= 37 && h.lat <= 46 && h.lng >= 55 && h.lng <= 74)
       .map((h) => ({ id: h.id, lat: Number(h.lat.toFixed(6)), lng: Number(h.lng.toFixed(6)), kind: h.kind }));
+  }
+
+  // Shared reports that are now fixed or labelled not a pothole, sent once each.
+  function communityGonePayloads(reports, sentIds, goneSent) {
+    return reports
+      .filter((r) => sentIds.includes(`r${r.id}`) && !goneSent.includes(`r${r.id}`)
+        && (conditionStatus(r) === "fixed" || NOT_POTHOLE_LABELS.has(r.human_label))
+        && finiteCoord(r.lat) && finiteCoord(r.lng))
+      .map((r) => ({ id: `r${r.id}`, lat: Number(Number(r.lat).toFixed(6)), lng: Number(Number(r.lng).toFixed(6)) }));
+  }
+
+  // The driver says a shared pothole is no longer there. Drop it from the offline
+  // warnings at once; the server hides it for everyone once another driver agrees.
+  async function communityPotholeGone(body) {
+    const lat = Number(body.lat), lng = Number(body.lng);
+    if (!finiteCoord(lat) || !finiteCoord(lng)) throw new Error("Invalid pothole location.");
+    if (!localStorage.getItem(COMMUNITY_TOKEN_KEY)) throw Object.assign(new Error("Save a community profile first."), { code: "needs_profile" });
+    const result = await communityFetch("/v1/potholes/gone", { method: "POST", body: { points: [{ lat, lng }] } });
+    const cached = readJsonKey(COMMUNITY_HAZARDS_KEY, { potholes: [] });
+    cached.potholes = (cached.potholes || []).filter((p) =>
+      !(Math.abs(p.lat - lat) < 0.00015 && Math.abs(p.lng - lng) < 0.0002));
+    writeJsonKey(COMMUNITY_HAZARDS_KEY, cached);
+    return result;
+  }
+
+  async function communityReportName(body) {
+    const ref = String(body.ref || "");
+    if (!/^[0-9a-f]{16}$/.test(ref)) throw new Error("Invalid ranking entry.");
+    if (!localStorage.getItem(COMMUNITY_TOKEN_KEY)) throw Object.assign(new Error("Save a community profile first."), { code: "needs_profile" });
+    return communityFetch("/v1/name-reports", { method: "POST", body: { ref } });
   }
 
   // Anonymous speeds for live traffic: one sample every ~10 s from a drive that ended in
@@ -2924,6 +2955,16 @@ This is a strict before/after verification, not ordinary pothole detection:
         page.forEach((p) => sent.push(p.id)); result.potholes += page.length;
       }
       writeJsonKey(COMMUNITY_SENT_POTHOLES_KEY, sent.slice(-5000));
+      // A shared report the owner later marked fixed or not a pothole is taken back.
+      const goneSent = readJsonKey(COMMUNITY_SENT_GONE_KEY, []);
+      const gone = communityGonePayloads(reports, sent, goneSent);
+      if (gone.length) {
+        await communityFetch("/v1/potholes/gone", { method: "POST",
+          body: { points: gone.slice(0, 200).map(({ lat, lng }) => ({ lat, lng })) } });
+        gone.slice(0, 200).forEach((g) => goneSent.push(g.id));
+        writeJsonKey(COMMUNITY_SENT_GONE_KEY, goneSent.slice(-5000));
+      }
+      result.gone = Math.min(gone.length, 200);
     }
     if (optIn("community_share_speeds")) {
       const sent = readJsonKey(COMMUNITY_SENT_SPEEDS_KEY, []);
@@ -3514,6 +3555,17 @@ This is a strict before/after verification, not ordinary pothole detection:
     if (path === "/api/community/sync" && method === "POST") {
       return communitySync((JSON.parse(opts.body || "{}").drives) || []);
     }
+    if (path === "/api/community/report-name" && method === "POST") {
+      return communityReportName(JSON.parse(opts.body || "{}"));
+    }
+    if (path === "/api/community/pothole-gone" && method === "POST") {
+      return communityPotholeGone(JSON.parse(opts.body || "{}"));
+    }
+    if (path === "/api/community/shared-potholes" && method === "GET") {
+      if (!communityEnabled()) return { potholes: [] };
+      const cached = readJsonKey(COMMUNITY_HAZARDS_KEY, { potholes: [] });
+      return { potholes: (cached.potholes || []).filter((p) => finiteCoord(p.lat) && finiteCoord(p.lng)).slice(0, 2000) };
+    }
     if (path === "/api/community/regions" && method === "GET") {
       return communityFetch("/v1/regions", { auth: false });
     }
@@ -3793,7 +3845,7 @@ This is a strict before/after verification, not ordinary pothole detection:
     applyDetectionEnhancement, distMeters, roadEventMatch, sameRoadEvent, repairTargetMatch,
     findRepairCandidateFromReports, findDuplicateReport, roadHazardsFrom,
     parseCameraPack, cameraHazards, CAMERA_PACK_SCHEMA, communityTripPayloads,
-    communityPotholePayloads, communitySpeedPayloads, communityHazards, dataUrlToBlob, blobToDataUrl,
+    communityPotholePayloads, communitySpeedPayloads, communityGonePayloads, communityHazards, dataUrlToBlob, blobToDataUrl,
     photoToBase64, toDict, listDict, evidenceForReport, fullFramePhoto,
   };
 

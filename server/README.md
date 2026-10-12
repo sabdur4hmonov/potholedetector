@@ -59,7 +59,19 @@ Anything the list misses can be hidden by hand on the VPS:
 A hidden name shows as "Haydovchi" until its owner renames the profile; the new name is
 checked again.
 
+Drivers can also report a name from the ranking (the flag button). Each driver counts once;
+after 3 different drivers report a name it is hidden automatically. `--list-names` shows
+the report count next to each name.
+
+## Potholes that are gone
+
+On the Contribution map, other drivers' potholes are blue; "No pothole here / repaired"
+takes back that driver's own confirmation and records a vote. A pothole is hidden for
+everyone once 2 drivers have said so after its last confirmation, and comes back if anyone
+reports it again. If the only driver who confirmed it says it is gone, it is deleted. The
+app also does this by itself on the next sync when a driver marks one of their own shared
+reports as fixed or "not a pothole".
+
 ## Not done yet
 
-* A dispute flow for wrong potholes, and an in-app "report this name" button.
 * Phone-number accounts or other anti-cheat beyond plausibility checks and daily limits.

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-K3ATHakwIbP7pnqLRL4A/AsQxn8ZzXvipepbCuOFf3k='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-gqzHZh0d6Pp3qX0e67xKAEomoypU69FpC5Arnm2b9PE='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -550,6 +550,15 @@ const I18N = {
     rank_empty: "Nobody here has driven 20 km with a score yet.",
     rank_me: "You: place {rank} of {total}",
     rank_me_none: "Drive at least 20 km to appear in the ranking.",
+    rank_report: "Report this name",
+    rank_report_confirm: "Report the name \u201c{name}\u201d as insulting or fake? It is hidden once several drivers report it.",
+    rank_reported: "Thank you. The name is hidden once several drivers report it.",
+    community_needs_profile: "Save a community profile in Settings first.",
+    shared_pothole: "Pothole shared by other drivers \u00b7 confirmed by {n}",
+    shared_gone_btn: "No pothole here / repaired",
+    shared_gone_confirm: "Is this pothole gone or repaired? It is removed from your warnings, and hidden for everyone once another driver agrees.",
+    shared_gone_done: "Thank you. It is removed from your warnings.",
+    map_shared: "{n} shared by other drivers (blue)",
     comm_title: "Community (optional)",
     comm_name: "Name shown in rankings",
     comm_district: "District",
@@ -846,6 +855,15 @@ const I18N = {
     rank_empty: "Bu yerda hali hech kim baholangan 20 km yurmagan.",
     rank_me: "Siz: {total} tadan {rank}-o'rin",
     rank_me_none: "Reytingga kirish uchun kamida 20 km yuring.",
+    rank_report: "Bu ismdan shikoyat qilish",
+    rank_report_confirm: "\u201c{name}\u201d ismi haqoratli yoki soxta deb shikoyat qilinsinmi? Bir necha haydovchi shikoyat qilsa, ism yashiriladi.",
+    rank_reported: "Rahmat. Bir necha haydovchi shikoyat qilgach, ism yashiriladi.",
+    community_needs_profile: "Avval Sozlamalarda community profilini saqlang.",
+    shared_pothole: "Boshqa haydovchilar ulashgan chuqur \u00b7 {n} kishi tasdiqlagan",
+    shared_gone_btn: "Bu yerda chuqur yo'q / tuzatilgan",
+    shared_gone_confirm: "Bu chuqur yo'qolganmi yoki tuzatilganmi? U sizning ogohlantirishlaringizdan olib tashlanadi, yana bir haydovchi tasdiqlasa hamma uchun yashiriladi.",
+    shared_gone_done: "Rahmat. U ogohlantirishlaringizdan olib tashlandi.",
+    map_shared: "{n} tasi boshqa haydovchilardan (ko'k)",
     comm_title: "Hamjamiyat (ixtiyoriy)",
     comm_name: "Reytingda ko'rinadigan ism",
     comm_district: "Tuman",
@@ -5389,17 +5407,47 @@ async function renderRanking(level) {
   const box = $("rankList");
   try {
     const data = await api(`/api/community/rankings?level=${encodeURIComponent(level)}`);
-    const rows = (data.entries || []).slice(0, 10).map((e) =>
-      `<div style="display:flex;justify-content:space-between;padding:4px 0"><span>${e.rank}. ${escapeHtml(e.name)}</span>`
-      + `<span>${escapeHtml(e.score)} · ${escapeHtml(e.km)} km</span></div>`);
+    const mine = data.me && data.me.ref;
+    const entries = (data.entries || []).slice(0, 10);
+    const rows = entries.map((e, i) =>
+      `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0"><span>${Number(e.rank)}. ${escapeHtml(e.name)}</span>`
+      + `<span>${escapeHtml(e.score)} · ${escapeHtml(e.km)} km`
+      + (e.ref && e.ref !== mine
+        ? ` <button class="ghost" data-rankreport="${i}" aria-label="${escapeAttr(t("rank_report"))}" style="flex:none;padding:2px 8px;margin:0">&#9873;</button>`
+        : "")
+      + `</span></div>`);
     box.innerHTML = (rows.length ? rows.join("") : escapeHtml(t("rank_empty")))
       + `<div style="margin-top:6px;color:#f2f2f4">${escapeHtml(data.me
         ? t("rank_me", { rank: data.me.rank, total: data.total }) : t("rank_me_none"))}</div>`;
+    box.querySelectorAll("[data-rankreport]").forEach((b) => {
+      const entry = entries[Number(b.dataset.rankreport)];
+      b.onclick = () => reportRankingName(entry);
+    });
   } catch (e) { box.textContent = e.message || String(e); }
 }
 document.querySelectorAll("[data-ranklevel]").forEach((b) => {
   b.onclick = () => renderRanking(b.dataset.ranklevel);
 });
+function communityErrorText(e) {
+  if (e && e.code === "needs_profile") return t("community_needs_profile");
+  return (e && e.message) || String(e);
+}
+async function reportRankingName(entry) {
+  if (!entry || !confirm(t("rank_report_confirm", { name: entry.name }))) return;
+  try {
+    await api("/api/community/report-name", { method: "POST", body: JSON.stringify({ ref: entry.ref }) });
+    alert(t("rank_reported"));
+    renderRanking(rankLevel);
+  } catch (e) { alert(communityErrorText(e)); }
+}
+async function markSharedPotholeGone(p) {
+  if (!p || !confirm(t("shared_gone_confirm"))) return false;
+  try {
+    await api("/api/community/pothole-gone", { method: "POST", body: JSON.stringify({ lat: p.lat, lng: p.lng }) });
+    alert(t("shared_gone_done"));
+    return true;
+  } catch (e) { alert(communityErrorText(e)); return false; }
+}
 
 $("routeBtn").onclick = () => { show("route"); $("routeQuery").focus(); };
 $("routeBack").onclick = () => { show("home"); };
@@ -5600,10 +5648,11 @@ async function openDash() {
     + bars(t("by_size"), bySize) + `<div style="height:14px"></div>` + bars(t("by_street"), byArea);
 
   show("dash");
+  const shared = (await api("/api/community/shared-potholes").catch(() => ({ potholes: [] }))).potholes || [];
   drawMap(holes.map((report) => ({
     ...report, lat: Number(report.lat), lng: Number(report.lng),
   })).filter((report) => Number.isFinite(report.lat) && Number.isFinite(report.lng)
-    && Math.abs(report.lat) <= 90 && Math.abs(report.lng) <= 180));
+    && Math.abs(report.lat) <= 90 && Math.abs(report.lng) <= 180), shared);
 }
 
 function trackKm(track) {
@@ -5614,18 +5663,22 @@ function trackKm(track) {
   return m / 1000;
 }
 
-function drawMap(pins) {
+function drawMap(pins, shared = []) {
   const host = $("map");
   const generation = ++mapDrawGeneration;
-  $("mapNote").innerHTML = t("map_pins", { n: pins.length });
+  const sharedNote = shared.length ? " · " + escapeHtml(t("map_shared", { n: shared.length })) : "";
+  $("mapNote").innerHTML = t("map_pins", { n: pins.length }) + sharedNote;
   if (mapFallbackTimer) { clearTimeout(mapFallbackTimer); mapFallbackTimer = null; }
   if (mapObj) { mapObj.remove(); mapObj = null; }
   host.innerHTML = "";
-  if (!pins.length) {
+  if (!pins.length && !shared.length) {
     host.innerHTML = `<div class="empty" style="height:100%;display:grid;place-items:center;padding:20px">${escapeHtml(t("map_empty"))}</div>`;
     return;
   }
-  if (typeof L === "undefined" || navigator.onLine === false) return scatter(host, pins);
+  // The offline plot shows only the driver's own reports; shared ones need the map.
+  const offlinePlot = () => pins.length ? scatter(host, pins, sharedNote)
+    : (host.innerHTML = `<div class="empty" style="height:100%;display:grid;place-items:center;padding:20px">${escapeHtml(t("map_offline"))}</div>`);
+  if (typeof L === "undefined" || navigator.onLine === false) return offlinePlot();
   try {
     const currentMap = L.map(host, { attributionControl: true });
     mapObj = currentMap;
@@ -5635,7 +5688,7 @@ function drawMap(pins) {
       if (mapFallbackTimer) { clearTimeout(mapFallbackTimer); mapFallbackTimer = null; }
       currentMap.remove();
       mapObj = null;
-      scatter(host, pins);
+      offlinePlot();
     };
     const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
       { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" });
@@ -5653,7 +5706,24 @@ function drawMap(pins) {
         fillColor: color, fillOpacity: .75 });
       m.on("click", () => openReportDetail(r, pins));
       return m;
-    })).addTo(currentMap);
+    }).concat(shared.map((p) => {
+      const m = L.circleMarker([p.lat, p.lng], { radius: 6, color: "#3d8bff", weight: 2,
+        fillColor: "#3d8bff", fillOpacity: .6 });
+      // Built from DOM nodes, never from server text as HTML.
+      const box = document.createElement("div");
+      const label = document.createElement("div");
+      label.textContent = t("shared_pothole", { n: Number(p.confirmations) || 1 });
+      const button = document.createElement("button");
+      button.className = "ghost";
+      button.style.marginTop = "6px";
+      button.textContent = t("shared_gone_btn");
+      button.onclick = async () => {
+        if (await markSharedPotholeGone(p)) { currentMap.removeLayer(m); }
+      };
+      box.append(label, button);
+      m.bindPopup(box);
+      return m;
+    }))).addTo(currentMap);
     currentMap.fitBounds(group.getBounds().pad(0.25));
     mapFallbackTimer = setTimeout(useOfflinePlot, 6000);
     setTimeout(() => generation === mapDrawGeneration && mapObj === currentMap
@@ -5661,13 +5731,13 @@ function drawMap(pins) {
   } catch (e) {
     if (mapFallbackTimer) { clearTimeout(mapFallbackTimer); mapFallbackTimer = null; }
     if (mapObj) { try { mapObj.remove(); } catch (_) {} mapObj = null; }
-    scatter(host, pins);
+    offlinePlot();
   }
 }
 
 // No tiles, no dependency: latitude and longitude straight onto an SVG. Ugly next to a
 // real map, but it still answers "where have I been reporting".
-function scatter(host, pins) {
+function scatter(host, pins, extraNote = "") {
   const lats = pins.map((p) => p.lat), lngs = pins.map((p) => p.lng);
   const pad = 0.002;
   const minLat = Math.min(...lats) - pad, maxLat = Math.max(...lats) + pad;
@@ -5689,7 +5759,7 @@ function scatter(host, pins) {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); }
     };
   });
-  $("mapNote").innerHTML = t("map_pins", { n: pins.length }) + " · " + t("map_offline");
+  $("mapNote").innerHTML = t("map_pins", { n: pins.length }) + extraNote + " · " + t("map_offline");
 }
 
 $("dashBtn").onclick = openDash;
