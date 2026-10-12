@@ -1,5 +1,11 @@
 # Recorded work history
 
+## 2026-10-12 — NAME-REPORT, DISPUTE-001, ONDEVICE-003
+
+* **NAME-REPORT.** Ranking entries carry a random public reference instead of the device id. A flag button on other drivers' rows reports a name. One report counts per driver, and 3 different drivers hide it as "Haydovchi". Renaming clears the reports. Drivers cannot report themselves, and reports have a daily limit.
+* **DISPUTE-001.** "No pothole here / repaired" appears on other drivers' (blue) potholes on the Contribution map. It takes back the driver's confirmation and records a vote. A pothole is hidden for everyone after 2 votes since its last confirmation and comes back with a new sighting. It is deleted when its only confirmer says it is gone. The next sync also takes back shared reports the driver later marked fixed or "not a pothole".
+* **ONDEVICE-003.** With a bundled model, a burst the model accepts while no shock was felt becomes an unverified "seen by the camera model" candidate (`drive_ondevice` / `ondevice_candidate` / `pothole_candidate`). It needs a fix, ≥ 4 m/s, and ≥ 3 s and 25 m since the last such report. Shocks are always handled first. The page shows these candidates for review and warns about them as road shocks until labelled. No model ships, so nothing changes until one is trained.
+
 ## 2026-10-12 — MOD-001 names, HELP-001 guide, ONDEVICE-002 runtime, SEC-006 test refresh
 
 * **MOD-001 ranking name moderation.** The community server refuses display names, districts and villages containing Uzbek, Russian or English insults, names posing as officials (YHXX, GAI, police, admin, prezident…) or links and phone numbers. Matching runs on a normalised form: Cyrillic transliterated, look-alike digits mapped, separators and repeated letters removed. Short words are matched only as whole words, so names like Sikandar or Assalom pass. A refusal carries the code `name_not_allowed`, which the app turns into a translated explanation. Rankings show "Haydovchi" for names the operator hides with `--hide-name` and for names a later list catches. Renaming clears the hidden flag and the new name is checked again. A `name_hidden` column is added to existing databases on start.

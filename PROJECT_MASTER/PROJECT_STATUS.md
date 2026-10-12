@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-12 All code-side work items done (NAME-REPORT, DISPUTE-001, ONDEVICE-003)
+
+Every feature the owner asked for exists in code and tests: offline pothole warnings, antiradar, trips/score/share, community profiles and rankings with name filtering and reporting, the shared pothole map with "gone" votes, traffic-aware routing, voice navigation, the in-app guide, and the on-device model runtime with camera-only candidates. The tests are server, browser, JVM and static, plus CI with an emulator launch. **Still not verified:** no phone or road test; the community server is not deployed, so community, routing and navigation are hidden in current builds; there is no official camera list; there is no trained on-device model; no signed release has been built (that needs the owner's keystore).
+
 ## 2026-10-12 Name moderation, guide, on-device runtime (MOD-001, HELP-001, ONDEVICE-002)
 
 Ranking names are filtered on the server, with an operator hide command. The app has a "How to use" guide. The LiteRT runtime for a future on-device camera model is wired in but dormant: no trained model exists, so nothing runs it yet and Drive behaves as before. Covered by `community_server_test` (16 abusive and 20 ordinary names, renames, hiding), `community_client_test` (in-app refusal message), `guide_test`, `ondevice_runtime_test`, the full-frame invariant test and a JVM `reviewNote` test. CI compiles the LiteRT dependency; it has not run on a phone. The bundled-model load path is untested because no model exists.

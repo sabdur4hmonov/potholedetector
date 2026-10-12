@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-qhnKQFQBKksJfPQlsRLJW2MM2uCzWmhiRDWefVspOSM='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-fjsE84cV6ZVYs41YGVaBe0WvLqxJ64FXp3E/Jhh8FCc='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -576,13 +576,13 @@ const I18N = {
     guide_2_t: "2. Drive: find potholes",
     guide_2_b: "Tap Drive. Without an AI key the phone's motion sensor feels road shocks above about 15 km/h and saves the camera frame taken just before the wheel hit. Each shock is saved for you to check later in Review: mark it Pothole or Not pothole. Drive stops by itself at the battery limit chosen in Settings.",
     guide_3_t: "3. Pothole warnings",
-    guide_3_b: "Potholes you have saved, and, with the community server, potholes confirmed by other drivers, are announced ahead of you, for example “Pothole in 500 metres”. Warnings come earlier at higher speed and only for potholes in front of you on your way.",
+    guide_3_b: "Potholes you have saved, and, with the community server, potholes confirmed by other drivers, are announced ahead of you, for example “Pothole in 500 metres”. Warnings come earlier at higher speed and only for potholes in front of you on your way. If another driver's pothole (blue on the Contribution map) is gone or repaired, tap it and choose No pothole here.",
     guide_4_t: "4. Antiradar",
     guide_4_b: "First load a camera list: Settings → Road cameras → Load camera list (CSV or JSON). Then tap Antiradar. It uses only GPS, keeps working with the screen off and warns about speed, seatbelt, red-light and other cameras ahead, and when you are above the limit. It knows only the cameras in your list: mobile cameras and outdated entries are not covered.",
     guide_5_t: "5. Route and voice navigation",
     guide_5_b: "Tap Route, type where you want to go and choose a result. The fastest route is chosen from live speeds shared by other drivers. Tap Start voice navigation: every turn is announced in advance and again just before it, and if you leave the route a new one is found. Route appears only when the app is connected to the community server.",
     guide_6_t: "6. My trips and rankings",
-    guide_6_b: "Contribution → My trips shows each trip's distance, time, turns, hard braking and a safe-driving score from 0 to 100 (green, yellow or red). Share creates a picture for Instagram or Telegram; the start and end of the route are hidden. With a community profile, trips (totals only, never the route) take part in village, district, region and Uzbekistan rankings once you have driven 20 km in 30 days.",
+    guide_6_b: "Contribution → My trips shows each trip's distance, time, turns, hard braking and a safe-driving score from 0 to 100 (green, yellow or red). Share creates a picture for Instagram or Telegram; the start and end of the route are hidden. With a community profile, trips (totals only, never the route) take part in village, district, region and Uzbekistan rankings once you have driven 20 km in 30 days. The flag next to a name reports it as insulting or fake.",
     guide_7_t: "7. No voice?",
     guide_7_b: "Voice uses your phone's own text-to-speech. If you hear only a beep, open Android Settings → Text-to-speech, choose Google's speech engine and download a voice. If there is no Uzbek voice, Russian and then English are used.",
     guide_8_t: "8. Safety",
@@ -885,13 +885,13 @@ const I18N = {
     guide_2_t: "2. Haydash: chuqurlarni topish",
     guide_2_b: "Haydash tugmasini bosing. AI kalitisiz telefonning harakat sensori taxminan 15 km/soatdan yuqori tezlikda yo'ldagi zarbalarni sezadi va g'ildirak tushishidan biroz oldin olingan kamera kadrini saqlaydi. Har bir zarba keyin Ko'rib chiqish bo'limida tekshirishingiz uchun saqlanadi: Chuqur yoki Chuqur emas deb belgilang. Haydash Sozlamalarda tanlangan batareya chegarasida o'zi to'xtaydi.",
     guide_3_t: "3. Chuqur ogohlantirishlari",
-    guide_3_b: "Siz saqlagan chuqurlar, community server ulangan bo'lsa boshqa haydovchilar tasdiqlagan chuqurlar ham oldindan aytiladi, masalan: “500 metr oldinda chuqur”. Tezlik qancha yuqori bo'lsa, ogohlantirish shuncha oldinroq keladi va faqat yo'lingizdagi oldingi chuqurlar uchun aytiladi.",
+    guide_3_b: "Siz saqlagan chuqurlar, community server ulangan bo'lsa boshqa haydovchilar tasdiqlagan chuqurlar ham oldindan aytiladi, masalan: “500 metr oldinda chuqur”. Tezlik qancha yuqori bo'lsa, ogohlantirish shuncha oldinroq keladi va faqat yo'lingizdagi oldingi chuqurlar uchun aytiladi. Boshqa haydovchining chuquri yo'qolgan yoki tuzatilgan bo'lsa (Hissam xaritasida ko'k), uni bosing va Bu yerda chuqur yo'q ni tanlang.",
     guide_4_t: "4. Antiradar",
     guide_4_b: "Avval kamera ro'yxatini yuklang: Sozlamalar → Yo'l kameralari → Kamera ro'yxatini yuklash (CSV yoki JSON). Keyin Antiradar tugmasini bosing. U faqat GPS'dan foydalanadi, ekran o'chiq bo'lsa ham ishlaydi va oldingizdagi tezlik, remen, qizil chiroq va boshqa kameralar haqida, tezlik chegarasidan oshsangiz ham ogohlantiradi. U faqat ro'yxatingizdagi kameralarni biladi: ko'chma kameralar va eskirgan yozuvlar qamrab olinmaydi.",
     guide_5_t: "5. Marshrut va ovozli navigatsiya",
     guide_5_b: "Marshrut tugmasini bosing, boradigan joyingizni yozing va natijani tanlang. Eng tez yo'l boshqa haydovchilar ulashgan jonli tezliklar asosida tanlanadi. Ovozli navigatsiyani boshlash tugmasini bosing: har bir burilish oldindan va burilish oldidan yana aytiladi, marshrutdan chiqsangiz yangi yo'l topiladi. Marshrut tugmasi ilova community serverga ulangandagina ko'rinadi.",
     guide_6_t: "6. Safarlarim va reyting",
-    guide_6_b: "Hissam → Safarlarim har bir safarning masofasi, vaqti, burilishlari, keskin tormozlari va 0 dan 100 gacha xavfsiz haydash balini ko'rsatadi (yashil, sariq yoki qizil). Ulashish Instagram yoki Telegram uchun rasm yasaydi; marshrutning boshi va oxiri yashiriladi. Community profili bo'lsa, safarlaringiz (faqat yakunlari, marshrut emas) 30 kunda 20 km yurganingizdan keyin qishloq, tuman, viloyat va O'zbekiston reytingida qatnashadi.",
+    guide_6_b: "Hissam → Safarlarim har bir safarning masofasi, vaqti, burilishlari, keskin tormozlari va 0 dan 100 gacha xavfsiz haydash balini ko'rsatadi (yashil, sariq yoki qizil). Ulashish Instagram yoki Telegram uchun rasm yasaydi; marshrutning boshi va oxiri yashiriladi. Community profili bo'lsa, safarlaringiz (faqat yakunlari, marshrut emas) 30 kunda 20 km yurganingizdan keyin qishloq, tuman, viloyat va O'zbekiston reytingida qatnashadi. Ism yonidagi bayroqcha uni haqoratli yoki soxta deb shikoyat qiladi.",
     guide_7_t: "7. Ovoz chiqmayaptimi?",
     guide_7_b: "Ovoz telefonning o'z matnni nutqqa aylantirish dvigatelidan foydalanadi. Faqat signal eshitilsa, Android sozlamalari → Matnni nutqqa aylantirish bo'limida Google nutq dvigatelini tanlang va ovoz yuklab oling. O'zbekcha ovoz bo'lmasa, ruscha, keyin inglizcha ishlatiladi.",
     guide_8_t: "8. Xavfsizlik",

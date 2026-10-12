@@ -1,5 +1,15 @@
 # Next steps from the preserved tree
 
+## 2026-10-12 after NAME-REPORT / DISPUTE-001 / ONDEVICE-003
+
+No coding task is open that can be done without the owner. In order:
+
+1. Road test of the CI debug APK. Fix and tune what the test shows.
+2. Deploy `server/` on a VPS with a domain, run `python3 tools/set-community-server.py https://<domain>`, rebuild, then test community, routing and navigation.
+3. Official camera list (`CAMERA_DATA_FORMAT.md`).
+4. Label frames, train with `ml/train_on_device_detector.py`, and bundle `pothole_detector.{tflite,json}`.
+5. Release: decide the application ID, bump `versionCode`/`versionName` (now 1.38.0 / 67, checked by `hybrid_drive_contract_test`), add a privacy contact address, then run `tools/build-play-release.sh` with the owner's keystore.
+
 ## 2026-10-12 after MOD-001 / HELP-001 / ONDEVICE-002
 
 Code work that can be done without a car, a server or data is finished. What is left needs the owner:

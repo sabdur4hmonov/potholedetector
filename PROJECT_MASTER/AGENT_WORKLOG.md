@@ -686,3 +686,13 @@ finding; none exists after NEW-002.
 * **Tests performed:** the full local `tests/run-all.sh` passes (67 tests, `ALL TESTS PASS`), and CI passes as above.
 * **Lesson:** compile new Android Kotlin against stubs before pushing, because the sandbox has no Android SDK.
 * **Exact next task:** unchanged — owner road test and server deployment, then ONDEVICE-003 once a trained model exists.
+
+## 2026-10-12 — NAME-REPORT, DISPUTE-001, ONDEVICE-003 (owner: "finish every code task")
+
+* **Agent/tool:** Claude in a cloud sandbox. Android builds run on CI only. **Status:** COMPLETE at source, server, browser and JVM level. Not phone- or road-tested.
+* **Commits:** `48526f8` name reports and "gone" votes; `fae6dc5` ONDEVICE-003 camera-only candidates; plus this docs/guide commit. All are on the session branch `ccr-aba46d05-gm456b` only.
+* **Files changed:** `server/community_server.py` (`name_reports`, `pothole_gone`, `public_ref` with migration, two endpoints, limits, gone-aware listing, `--list-names` report counts), `server/README.md`, `static/standalone.js` (report-name, pothole-gone and shared-potholes routes, automatic take-back on sync, phone-candidate table), `static/index.html` (ranking flag button, blue shared markers with popup, camera-model wording, guide text) and mirrors, `drive/SensorDriveDetector.kt` (camera-only path, gating, shared `createReport`), `drive/OnDeviceDetectorContract.kt` (`cameraOnlyNote`), tests (`community_server_test`, `community_client_test`, `sensor_drive_test`, `ondevice_runtime_test`, `OnDeviceDetectorContractTest`), `docs/privacy.html`, CHANGELOG, PROJECT_STATUS, SECURITY_STATUS and NEXT_STEPS.
+* **Tests performed:** the server, client, sensor Drive, runtime, guide, UI text, stored-XSS, contribution-map, full-frame, road-alert, antiradar, hybrid and release-optimization tests pass locally. The standalone JVM OnDevice tests pass, including the new `cameraOnlyNoteIsMarkedUnverified`. CI run 32 (ONDEVICE-003) and a full local `run-all.sh` were still running when this entry was written; their results go in the next entry.
+* **Decisions:** hide thresholds are 3 name reporters and 2 "gone" voters, and a new sighting restores a pothole. Camera-only candidates are unverified drafts warned as road shocks. Shocks always come first. The version stays 1.38.0/67 until the owner releases.
+* **Remaining blockers (owner):** road test, server and domain, official camera list, trained model, keystore and application-ID decision for the Play release.
+* **Exact next task:** owner road test of the CI debug APK.
