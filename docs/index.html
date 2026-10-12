@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-9H0RVCcFbCRyQB0JqswAOR9E9J2L+lMqwGWSMZmjjkc='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-wlaE1DQjV6xJcI5jXb0zogeHVf4DDj+qegVbM3C77J4='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-eRELgb1ot6HJnc3ImT3VY7Ykqp8rCOvkrszx5Na+yT4='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-j3tiKiOunOIPVl9I5ivWFWiUJZr9VBshwlSmGGigJ5A='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -110,6 +110,34 @@
   body { font-size:16px; letter-spacing:-.01em; }
   h1 { font-size:28px; font-weight:800; letter-spacing:-.025em; white-space:nowrap; }
   .sub { font-size:14px; }
+  /* HUMAN-001: no decorative glows; one flat surface colour; icons drawn, not emoji. */
+  body { background:var(--bg); }
+  h1::before { display:none; }
+  #home > .primary { background-image:none; box-shadow:none; }
+  #home > .primary .tile-ico svg { width:26px; height:26px; }
+  #home > button.ghost .tile-ico, #routeBtn .tile-ico { color:#fff; box-shadow:none; }
+  .progress-strip { background:var(--card); border-radius:var(--radius); padding:14px; margin:0 0 12px; }
+  .prog-top { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .prog-level { font-weight:700; font-size:16px; }
+  .prog-streak { display:inline-flex; align-items:center; gap:4px; font-size:13px; font-weight:600; color:var(--accent2); }
+  .prog-bar { height:8px; border-radius:8px; background:var(--fill); overflow:hidden; margin:10px 0 6px; }
+  .prog-bar > span { display:block; height:100%; border-radius:8px; background:var(--accent2); transition:width .5s ease; }
+  .prog-meta { font-size:13px; color:var(--mut); }
+  .prog-week { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:12px; }
+  .prog-week > div { background:var(--card2); border-radius:12px; padding:8px 6px; text-align:center; }
+  .prog-week b { display:block; font-size:19px; font-weight:800; }
+  .prog-week span { display:block; font-size:11.5px; color:var(--mut); }
+  .last-trip { display:flex; align-items:center; gap:12px; }
+  .ach-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin-top:10px; }
+  .ach-text { display:flex; flex-direction:column; min-width:0; line-height:1.25; }
+  .ach-name { font-weight:600; }
+  .ach { display:grid; grid-template-columns:auto 1fr; align-items:center; gap:8px; padding:10px; border-radius:12px;
+          background:var(--card2); color:var(--mut); font-size:13px; }
+  .ach-ico { display:grid; place-items:center; width:34px; height:34px; border-radius:10px; background:var(--fill); }
+  .ach.done { color:var(--text); }
+  .ach.done .ach-ico { background:rgba(255,159,10,.18); color:var(--accent2); }
+  .ach-val { font-weight:700; font-size:12px; }
+  .ach.done .ach-val { color:var(--ok); }
   #guideBtn, #gearBtn { width:40px; height:40px; min-height:40px; padding:0 !important; border-radius:50%; border:0;
           background:var(--fill); color:#fff; font-size:17px; display:grid; place-items:center; }
   .card { background:var(--card); border:0; box-shadow:none; border-radius:var(--radius); }
@@ -210,8 +238,10 @@
   <div id="banner" class="banner"></div>
 
   <div id="home" class="hidden">
+    <div id="homeProgress" class="progress-strip hidden" role="group"></div>
     <button class="primary" id="driveBtn">&#128663; &nbsp;Drive</button>
-    <button class="ghost" id="alertsBtn" style="width:100%;margin-bottom:10px"><span class="tile-ico" aria-hidden="true">&#128225;</span><span class="tile-lbl">Antiradar</span></button>
+    <div id="lastTrip" class="card last-trip hidden"></div>
+    <button class="ghost" id="alertsBtn" style="width:100%;margin-bottom:10px"><span class="tile-ico" aria-hidden="true"></span><span class="tile-lbl">Antiradar</span></button>
     <div class="card hidden" id="alertsPanel" style="margin-bottom:10px">
       <div class="verdict" id="alertsSpeed" style="margin:0;font-size:28px;color:#fff">-- km/h</div>
       <div class="meta" id="alertsStatus"></div>
@@ -274,6 +304,7 @@
       <div id="dashStats" class="row" style="flex-wrap:wrap;gap:8px;margin-top:12px"></div>
     </div>
     <div class="card" id="dashTrips"></div>
+    <div class="card" id="dashAchievements"></div>
     <div class="card hidden" id="dashRanking">
       <div class="verdict" id="rankTitle" style="font-size:18px;margin:0 0 6px">Ranking</div>
       <div class="btn-row" id="rankLevels">
@@ -711,6 +742,34 @@ const I18N = {
     comm_delete: "Delete my online data",
     comm_note: "Nothing is sent until you save a profile. Your name and village appear in rankings; no phone number is needed. Delete removes your profile, trips and pothole confirmations from the server.",
     comm_saved: "Profile saved.",
+    level_0: "New driver",
+    level_1: "Observer",
+    level_2: "Road keeper",
+    level_3: "Road master",
+    level_4: "Road expert",
+    level_5: "Road legend",
+    prog_level: "Level {n} · {name}",
+    prog_next: "{pts} points to {name}",
+    prog_max: "Top level — thank you for every pothole",
+    prog_points: "{pts} points",
+    prog_streak: "{n} days in a row",
+    prog_week_km: "km this week",
+    prog_week_potholes: "potholes found",
+    prog_week_calm: "calm trips",
+    last_trip_title: "Last trip",
+    last_trip_line: "{km} km · {potholes} potholes found",
+    ach_title: "Achievements",
+    ach_rule: "Points: 10 for each pothole you find, 2 per km driven, 5 for each calm (green) trip and 3 for each frame you label. Speed never earns points.",
+    ach_first_pothole: "First pothole",
+    ach_potholes_10: "10 potholes",
+    ach_potholes_50: "50 potholes",
+    ach_km_100: "100 km",
+    ach_km_1000: "1,000 km",
+    ach_calm_5: "5 calm trips",
+    ach_calm_25: "25 calm trips",
+    ach_labels_20: "20 frames labelled",
+    ach_streak_3: "3 days in a row",
+    ach_streak_7: "7 days in a row",
     tab_home: "Home",
     tab_dash: "My trips",
     tab_route: "Route",
@@ -722,11 +781,11 @@ const I18N = {
     sec_alerts: "Warnings",
     sec_antiradar: "Antiradar",
     sec_data: "Data and privacy",
-    home_drive_sub: "Mount the phone and go — potholes are found for you",
-    home_alerts_sub: "Voice warnings about cameras and potholes ahead",
-    home_route_sub: "Fastest way around traffic, with voice guidance",
-    home_photo_sub: "Take a photo of a pothole you can see",
-    home_dash_sub: "Your trips, safe-driving score, ranking and map",
+    home_drive_sub: "Mount the phone and go. Potholes are found for you",
+    home_alerts_sub: "Voice warnings for cameras and potholes",
+    home_route_sub: "Fastest way around traffic",
+    home_photo_sub: "Photograph a pothole",
+    home_dash_sub: "Trips, score and ranking",
     guide_title: "How to use",
     guide_1_t: "1. Mount the phone",
     guide_1_b: "Fix the phone firmly on the windscreen or dashboard with the camera facing the road. A loose phone shakes and reports false shocks. Set everything up before you move and do not touch the phone while driving.",
@@ -1038,6 +1097,34 @@ const I18N = {
     comm_delete: "Onlayn ma'lumotlarimni o'chirish",
     comm_note: "Profil saqlanmaguncha hech narsa yuborilmaydi. Ismingiz va qishlog'ingiz reytingda ko'rinadi; telefon raqami kerak emas. O'chirish profilingiz, safarlaringiz va chuqur tasdiqlaringizni serverdan o'chiradi.",
     comm_saved: "Profil saqlandi.",
+    level_0: "Yangi haydovchi",
+    level_1: "Kuzatuvchi",
+    level_2: "Yo'l qo'riqchisi",
+    level_3: "Yo'l ustasi",
+    level_4: "Yo'l bilimdoni",
+    level_5: "Yo'l afsonasi",
+    prog_level: "{n}-daraja · {name}",
+    prog_next: "{name} darajasigacha {pts} ball",
+    prog_max: "Eng yuqori daraja — har bir chuqur uchun rahmat",
+    prog_points: "{pts} ball",
+    prog_streak: "{n} kun ketma-ket",
+    prog_week_km: "km shu hafta",
+    prog_week_potholes: "chuqur topildi",
+    prog_week_calm: "xotirjam safar",
+    last_trip_title: "Oxirgi safar",
+    last_trip_line: "{km} km · {potholes} ta chuqur topildi",
+    ach_title: "Yutuqlar",
+    ach_rule: "Ball: har bir topilgan chuqur uchun 10, har km uchun 2, har bir xotirjam (yashil) safar uchun 5, har bir belgilangan kadr uchun 3. Tezlik uchun hech qachon ball berilmaydi.",
+    ach_first_pothole: "Birinchi chuqur",
+    ach_potholes_10: "10 ta chuqur",
+    ach_potholes_50: "50 ta chuqur",
+    ach_km_100: "100 km",
+    ach_km_1000: "1 000 km",
+    ach_calm_5: "5 ta xotirjam safar",
+    ach_calm_25: "25 ta xotirjam safar",
+    ach_labels_20: "20 ta kadr belgilandi",
+    ach_streak_3: "3 kun ketma-ket",
+    ach_streak_7: "7 kun ketma-ket",
     tab_home: "Asosiy",
     tab_dash: "Hissam",
     tab_route: "Marshrut",
@@ -1049,11 +1136,11 @@ const I18N = {
     sec_alerts: "Ogohlantirishlar",
     sec_antiradar: "Antiradar",
     sec_data: "Ma'lumotlar va maxfiylik",
-    home_drive_sub: "Telefonni mahkamlang va yo'lga chiqing — chuqurlar o'zi topiladi",
-    home_alerts_sub: "Oldindagi kamera va chuqurlar haqida ovozli ogohlantirish",
-    home_route_sub: "Tirbandliksiz eng tez yo'l, ovozli yo'l ko'rsatish bilan",
-    home_photo_sub: "Ko'rib turgan chuquringizni suratga oling",
-    home_dash_sub: "Safarlaringiz, xavfsiz haydash bali, reyting va xarita",
+    home_drive_sub: "Telefonni mahkamlang va yo'lga chiqing",
+    home_alerts_sub: "Kamera va chuqurlardan ovozli ogohlantirish",
+    home_route_sub: "Tirbandliksiz eng tez yo'l",
+    home_photo_sub: "Chuqurni suratga oling",
+    home_dash_sub: "Safarlar, ball va reyting",
     guide_title: "Qanday ishlatish",
     guide_1_t: "1. Telefonni o'rnatish",
     guide_1_b: "Telefonni old oynaga yoki panelga kamerasi yo'lga qaragan holda mahkam o'rnating. Bo'sh turgan telefon silkinadi va yolg'on zarbalarni qayd qiladi. Hamma narsani yo'lga chiqishdan oldin sozlang va haydash paytida telefonga tegmang.",
@@ -1304,10 +1391,26 @@ function show(screen) {
 
 // Home actions are "<emoji> &nbsp;<word>" strings. The emoji goes in its own coloured tile;
 // the text content still reads emoji + word, so labels and screen readers are unchanged.
-function tileHtml(html, extra = "") {
+// One line-icon set drawn for this app (same 24 px grid and 2 px stroke as the tab bar),
+// instead of emoji, which render differently on every phone.
+const ICONS = {
+  car: '<path d="M5 15l1.6-4.6A2 2 0 0 1 8.5 9h7a2 2 0 0 1 1.9 1.4L19 15"/><path d="M3.5 15h17v3.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1V18H7v.5a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1z"/><path d="M7 15.8h.01M17 15.8h.01"/>',
+  radar: '<circle cx="12" cy="12" r="1.8"/><path d="M15.5 8.5a5 5 0 0 1 0 7M8.5 15.5a5 5 0 0 1 0-7M18.4 5.6a9 9 0 0 1 0 12.8M5.6 18.4a9 9 0 0 1 0-12.8"/>',
+  camera: '<path d="M4 8h3l1.8-2.6h6.4L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.4"/>',
+  chart: '<path d="M5 20V11M11 20V5M17 20v-7M3 20h18"/>',
+  route: '<circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.4 18H15a3.4 3.4 0 0 0 0-6.8H9a3.4 3.4 0 0 1 0-6.8h6.6"/>',
+  medal: '<circle cx="12" cy="14.5" r="5"/><path d="M8.5 3.5 10.5 9.8M15.5 3.5 13.5 9.8"/><path d="m12 12.3.9 1.6 1.8.3-1.3 1.3.3 1.8-1.7-.9-1.7.9.3-1.8-1.3-1.3 1.8-.3z"/>',
+  flame: '<path d="M12 21c3.6 0 6-2.4 6-5.6 0-3.8-3.4-5.6-4-9.4-2 1.4-3 3.4-3 5.4-1-.6-1.6-1.6-1.8-2.8C7.4 10.2 6 12.4 6 15.4 6 18.6 8.4 21 12 21z"/>',
+};
+const iconSvg = (name, size = 24) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" fill="none"
+  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ""}</svg>`;
+
+// Home actions are "<emoji> &nbsp;<word>" strings. The tile shows the drawn icon; the text
+// content stays the word, so labels and screen readers are unchanged.
+function tileHtml(html, extra = "", icon = null) {
   const at = html.indexOf("&nbsp;");
   if (at < 0) return html + extra;
-  return `<span class="tile-ico" aria-hidden="true">${html.slice(0, at).trim()}</span>`
+  return `<span class="tile-ico" aria-hidden="true">${icon ? iconSvg(icon) : html.slice(0, at).trim()}</span>`
     + `<span class="tile-lbl">${html.slice(at + 6).trim()}${extra}</span>`;
 }
 const UZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
@@ -1403,6 +1506,7 @@ function withoutLeadingSentences(value, count) {
 function applyLang() {
   $("subTitle").textContent = t("sub");
   document.querySelectorAll("[data-section]").forEach((el) => { el.textContent = t(el.dataset.section); });
+  if (!$("alertsBtn").querySelector("svg")) $("alertsBtn").querySelector(".tile-ico").innerHTML = iconSvg("radar");
   document.querySelectorAll("[data-tab]").forEach((el) => {
     el.querySelector(".tab-lbl").textContent = t("tab_" + el.dataset.tab);
     el.setAttribute("aria-label", t("tab_" + el.dataset.tab));
@@ -1411,8 +1515,8 @@ function applyLang() {
                            ["captureBtn", "home_photo_sub"], ["dashBtn", "home_dash_sub"]]) {
     if ($(id)) $(id).dataset.sub = t(key);
   }
-  $("captureBtn").innerHTML = tileHtml(t("report_btn"));
-  $("driveBtn").innerHTML = tileHtml(t("drive_btn"));
+  $("captureBtn").innerHTML = tileHtml(t("report_btn"), "", "camera");
+  $("driveBtn").innerHTML = tileHtml(t("drive_btn"), "", "car");
   $("reportsTitle").textContent = t("your_reports");
   $("settingsTitle").textContent = t("settings_title");
   $("keyLabel").textContent = t("key_label");
@@ -1447,7 +1551,7 @@ function applyLang() {
   $("cameraImportBtn").textContent = t("cameras_import");
   $("cameraClearBtn").textContent = t("cameras_clear");
   $("camerasNote").textContent = t("cameras_note");
-  $("routeBtn").innerHTML = tileHtml(t("route_btn"));
+  $("routeBtn").innerHTML = tileHtml(t("route_btn"), "", "route");
   $("routeTitle").textContent = t("route_title");
   $("routeQuery").placeholder = t("route_query");
   $("routeSearch").textContent = t("route_search");
@@ -1493,7 +1597,7 @@ function applyLang() {
   $("setBack").textContent = t("back");
   $("setSave").textContent = t("save");
   $("driveTip").textContent = t("drive_tip");
-  $("dashBtn").innerHTML = tileHtml(t("dash_btn"));
+  $("dashBtn").innerHTML = tileHtml(t("dash_btn"), "", "chart");
   $("reviewBtn").textContent = t("review_btn");
   $("exportBtn").textContent = t("export_btn");
   $("lblPothole").textContent = t("lbl_pothole");
@@ -1666,6 +1770,59 @@ function loadReports() {
   return loadReportsPromise;
 }
 
+// MOTIV-001: progress the driver can feel, from their own real data only. Shown on Home and
+// in My trips, never during Drive; no streak guilt, no notifications, no invented numbers.
+function renderProgress(reports, drives) {
+  const box = $("homeProgress");
+  if (!box || !window.TripStats || !TripStats.progressSummary) return;
+  const p = TripStats.progressSummary(reports, drives, Date.now() / 1000);
+  const hasHistory = p.points > 0 || drives.length > 0;
+  box.classList.toggle("hidden", !hasHistory);
+  $("subTitle").classList.toggle("hidden", hasHistory || $("home").classList.contains("hidden"));
+  if (hasHistory) {
+    const name = t("level_" + p.level);
+    box.innerHTML = `<div class="prog-top">
+        <span class="prog-level">${escapeHtml(t("prog_level", { n: p.level + 1, name }))}</span>
+        ${p.streak > 1 ? `<span class="prog-streak">${iconSvg("flame", 16)}${escapeHtml(t("prog_streak", { n: p.streak }))}</span>` : ""}
+      </div>
+      <div class="prog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p.progress * 100)}">
+        <span style="width:${(p.progress * 100).toFixed(1)}%"></span></div>
+      <div class="prog-meta">${escapeHtml(p.nextLevelAt == null ? t("prog_max")
+        : t("prog_next", { pts: p.toNext, name: t("level_" + (p.level + 1)) }))}</div>
+      <div class="prog-week">
+        <div><b>${escapeHtml(p.week.km.toFixed(1))}</b><span>${escapeHtml(t("prog_week_km"))}</span></div>
+        <div><b>${escapeHtml(p.week.potholes)}</b><span>${escapeHtml(t("prog_week_potholes"))}</span></div>
+        <div><b>${escapeHtml(p.week.calm)}</b><span>${escapeHtml(t("prog_week_calm"))}</span></div>
+      </div>`;
+  }
+  const last = $("lastTrip");
+  const trip = p.lastTrip;
+  last.classList.toggle("hidden", !trip);
+  if (trip) {
+    const drive = drives.find((d) => String(d.id) === trip.id);
+    if (drive) tripCards.set(trip.id, { drive, analysis: TripStats.analyseDrive(drive.gps_track), potholes: trip.potholes });
+    last.innerHTML = `<div class="trip-score" style="background:${GRADE_COLORS[trip.grade]}">${Number(trip.score)}</div>
+      <div class="trip-main"><div style="font-weight:700">${escapeHtml(t("last_trip_title"))} · ${escapeHtml(t("grade_" + trip.grade))}</div>
+        <div class="meta">${escapeHtml(t("last_trip_line", { km: trip.km.toFixed(1), potholes: trip.potholes }))}</div></div>
+      <button class="trip-share" id="lastTripShare">${escapeHtml(t("share_trip_btn"))} &#8599;</button>`;
+    $("lastTripShare").onclick = () => shareTripCard(trip.id).catch((e) => alert(e.message || e));
+  }
+}
+
+function renderAchievements(reports, drives) {
+  const box = $("dashAchievements");
+  if (!box || !window.TripStats || !TripStats.progressSummary) return;
+  const p = TripStats.progressSummary(reports, drives, Date.now() / 1000);
+  const done = p.achievements.filter((a) => a.done).length;
+  box.innerHTML = `<div class="verdict" style="font-size:18px;margin:0 0 4px">${escapeHtml(t("ach_title"))}
+      <span class="meta" style="font-weight:600">· ${done}/${p.achievements.length} · ${escapeHtml(t("prog_points", { pts: p.points }))}</span></div>
+    <div class="ach-grid">${p.achievements.map((a) => `<div class="ach${a.done ? " done" : ""}">
+        <span class="ach-ico">${iconSvg("medal", 22)}</span>
+        <span class="ach-text"><span class="ach-name">${escapeHtml(t("ach_" + a.id))}</span>
+        <span class="ach-val">${a.done ? "&#10003;" : `${escapeHtml(a.value)}/${escapeHtml(a.goal)}`}</span></span></div>`).join("")}</div>
+    <div class="meta" style="margin-top:10px">${escapeHtml(t("ach_rule"))}</div>`;
+}
+
 async function renderReports() {
   const [reports, drives, footage] = await Promise.all([
     api("/api/reports"), api("/api/drives").catch(() => []),
@@ -1673,6 +1830,7 @@ async function renderReports() {
   ]);
   await mergeNativeDriveHistory(drives, footage);
   loadReports.latest = reports;
+  try { renderProgress(reports, drives); } catch (e) {}
   const list = $("list");
   // A recorded drive is history even when GPS never arrived and therefore no frame was
   // assessed. Returning on an empty reports store made its footage impossible to reach.
@@ -2556,7 +2714,7 @@ function setDrivePanels(native, captureSource = savedDriveCaptureSource()) {
 }
 
 function setDriveActiveButton(active) {
-  $("driveBtn").innerHTML = tileHtml(t("drive_btn"), active ? " &nbsp;&#9679;" : "");
+  $("driveBtn").innerHTML = tileHtml(t("drive_btn"), active ? " &nbsp;&#9679;" : "", "car");
   $("driveBtn").setAttribute("aria-label", active ? "Drive active — view" : "Drive");
 }
 
@@ -2714,7 +2872,7 @@ let roadAlertBannerTimer = null;
 
 function setAlertsButton(running) {
   const button = $("alertsBtn");
-  if (button) button.innerHTML = tileHtml(t(running ? "alerts_btn_on" : "alerts_btn"));
+  if (button) button.innerHTML = tileHtml(t(running ? "alerts_btn_on" : "alerts_btn"), "", "radar");
 }
 
 function updateRoadAlertPanel(status) {
@@ -5913,6 +6071,7 @@ async function openDash() {
   const mb = footage.reduce((n, f) => n + f.bytes, 0) / 1048576;
   const trip = TripStats.summarizeDrives(drives);
   renderTrips(drives, reports);
+  try { renderAchievements(reports, drives); } catch (e) {}
   communityAfterDash(drives);
   const tripValue = (value, scale = 1) => value == null
     ? `<span class="stat-na">${escapeHtml(t("trip_unknown"))}</span>` : (value * scale).toFixed(1);
@@ -6001,6 +6160,7 @@ function drawMap(pins, shared = []) {
     const useOfflinePlot = () => {
       if (generation !== mapDrawGeneration || mapObj !== currentMap || loadedTiles) return;
       if (mapFallbackTimer) { clearTimeout(mapFallbackTimer); mapFallbackTimer = null; }
+      try { tiles.off(); currentMap.removeLayer(tiles); } catch (_) {}
       currentMap.remove();
       mapObj = null;
       offlinePlot();
@@ -6013,7 +6173,8 @@ function drawMap(pins, shared = []) {
     });
     // Leaflet tile failures are asynchronous, so a surrounding try/catch cannot see
     // them. Its load event fires after the initial success/error batch settles.
-    tiles.on("load", () => { if (!loadedTiles) useOfflinePlot(); });
+    // Deferred: this event fires inside the tile layer, which still uses the map afterwards.
+    tiles.on("load", () => { if (!loadedTiles) setTimeout(useOfflinePlot, 0); });
     tiles.addTo(currentMap);
     const group = L.featureGroup(pins.map((r) => {
       const color = physicalCondition(r) === "fixed" ? "#3ecf6f" : "#ff7a1a";
@@ -6039,7 +6200,9 @@ function drawMap(pins, shared = []) {
       m.bindPopup(box);
       return m;
     }))).addTo(currentMap);
-    currentMap.fitBounds(group.getBounds().pad(0.25));
+    // No zoom animation: if tiles fail the map is replaced at once, and removing a map in
+    // mid-animation throws inside Leaflet.
+    currentMap.fitBounds(group.getBounds().pad(0.25), { animate: false });
     mapFallbackTimer = setTimeout(useOfflinePlot, 6000);
     setTimeout(() => generation === mapDrawGeneration && mapObj === currentMap
       && currentMap.invalidateSize(), 60);

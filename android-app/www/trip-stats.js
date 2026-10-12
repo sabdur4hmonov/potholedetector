@@ -179,7 +179,87 @@
     return kept.filter((_, i) => i % step === 0 || i === kept.length - 1).map((p) => [p[1], p[2]]);
   }
 
-  const api = Object.freeze({ POLICY, DRIVING, deriveTripStats, summarizeDrives, analyseDrive, shareRoute });
+  // ---------- progress: levels, achievements, this week (MOTIV-001) ----------
+  // Points come only from real, useful actions and are shown with their rule, so nothing
+  // is invented: a found pothole, distance driven with tracking, a calm (green) trip and a
+  // frame labelled for the camera model. Speed never earns anything.
+  const PROGRESS = Object.freeze({
+    version: 'progress-v1',
+    pointsPerPothole: 10, pointsPerKm: 2, pointsPerGreenTrip: 5, pointsPerLabel: 3,
+    levels: Object.freeze([0, 50, 200, 600, 1500, 4000]),
+    foundStatuses: Object.freeze(['draft', 'queued', 'sent']),
+    weekDays: 7, recentTripHours: 6,
+  });
+  const ACHIEVEMENTS = Object.freeze([
+    ['first_pothole', 'potholes', 1], ['potholes_10', 'potholes', 10], ['potholes_50', 'potholes', 50],
+    ['km_100', 'km', 100], ['km_1000', 'km', 1000], ['calm_5', 'greenTrips', 5], ['calm_25', 'greenTrips', 25],
+    ['labels_20', 'labels', 20], ['streak_3', 'bestStreak', 3], ['streak_7', 'bestStreak', 7],
+  ]);
+
+  function dayKey(seconds) {
+    const d = new Date(seconds * 1000);
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  }
+
+  // Days in a row (by local date) with at least one trip; the current run counts only if
+  // it reaches today or yesterday, so a missed day simply restarts it, with no penalty.
+  function streaks(tripDays, nowS) {
+    const days = [...new Set(tripDays)].map((k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).getTime(); })
+      .sort((a, b) => a - b);
+    let best = 0, run = 0, prev = null;
+    for (const t of days) {
+      run = prev != null && Math.round((t - prev) / 86400000) === 1 ? run + 1 : 1;
+      best = Math.max(best, run); prev = t;
+    }
+    const today = new Date(nowS * 1000); today.setHours(0, 0, 0, 0);
+    const current = prev != null && Math.round((today.getTime() - prev) / 86400000) <= 1 ? run : 0;
+    return { current, best };
+  }
+
+  function progressSummary(reports, drives, nowS) {
+    const now = Number.isFinite(nowS) ? nowS : Date.now() / 1000;
+    const found = (Array.isArray(reports) ? reports : []).filter((r) => r && PROGRESS.foundStatuses.includes(r.status));
+    const labels = (Array.isArray(reports) ? reports : []).filter((r) => r && r.human_label).length;
+    const trips = (Array.isArray(drives) ? drives : [])
+      .filter((d) => d && Array.isArray(d.gps_track) && d.gps_track.length > 1)
+      .map((d) => ({ d, a: analyseDrive(d.gps_track), start: Number(d.started_at) || 0,
+        end: Number(d.ended_at) || Number(d.started_at) || 0 }));
+    const km = trips.reduce((sum, t) => sum + (t.a.distance_m || 0), 0) / 1000;
+    const greenTrips = trips.filter((t) => t.a.grade === 'green').length;
+    const streak = streaks(trips.filter((t) => t.a.distance_m).map((t) => dayKey(t.start)), now);
+    const points = Math.round(found.length * PROGRESS.pointsPerPothole + km * PROGRESS.pointsPerKm
+      + greenTrips * PROGRESS.pointsPerGreenTrip + labels * PROGRESS.pointsPerLabel);
+    let level = 0;
+    while (level + 1 < PROGRESS.levels.length && points >= PROGRESS.levels[level + 1]) level++;
+    const floor = PROGRESS.levels[level], next = PROGRESS.levels[level + 1] ?? null;
+    const weekStart = now - PROGRESS.weekDays * 86400;
+    const weekTrips = trips.filter((t) => t.start >= weekStart);
+    const counts = { potholes: found.length, km, greenTrips, labels, bestStreak: streak.best };
+    // Newest by start time: a saved summary's end time is not always the drive's own.
+    const latest = trips.slice().sort((a, b) => b.start - a.start)[0] || null;
+    const recent = latest && latest.a.score != null
+      && now - Math.max(latest.start, latest.end) <= PROGRESS.recentTripHours * 3600 ? latest : null;
+    return Object.freeze({
+      policy_version: PROGRESS.version, points, level, levelFloor: floor, nextLevelAt: next,
+      toNext: next == null ? 0 : next - points,
+      progress: next == null ? 1 : Math.max(0, Math.min(1, (points - floor) / (next - floor))),
+      week: Object.freeze({
+        km: weekTrips.reduce((sum, t) => sum + (t.a.distance_m || 0), 0) / 1000,
+        trips: weekTrips.length,
+        potholes: found.filter((r) => (Number(r.created_at) || 0) >= weekStart).length,
+        calm: weekTrips.filter((t) => t.a.grade === 'green').length,
+      }),
+      streak: streak.current, bestStreak: streak.best,
+      achievements: Object.freeze(ACHIEVEMENTS.map(([id, key, goal]) => Object.freeze({
+        id, goal, value: Math.min(goal, Math.floor(counts[key])), done: counts[key] >= goal }))),
+      lastTrip: recent ? Object.freeze({ id: String(recent.d.id), score: recent.a.score, grade: recent.a.grade,
+        km: (recent.a.distance_m || 0) / 1000, ended_at: recent.end,
+        potholes: found.filter((r) => String(r.drive_id) === String(recent.d.id)).length }) : null,
+    });
+  }
+
+  const api = Object.freeze({ POLICY, DRIVING, PROGRESS, deriveTripStats, summarizeDrives, analyseDrive, shareRoute,
+    progressSummary });
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.TripStats = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
