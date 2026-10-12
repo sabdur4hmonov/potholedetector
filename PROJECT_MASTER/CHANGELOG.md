@@ -1,5 +1,10 @@
 # Recorded work history
 
+## 2026-10-12 — DESIGN-001 friendlier UI, SHARE-002 story card
+
+* **DESIGN-001.** A warmer dark theme: a header glow, a brand dot, rounded cards with depth, tap targets of at least 44 px, focus rings and gradient Drive/Save buttons (the Drive colour is unchanged). Home actions get a one-line explanation via `data-sub`, so the button text stays one word. Settings gains section headings and a sticky Save/Back bar, with ids and order unchanged. My trips shows a large score circle, the grade and a round Share button. Dates are in Uzbek in the Uzbek UI ("15-yanvar, 08:00"). The route note no longer says voice navigation is missing.
+* **SHARE-002.** The 1080×1920 story card now has a grade-coloured glow, a brand pill, a glowing score ring with "out of 100", a grade pill, the trimmed route on a rounded grid panel, six rounded stat tiles, hashtags and the calm-driving rule. Content sits between about 236 and 1830 px, clear of the Instagram/Telegram story overlays. There is still no top speed, no map tiles and no exact places.
+
 ## 2026-10-12 — CAM-001 whole 4:3 sensor image and capture tuning
 
 The Drive analysis stream used the deprecated `setTargetResolution(1280×720)`. On a 4:3 phone sensor, that 16:9 stream drops the top and bottom of the image, a full-frame violation: the preview (4:3, FIT_CENTER) showed more road than the detector received. Analysis, preview and optional video now all request 4:3 through `ResolutionSelector`. Analysis targets 1440×1080, so evidence goes from 720p to about 1440×1080. Video stays SD, at 4:3. Camera2 interop sets an auto-exposure frame-rate floor (the highest range from 20 to 30 fps the phone offers), continuous-video autofocus when available, and electronic stabilisation off, because it crops. Burst sharpness is measured at 320 px instead of 160. Browser Drive requests 4:3 1440×1080 instead of 1920×1080. `full_frame_invariant_test` now fails on any 16:9 or `setTargetResolution` regression. There is deliberately no absolute blur gate until road data exists.

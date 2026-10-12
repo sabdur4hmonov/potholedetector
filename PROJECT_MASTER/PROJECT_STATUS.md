@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-12 Design pass and story card (DESIGN-001, SHARE-002)
+
+The app and the share card were restyled and checked with phone-width screenshots in English and Uzbek; all browser tests pass. Not yet seen on a real phone screen or posted to Instagram.
+
 ## 2026-10-12 Camera field of view fixed (CAM-001)
 
 Drive analysis was receiving a 16:9 crop of the 4:3 sensor. It now gets the whole 4:3 image at about 1440×1080, with a frame-rate floor against motion blur, continuous-video focus and no cropping stabilisation. Verified by JVM tests of the selection rules and by static tests; CI compiles it. **Not verified on a phone:** the actual stream size, exposure behaviour at night and memory use on low-end devices still need the road test.

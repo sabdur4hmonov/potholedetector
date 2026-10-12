@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-yc1Gdst86PaYNS4sSfQkZCKa1PjRZhl5POye6M/w5SA='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-V/ohGcbXlT6OUGN8wNbDa1FJfNvLhPHBC2lgesM4O8g='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-wmbFvhChg++91fwiBVuDOCcaeSg8mmUvXggGyvU7gdo='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-V/ohGcbXlT6OUGN8wNbDa1FJfNvLhPHBC2lgesM4O8g='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -586,7 +586,7 @@ const I18N = {
     route_no_gps: "Your position is unknown. Turn on precise location and try again.",
     route_summary: "{min} min · {km} km · live traffic on {live}% of the way",
     route_alt: "Alternative: {min} min · {km} km",
-    route_note: "The route uses OpenStreetMap and live speeds shared anonymously by other drivers. Follow road signs; there is no turn-by-turn voice yet.",
+    route_note: "The route uses OpenStreetMap and live speeds shared anonymously by other drivers. Tap Start voice navigation for spoken turns. Road signs always come first.",
     rank_title: "Safe-driving ranking (30 days)",
     rank_village: "Village", rank_district: "District", rank_region: "Region", rank_country: "Uzbekistan",
     rank_empty: "Nobody here has driven 20 km with a score yet.",
@@ -908,7 +908,7 @@ const I18N = {
     route_no_gps: "Joylashuvingiz aniqlanmadi. Aniq joylashuvni yoqib, qayta urining.",
     route_summary: "{min} daqiqa · {km} km · yo'lning {live}% qismida jonli tirbandlik hisobga olindi",
     route_alt: "Muqobil yo'l: {min} daqiqa · {km} km",
-    route_note: "Marshrut OpenStreetMap va boshqa haydovchilar anonim ulashgan jonli tezliklarga asoslanadi. Yo'l belgilariga amal qiling; burilishlarni ovozli aytish hali yo'q.",
+    route_note: "Marshrut OpenStreetMap va boshqa haydovchilar anonim ulashgan jonli tezliklarga asoslanadi. Burilishlarni ovozda eshitish uchun Ovozli navigatsiyani boshlash tugmasini bosing. Yo'l belgilari har doim birinchi o'rinda.",
     rank_title: "Xavfsiz haydash reytingi (30 kun)",
     rank_village: "Qishloq", rank_district: "Tuman", rank_region: "Viloyat", rank_country: "O'zbekiston",
     rank_empty: "Bu yerda hali hech kim baholangan 20 km yurmagan.",
