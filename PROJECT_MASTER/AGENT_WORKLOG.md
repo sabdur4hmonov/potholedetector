@@ -678,3 +678,11 @@ finding; none exists after NEW-002.
 * **Decisions:** the name filter matches short words only as whole words, to avoid false hits on ordinary Uzbek names (checked against about 200 common names and places). The operator moderates from the command line only, so no admin endpoint is exposed. The camera model only annotates sensor shocks; camera-only reports wait for ONDEVICE-003 and a real trained model. The SEC-006 test was updated rather than restoring removed India code.
 * **Remaining blockers:** road test; server deployment; official camera list; labelled data for a model; no Gradle verification metadata (NEW-002) now also covers LiteRT.
 * **Exact next task:** owner road test and server deployment. The next coding task after a model is trained is ONDEVICE-003.
+
+## 2026-10-12 — ONDEVICE-002 CI follow-up
+
+* **Agent/tool:** Claude in a cloud sandbox. **Status:** COMPLETE. CI run 29 on `849bddf` is green: web/contract/browser tests, Android debug build with JVM unit tests, and the emulator launch smoke test.
+* **What failed first, and why:** two compile errors of my own in ONDEVICE-002. In run 27, moving the review note left a stray brace in `SensorDriveDetector.kt` (fixed in `a1fbe09`). In run 28, the expression-bodied `OnDevicePotholeModel.close()` had the wrong return type (fixed in `849bddf`). Run 28 already showed that LiteRT 1.4.0 resolves and packages `libtensorflowlite_jni.so`. The second fix was compiled locally first against small Android/LiteRT API stubs in the scratchpad; the stubs reproduce the CI error.
+* **Tests performed:** the full local `tests/run-all.sh` passes (67 tests, `ALL TESTS PASS`), and CI passes as above.
+* **Lesson:** compile new Android Kotlin against stubs before pushing, because the sandbox has no Android SDK.
+* **Exact next task:** unchanged — owner road test and server deployment, then ONDEVICE-003 once a trained model exists.
