@@ -19,12 +19,17 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * accelerometer feels a road shock ([onBump]), the next burst turns the frame captured
  * just before the wheel hit into a report marked as a sensor candidate that needs human
  * review. Repair verification needs a model, so it is never attempted here.
+ *
+ * When the build bundles an on-device camera model ([OnDevicePotholeModel]), every complete
+ * frame of each burst is also scored on the phone, and a shock report says whether the
+ * camera model agreed. The model never creates or suppresses a report on its own.
  */
-class SensorDriveDetector(
+class SensorDriveDetector internal constructor(
     context: Context,
     private val fixAt: (Long) -> GpsFix?,
     private val isCapturing: () -> Boolean,
-    private val debug: Boolean = false
+    private val debug: Boolean = false,
+    private val model: OnDevicePotholeModel? = null
 ) : DriveDetector {
     private val appContext = context.applicationContext
     private val evidenceStore = NativeInferenceEvidenceStore(appContext)
@@ -43,7 +48,8 @@ class SensorDriveDetector(
         val speedMps: Float?,
         val heading: Float?,
         val captureSeq: Int,
-        val sourceOffsetMs: Long
+        val sourceOffsetMs: Long,
+        val modelVerdict: OnDeviceBurstVerdict?
     )
 
     /** Called on the sensor thread; only queues. */
@@ -70,6 +76,8 @@ class SensorDriveDetector(
     ): InferenceOutcome = withContext(Dispatchers.IO) {
         if (closed || burstFrames.isEmpty()) return@withContext noShock()
         val primary = burstFrames.getOrElse(primaryIndex) { burstFrames[0] }
+        // Each burst frame is scored whole; the verdict travels with the remembered frame.
+        val verdict = model?.let { m -> runCatching { m.decide(burstFrames.map { it.bitmap }) }.getOrNull() }
         // The complete frame, downscaled only. No crop, tile or road band.
         FrameQualityEvaluator.bitmapToBoundedJpegBytes(
             primary.bitmap,
@@ -79,7 +87,7 @@ class SensorDriveDetector(
         )?.let { jpeg ->
             remember(RingFrame(
                 primary.capturedAtElapsedMs, primary.capturedAtMs, jpeg, lat, lng,
-                gpsAccuracy, speedMps, heading, captureSeq, sourceOffsetMs
+                gpsAccuracy, speedMps, heading, captureSeq, sourceOffsetMs, verdict
             ))
         }
         val (bump, frame) = nextMatchedBump() ?: return@withContext noShock()
@@ -162,7 +170,7 @@ class SensorDriveDetector(
             "Road shock felt by the phone sensor (%.1f m/s², %d km/h). Not verified: it may be a pothole, a speed bump, a manhole or a rail crossing.",
             bump.peakToPeakMps2,
             kmh
-        )
+        ) + OnDeviceDetectorContract.reviewNote(frame.modelVerdict, model?.spec)
         val report = ReportEntity(
             createdAt = System.currentTimeMillis() / 1000,
             lat = lat,
@@ -250,6 +258,7 @@ class SensorDriveDetector(
 
     override fun close() {
         closed = true
+        model?.close()
         pendingBumps.clear()
         synchronized(ringLock) { ring.clear() }
     }
@@ -267,5 +276,6 @@ class SensorDriveDetector(
         private val UNSAFE_COMPONENT = Regex("[^A-Za-z0-9_-]")
 
         private fun safeComponent(value: String) = value.replace(UNSAFE_COMPONENT, "_").take(128)
+        }
     }
 }

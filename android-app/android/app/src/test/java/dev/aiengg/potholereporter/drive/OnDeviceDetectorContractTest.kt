@@ -64,6 +64,24 @@ class OnDeviceDetectorContractTest {
         }
     }
 
+    @Test fun reviewNoteSaysWhatTheCameraModelThought() {
+        val spec = baseline()
+        val accept = OnDeviceDetectorContract.decideBurst(List(spec.minPositiveFrames) { 0.97 }, spec)
+        val reject = OnDeviceDetectorContract.decideBurst(List(spec.minPositiveFrames) { 0.03 }, spec)
+        val invalid = OnDeviceDetectorContract.decideBurst(listOf(Double.NaN), spec)
+        assertEquals(
+            " The camera model on this phone also sees a pothole (${spec.minPositiveFrames} frame(s), top score 0.97" +
+                (if (spec.fieldValidated) "" else ", not yet validated on real roads") + ").",
+            OnDeviceDetectorContract.reviewNote(accept, spec)
+        )
+        assertEquals(true, OnDeviceDetectorContract.reviewNote(reject, spec).contains("sees no pothole"))
+        assertEquals(" The camera model on this phone could not judge these frames.",
+            OnDeviceDetectorContract.reviewNote(invalid, spec))
+        // Without a bundled model nothing is added to the report.
+        assertEquals("", OnDeviceDetectorContract.reviewNote(null, null))
+        assertEquals("", OnDeviceDetectorContract.reviewNote(accept, null))
+    }
+
     @Test fun tensorKeepsEveryPixelInRgbOrder() {
         val pixels = fixture.getJSONObject("pixels")
         val width = pixels.getInt("width")

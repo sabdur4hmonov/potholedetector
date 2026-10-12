@@ -64,6 +64,8 @@ android {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+            // A bundled on-device model is memory-mapped, which needs it stored uncompressed.
+            noCompress 'tflite'
         }
     }
     signingConfigs {
@@ -124,6 +126,9 @@ dependencies {
     ksp "androidx.room:room-compiler:$roomVersion"
     implementation "androidx.lifecycle:lifecycle-service:$lifecycleVersion"
     implementation "com.squareup.okhttp3:okhttp:$okhttpVersion"
+    // ONDEVICE-002: runs the optional bundled pothole model fully on the phone. Unused,
+    // and nothing is loaded, unless assets/models/pothole_detector.json is present.
+    implementation "com.google.ai.edge.litert:litert:$litertVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     testImplementation "org.json:json:20250517"

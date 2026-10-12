@@ -23,4 +23,6 @@ ext {
     lifecycleVersion = '2.8.7'
     coroutinesVersion = '1.10.2'
     okhttpVersion = '4.12.0'
+    // LiteRT (formerly TensorFlow Lite) on-device runtime, Google Maven.
+    litertVersion = '1.4.0'
 }

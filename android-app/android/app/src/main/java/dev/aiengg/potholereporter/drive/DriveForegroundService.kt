@@ -608,7 +608,9 @@ class DriveForegroundService : LifecycleService() {
             applicationContext,
             fixAt = { elapsed -> locationProvider?.fixNearestToElapsed(elapsed) },
             isCapturing = { sessionRunning && !isPaused && !isStopping },
-            debug = debug
+            debug = debug,
+            // Null unless this build bundles a runnable on-device model card and file.
+            model = OnDevicePotholeModel.load(applicationContext)
         ) else null
         inferenceEngine = sensorDetector
             ?: NativeInferenceEngine(applicationContext, apiKey, model, detail, language, debug)

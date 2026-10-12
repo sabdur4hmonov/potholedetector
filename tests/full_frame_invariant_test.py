@@ -145,6 +145,14 @@ require("on-device training and its app contract use only whole-frame inputs",
             "crop_to_bounding_box", "random_crop", ".crop(", "region_of_interest",
         )))
 
+ondevice_runtime = (NATIVE / "OnDevicePotholeModel.kt").read_text()
+require("the on-device model runtime stretches the complete frame and never takes a subset",
+        "Bitmap.createScaledBitmap(frame, spec.inputWidth, spec.inputHeight, true)" in ondevice_runtime
+        and "getPixels(pixels, 0, spec.inputWidth, 0, 0, spec.inputWidth, spec.inputHeight)" in ondevice_runtime
+        and "createBitmap(" not in ondevice_runtime
+        and all(term not in ondevice_runtime for term in (
+            *forbidden_identifiers, "cropRect", ".crop(", "region_of_interest", "ViewPort")))
+
 require("Android and documentation Web bundles exactly mirror the production sources",
         read("android-app/www/standalone.js") == client
         and read("docs/standalone.js") == client

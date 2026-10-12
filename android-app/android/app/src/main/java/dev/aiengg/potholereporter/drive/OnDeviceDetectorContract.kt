@@ -1,6 +1,7 @@
 package dev.aiengg.potholereporter.drive
 
 import org.json.JSONObject
+import java.util.Locale
 
 /**
  * Pure contract for a future on-device pothole classifier. It contains no ML runtime: it
@@ -134,5 +135,20 @@ internal object OnDeviceDetectorContract {
             else -> OnDeviceBurstDecision.REJECT
         }
         return OnDeviceBurstVerdict(decision, positives, maxScore)
+    }
+
+    /** What the camera model said about a shock's burst, appended for the person reviewing. */
+    fun reviewNote(verdict: OnDeviceBurstVerdict?, spec: OnDeviceModelSpec?): String {
+        if (verdict == null || spec == null) return ""
+        val score = verdict.maxScore?.let { String.format(Locale.US, "%.2f", it) } ?: "n/a"
+        val caveat = if (spec.fieldValidated) "" else ", not yet validated on real roads"
+        return when (verdict.decision) {
+            OnDeviceBurstDecision.ACCEPT ->
+                " The camera model on this phone also sees a pothole (${verdict.positiveFrames} frame(s), top score $score$caveat)."
+            OnDeviceBurstDecision.REJECT ->
+                " The camera model on this phone sees no pothole in these frames (top score $score$caveat)."
+            OnDeviceBurstDecision.INSUFFICIENT_FRAMES, OnDeviceBurstDecision.INVALID_SCORE ->
+                " The camera model on this phone could not judge these frames."
+        }
     }
 }
