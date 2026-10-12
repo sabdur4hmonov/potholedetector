@@ -82,6 +82,15 @@ class OnDeviceDetectorContractTest {
         assertEquals("", OnDeviceDetectorContract.reviewNote(accept, null))
     }
 
+    @Test fun cameraOnlyNoteIsMarkedUnverified() {
+        val spec = baseline()
+        val accept = OnDeviceDetectorContract.decideBurst(List(spec.minPositiveFrames) { 0.91 }, spec)
+        val note = OnDeviceDetectorContract.cameraOnlyNote(accept, spec)
+        assertEquals(true, note.startsWith("Pothole seen by the camera model on this phone (${spec.minPositiveFrames} frame(s), top score 0.91"))
+        assertEquals(true, note.endsWith("No shock was felt. Not verified: check the photo and label it."))
+        assertEquals(!spec.fieldValidated, note.contains("not yet validated on real roads"))
+    }
+
     @Test fun tensorKeepsEveryPixelInRgbOrder() {
         val pixels = fixture.getJSONObject("pixels")
         val width = pixels.getInt("width")

@@ -162,6 +162,27 @@ with sync_playwright() as p:
                     sensor_payload(5, "drive-c", 41.34, 69.31, photo_data_url=None))
     require("a sensor row without its frame is refused", no_photo.get("ignored") is True)
 
+    ondevice = dict(capture_source="drive_ondevice", decision="ondevice_candidate",
+                    damage_type="pothole_candidate", assessment="ondevice", prompt_version="ondevice-pothole-v1",
+                    description="Pothole seen by the camera model on this phone (2 frame(s), top score 0.93).")
+    seen = call("/api/native-report", "POST", sensor_payload(6, "drive-d", 41.350000, 69.320000, **ondevice))
+    rows = call("/api/reports")
+    rows = rows if isinstance(rows, list) else rows.get("reports", [])
+    model_rec = next(r for r in rows if r["id"] == seen.get("id"))
+    require("ONDEVICE-003: a camera-model candidate is imported as unverified, not a pothole",
+            model_rec["report_origin"] == "model_detected" and model_rec["is_pothole"] is None
+            and model_rec["damage_type"] == "pothole_candidate" and model_rec["status"] == "draft"
+            and model_rec["capture_source"] == "drive_ondevice"
+            and model_rec["detection_model"] == "ondevice_pothole_v1")
+    require("the UI says the camera model saw it, in both languages",
+            page.evaluate("(r) => detectionVerdict(r)", model_rec) == page.evaluate("() => t('model_verdict')")
+            and page.evaluate("() => !!I18N.uz.model_verdict && !!I18N.uz.model_help && !!I18N.uz.evidence_model"))
+    hazard = next(h for h in call("/api/road-hazards")["hazards"] if h["id"] == f"r{model_rec['id']}")
+    require("until labelled it is warned like a road shock, not a confirmed pothole", hazard["kind"] == "road_shock")
+    mixed = call("/api/native-report", "POST", sensor_payload(7, "drive-d", 41.36, 69.33,
+                                                             capture_source="drive_ondevice"))
+    require("a camera-model row with sensor fields is refused", mixed.get("ignored") is True)
+
     call(f"/api/reports/{first['id']}/label", "POST", {"label": "pothole_cavity"})
     exported = call("/api/export", "POST")
     require("once labelled, the shock frame becomes exportable training data",

@@ -43,10 +43,20 @@ require("every burst frame is scored and the shared burst rule decides",
         "m.decide(burstFrames.map { it.bitmap })" in sensor
         and "OnDeviceDetectorContract.decideBurst(scores, spec)" in runtime
         and "score(it) ?: Double.NaN" in runtime)
-require("the camera model only annotates a shock report; it never creates or suppresses one",
+require("a felt shock is always reported first; the camera model only annotates it",
         "OnDeviceDetectorContract.reviewNote(frame.modelVerdict, model?.spec)" in sensor
-        and sensor.count("createReport(") == 2
-        and "nextMatchedBump() ?: return@withContext noShock()" in sensor)
+        and sensor.index("val matched = nextMatchedBump()") < sensor.index("ONDEVICE-003")
+        and "createReport(matched.first, matched.second, driveId, onEvidenceSaved)" in sensor)
+require("ONDEVICE-003: a camera-only report needs an ACCEPT verdict, movement and spacing",
+        "verdict?.decision == OnDeviceBurstDecision.ACCEPT" in sensor
+        and "modelReportAllowed(current)" in sensor
+        and "MODEL_MIN_SPEED_MPS = 4f" in sensor and "MODEL_REPORT_MIN_GAP_MS = 3_000L" in sensor
+        and "MODEL_REPORT_MIN_SPACING_M = 25.0" in sensor
+        and "createReport(null, current, driveId, onEvidenceSaved)" in sensor)
+require("camera-only reports are marked as unverified on-device candidates",
+        'ONDEVICE_CAPTURE_SOURCE = "drive_ondevice"' in sensor and 'ONDEVICE_DECISION = "ondevice_candidate"' in sensor
+        and 'ONDEVICE_DAMAGE_TYPE = "pothole_candidate"' in sensor
+        and "isReportable = 0" in sensor and "isPothole = 0" in sensor)
 require("the service loads the model only for the AI-free sensor mode, and the detector closes it",
         "model = OnDevicePotholeModel.load(applicationContext)" in service
         and "model?.close()" in sensor)

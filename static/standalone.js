@@ -3164,7 +3164,8 @@ This is a strict before/after verification, not ordinary pothole detection:
       .slice(0, MAX_ROAD_HAZARDS)
       .map((r) => ({
         id: `r${r.id}`,
-        kind: r.report_origin === "sensor_detected" && !POTHOLE_LABELS.has(r.human_label)
+        // Unlabelled phone candidates (shock or camera model) are warned as road shocks.
+        kind: PHONE_CANDIDATE_ORIGINS.has(r.report_origin) && !POTHOLE_LABELS.has(r.human_label)
           ? "road_shock" : "pothole",
         lat: Number(r.lat), lng: Number(r.lng),
       }));
@@ -3174,9 +3175,26 @@ This is a strict before/after verification, not ordinary pothole detection:
   // complete camera frame from just before the hit is the evidence. It is never shown as
   // a confirmed pothole; the owner's label decides what it was.
   const NATIVE_SENSOR_CAPTURE_SOURCE = "drive_sensor";
+  // ONDEVICE-003: the bundled camera model saw a pothole and no shock was felt. Same rules:
+  // unverified, never a confirmed pothole until the owner labels it.
+  const NATIVE_ONDEVICE_CAPTURE_SOURCE = "drive_ondevice";
+  const PHONE_CANDIDATES = {
+    [NATIVE_SENSOR_CAPTURE_SOURCE]: {
+      decision: "sensor_candidate", damage: "road_shock", origin: "sensor_detected", assessment: "sensor",
+      defect: "unverified_road_shock", provenance: "accelerometer_peak_to_peak", model: "phone_accelerometer",
+      contract: "sensor-shock-v1", fallback: "Road shock felt by the phone sensor; not verified.",
+    },
+    [NATIVE_ONDEVICE_CAPTURE_SOURCE]: {
+      decision: "ondevice_candidate", damage: "pothole_candidate", origin: "model_detected", assessment: "ondevice",
+      defect: "unverified_camera_model", provenance: "ondevice_model_score", model: "ondevice_pothole_v1",
+      contract: "ondevice-pothole-v1", fallback: "Pothole seen by the camera model on this phone; not verified.",
+    },
+  };
+  const PHONE_CANDIDATE_ORIGINS = new Set(["sensor_detected", "model_detected"]);
   async function importNativeSensorReport(native, nativeId) {
     const lat = Number(native.lat), lng = Number(native.lng);
-    if (native.decision !== "sensor_candidate" || native.damage_type !== "road_shock"
+    const kind = PHONE_CANDIDATES[native.capture_source];
+    if (!kind || native.decision !== kind.decision || native.damage_type !== kind.damage
       || !native.photo_data_url) {
       return { native_id: nativeId, ignored: true, reason: "invalid_sensor_candidate" };
     }
@@ -3199,16 +3217,16 @@ This is a strict before/after verification, not ordinary pothole detection:
       photo: await dataUrlToBlob(native.photo_data_url),
       photo_full: await dataUrlToBlob(native.photo_full_data_url || native.photo_data_url),
       issue_type: "road_damage",
-      report_origin: "sensor_detected",
+      report_origin: kind.origin,
       is_reportable: 0,
       is_pothole: null,
       looks_like_speed_breaker: null,
-      damage_type: "road_shock",
-      assessment: "sensor",
+      damage_type: kind.damage,
+      assessment: kind.assessment,
       image_quality: null,
-      defect_type: "unverified_road_shock",
+      defect_type: kind.defect,
       surface_type: "unknown",
-      measurement_provenance: "accelerometer_peak_to_peak",
+      measurement_provenance: kind.provenance,
       measurement_confidence: "low",
       on_drivable_surface: null,
       has_localized_cavity: null,
@@ -3217,16 +3235,16 @@ This is a strict before/after verification, not ordinary pothole detection:
       has_depth_or_surface_loss: null,
       temporal_consistency: null,
       size: null,
-      decision: "sensor_candidate",
-      description: String(native.description || "Road shock felt by the phone sensor; not verified.").slice(0, 400),
+      decision: kind.decision,
+      description: String(native.description || kind.fallback).slice(0, 400),
       status: "draft",
       condition_status: "open", condition_updated_at: null, condition_source: null,
-      detection_model: "phone_accelerometer",
+      detection_model: kind.model,
       image_detail: null,
-      prompt_version: String(native.prompt_version || "sensor-shock-v1").slice(0, 40),
+      prompt_version: String(native.prompt_version || kind.contract).slice(0, 40),
       schema_version: Number(native.schema_version) || 1,
       evidence_count: 1,
-      drive_id: driveId, capture_source: NATIVE_SENSOR_CAPTURE_SOURCE,
+      drive_id: driveId, capture_source: native.capture_source,
       source_event_key: sourceEventKey, source_event_keys: [sourceEventKey],
       captured_at: Number.isFinite(capturedAt) ? capturedAt : null,
       source_offset_s: Number.isFinite(offset) ? offset : null,
@@ -3258,7 +3276,7 @@ This is a strict before/after verification, not ordinary pothole detection:
     const nativeId = Number(native.id);
     const lat = Number(native.lat), lng = Number(native.lng);
     if (!Number.isFinite(nativeId) || nativeId <= 0) throw new Error("Native report id missing.");
-    if (native.capture_source === NATIVE_SENSOR_CAPTURE_SOURCE) return importNativeSensorReport(native, nativeId);
+    if (PHONE_CANDIDATES[native.capture_source]) return importNativeSensorReport(native, nativeId);
     const nativeIsPothole = native.is_pothole === true || Number(native.is_pothole) === 1;
     const nativeIsReportable = native.is_reportable === true || Number(native.is_reportable) === 1;
     const nativeContract = nativeDetectorContract(native);

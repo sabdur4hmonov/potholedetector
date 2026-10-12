@@ -21,8 +21,10 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * review. Repair verification needs a model, so it is never attempted here.
  *
  * When the build bundles an on-device camera model ([OnDevicePotholeModel]), every complete
- * frame of each burst is also scored on the phone, and a shock report says whether the
- * camera model agreed. The model never creates or suppresses a report on its own.
+ * frame of each burst is also scored on the phone. A shock report says whether the camera
+ * model agreed; when the model accepts a burst and no shock was felt, the complete primary
+ * frame becomes a separate "seen by the camera model" candidate, also unverified and left
+ * for the owner to label. The model never suppresses a shock report.
  */
 class SensorDriveDetector internal constructor(
     context: Context,
@@ -37,6 +39,9 @@ class SensorDriveDetector internal constructor(
     private val ringLock = Any()
     private val ring = ArrayDeque<RingFrame>()
     @Volatile private var closed = false
+    private var lastModelReportElapsedMs = Long.MIN_VALUE
+    private var lastModelReportLat: Double? = null
+    private var lastModelReportLng: Double? = null
 
     private class RingFrame(
         val elapsedMs: Long,
@@ -79,28 +84,68 @@ class SensorDriveDetector internal constructor(
         // Each burst frame is scored whole; the verdict travels with the remembered frame.
         val verdict = model?.let { m -> runCatching { m.decide(burstFrames.map { it.bitmap }) }.getOrNull() }
         // The complete frame, downscaled only. No crop, tile or road band.
-        FrameQualityEvaluator.bitmapToBoundedJpegBytes(
+        val current = FrameQualityEvaluator.bitmapToBoundedJpegBytes(
             primary.bitmap,
             NativeStoredImagePolicy.MAX_BRIDGE_IMAGE_BYTES,
             NativeStoredImagePolicy.EVIDENCE_MAX_DIMENSION,
             88
         )?.let { jpeg ->
-            remember(RingFrame(
+            RingFrame(
                 primary.capturedAtElapsedMs, primary.capturedAtMs, jpeg, lat, lng,
                 gpsAccuracy, speedMps, heading, captureSeq, sourceOffsetMs, verdict
-            ))
+            ).also(::remember)
         }
-        val (bump, frame) = nextMatchedBump() ?: return@withContext noShock()
-        val report = createReport(bump, frame, driveId, onEvidenceSaved)
-            ?: return@withContext noShock()
-        InferenceOutcome(
-            analyzed = true,
-            accepted = true,
-            decision = SENSOR_DECISION,
-            assessment = null,
-            reportEntity = report.first,
-            sightings = listOf(report.second)
-        )
+        val matched = nextMatchedBump()
+        if (matched != null) {
+            val report = createReport(matched.first, matched.second, driveId, onEvidenceSaved)
+                ?: return@withContext noShock()
+            return@withContext InferenceOutcome(
+                analyzed = true,
+                accepted = true,
+                decision = SENSOR_DECISION,
+                assessment = null,
+                reportEntity = report.first,
+                sightings = listOf(report.second)
+            )
+        }
+        // ONDEVICE-003: nothing was felt, but the camera model sees a pothole in this burst.
+        if (current != null && verdict?.decision == OnDeviceBurstDecision.ACCEPT &&
+            modelReportAllowed(current)
+        ) {
+            val report = createReport(null, current, driveId, onEvidenceSaved)
+            if (report != null) {
+                lastModelReportElapsedMs = current.elapsedMs
+                lastModelReportLat = current.lat
+                lastModelReportLng = current.lng
+                return@withContext InferenceOutcome(
+                    analyzed = true,
+                    accepted = true,
+                    decision = ONDEVICE_DECISION,
+                    assessment = null,
+                    reportEntity = report.first,
+                    sightings = listOf(report.second)
+                )
+            }
+        }
+        noShock()
+    }
+
+    /** Moving, located, and far enough in time and space from the last camera-model report. */
+    private fun modelReportAllowed(frame: RingFrame): Boolean {
+        val lat = frame.lat ?: return false
+        val lng = frame.lng ?: return false
+        if ((frame.speedMps ?: 0f) < MODEL_MIN_SPEED_MPS) return false
+        if (lastModelReportElapsedMs != Long.MIN_VALUE &&
+            frame.elapsedMs - lastModelReportElapsedMs < MODEL_REPORT_MIN_GAP_MS
+        ) return false
+        val lastLat = lastModelReportLat
+        val lastLng = lastModelReportLng
+        if (lastLat != null && lastLng != null) {
+            val dLat = (lat - lastLat) * 111_320.0
+            val dLng = (lng - lastLng) * 111_320.0 * Math.cos(Math.toRadians(lat))
+            if (Math.hypot(dLat, dLng) < MODEL_REPORT_MIN_SPACING_M) return false
+        }
+        return true
     }
 
     private fun remember(frame: RingFrame) = synchronized(ringLock) {
@@ -127,8 +172,9 @@ class SensorDriveDetector internal constructor(
         }
     }
 
+    /** A shock report when [bump] is set, otherwise a camera-model report for [frame]. */
     private suspend fun createReport(
-        bump: RoadBumpEvent,
+        bump: RoadBumpEvent?,
         frame: RingFrame,
         driveId: String,
         onEvidenceSaved: (String) -> Unit
@@ -138,7 +184,7 @@ class SensorDriveDetector internal constructor(
             NativeReportEvidenceStorage.saveJpegAtomically(
                 appContext,
                 File(appContext.filesDir, "reports/" + safeComponent(driveId)),
-                "sensor_${frame.captureSeq}_${System.currentTimeMillis()}.jpg",
+                (if (bump != null) "sensor_" else "ondevice_") + "${frame.captureSeq}_${System.currentTimeMillis()}.jpg",
                 frame.jpeg,
                 lease
             )
@@ -155,22 +201,25 @@ class SensorDriveDetector internal constructor(
         }?.takeIf(String::isNotBlank) ?: return null
 
         // The wheel hit the shock where the car was at the bump, not where the frame was taken.
-        val hit = fixAt(bump.elapsedRealtimeMs)
+        // A camera-model report is placed where the frame was taken.
+        val hit = bump?.let { fixAt(it.elapsedRealtimeMs) }
         val lat = hit?.lat ?: frame.lat
         val lng = hit?.lng ?: frame.lng
         val accuracy = if (hit != null) hit.accuracy else frame.gpsAccuracy
         val heading = hit?.heading ?: frame.heading
+        val eventElapsedMs = bump?.elapsedRealtimeMs ?: frame.elapsedMs
         val hitWallMs = System.currentTimeMillis() -
-            (SystemClock.elapsedRealtime() - bump.elapsedRealtimeMs).coerceAtLeast(0L)
-        val sourceOffsetMs = frame.sourceOffsetMs + (bump.elapsedRealtimeMs - frame.elapsedMs)
-        val sourceEventKey = "sensor:$driveId:${bump.elapsedRealtimeMs}"
-        val kmh = (bump.speedMps * 3.6f).toInt()
-        val description = String.format(
+            (SystemClock.elapsedRealtime() - eventElapsedMs).coerceAtLeast(0L)
+        val sourceOffsetMs = frame.sourceOffsetMs + (eventElapsedMs - frame.elapsedMs)
+        val sourceEventKey = (if (bump != null) "sensor" else "ondevice") + ":$driveId:$eventElapsedMs"
+        val speedMps = bump?.speedMps ?: frame.speedMps
+        val description = if (bump != null) String.format(
             Locale.US,
             "Road shock felt by the phone sensor (%.1f m/s², %d km/h). Not verified: it may be a pothole, a speed bump, a manhole or a rail crossing.",
             bump.peakToPeakMps2,
-            kmh
+            (bump.speedMps * 3.6f).toInt()
         ) + OnDeviceDetectorContract.reviewNote(frame.modelVerdict, model?.spec)
+        else OnDeviceDetectorContract.cameraOnlyNote(frame.modelVerdict, model?.spec)
         val report = ReportEntity(
             createdAt = System.currentTimeMillis() / 1000,
             lat = lat,
@@ -184,12 +233,12 @@ class SensorDriveDetector internal constructor(
             isReportable = 0,
             isPothole = 0,
             looksLikeSpeedBreaker = false,
-            damageType = SENSOR_DAMAGE_TYPE,
+            damageType = if (bump != null) SENSOR_DAMAGE_TYPE else ONDEVICE_DAMAGE_TYPE,
             surfaceType = "unknown",
-            defectType = "unverified_road_shock",
-            measurementProvenance = "accelerometer_peak_to_peak",
+            defectType = if (bump != null) "unverified_road_shock" else "unverified_camera_model",
+            measurementProvenance = if (bump != null) "accelerometer_peak_to_peak" else "ondevice_model_score",
             measurementConfidence = "low",
-            assessment = "sensor",
+            assessment = if (bump != null) "sensor" else "ondevice",
             imageQuality = "unknown",
             onDrivableSurface = true,
             hasLocalizedCavity = false,
@@ -198,24 +247,24 @@ class SensorDriveDetector internal constructor(
             hasDepthOrSurfaceLoss = false,
             temporalConsistency = "not_applicable",
             size = null,
-            decision = SENSOR_DECISION,
+            decision = if (bump != null) SENSOR_DECISION else ONDEVICE_DECISION,
             description = description,
             emailSubject = null,
             emailBody = null,
             status = "draft",
-            detectionModel = SENSOR_MODEL,
+            detectionModel = if (bump != null) SENSOR_MODEL else ONDEVICE_MODEL,
             imageDetail = null,
-            promptVersion = SENSOR_CONTRACT_VERSION,
+            promptVersion = if (bump != null) SENSOR_CONTRACT_VERSION else ONDEVICE_CONTRACT_VERSION,
             schemaVersion = SENSOR_SCHEMA_VERSION,
             evidenceCount = 1,
             driveId = driveId,
-            captureSource = SENSOR_CAPTURE_SOURCE,
+            captureSource = if (bump != null) SENSOR_CAPTURE_SOURCE else ONDEVICE_CAPTURE_SOURCE,
             sourceEventKey = sourceEventKey,
             sourceEventKeysJson = JSONArray(listOf(sourceEventKey)).toString(),
             capturedAt = hitWallMs / 1000,
             sourceOffsetS = sourceOffsetMs.coerceAtLeast(0L) / 1000.0,
             gpsAccuracy = accuracy,
-            speedMps = bump.speedMps,
+            speedMps = speedMps,
             heading = heading,
             primaryFrameIndex = 0,
             debugCapture = debug,
@@ -233,7 +282,7 @@ class SensorDriveDetector internal constructor(
             sourceOffsetS = sourceOffsetMs.coerceAtLeast(0L) / 1000.0,
             capturedAt = hitWallMs / 1000,
             gpsAccuracy = accuracy,
-            speedMps = bump.speedMps,
+            speedMps = speedMps,
             heading = heading,
             sourceEventKey = sourceEventKey
         )
@@ -270,6 +319,15 @@ class SensorDriveDetector internal constructor(
         const val SENSOR_MODEL = "phone_accelerometer"
         const val SENSOR_CONTRACT_VERSION = "sensor-shock-v1"
         const val SENSOR_SCHEMA_VERSION = 1
+        const val ONDEVICE_CAPTURE_SOURCE = "drive_ondevice"
+        const val ONDEVICE_DAMAGE_TYPE = "pothole_candidate"
+        const val ONDEVICE_DECISION = "ondevice_candidate"
+        const val ONDEVICE_MODEL = "ondevice_pothole_v1"
+        const val ONDEVICE_CONTRACT_VERSION = "ondevice-pothole-v1"
+        /** About 14 km/h, like the shock detector: a parked car never reports. */
+        const val MODEL_MIN_SPEED_MPS = 4f
+        const val MODEL_REPORT_MIN_GAP_MS = 3_000L
+        const val MODEL_REPORT_MIN_SPACING_M = 25.0
         const val MAX_PENDING_BUMPS = 8
         const val MAX_RING_FRAMES = 12
         const val RING_SPAN_MS = SensorEvidencePolicy.MAX_FRAME_AGE_MS + 1_000L

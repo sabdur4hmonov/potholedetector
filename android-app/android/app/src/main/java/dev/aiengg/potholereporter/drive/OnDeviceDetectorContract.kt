@@ -137,6 +137,15 @@ internal object OnDeviceDetectorContract {
         return OnDeviceBurstVerdict(decision, positives, maxScore)
     }
 
+    /** Description of a report made by the camera model alone, for the person reviewing. */
+    fun cameraOnlyNote(verdict: OnDeviceBurstVerdict?, spec: OnDeviceModelSpec?): String {
+        val score = verdict?.maxScore?.let { String.format(Locale.US, "%.2f", it) } ?: "n/a"
+        val frames = verdict?.positiveFrames ?: 0
+        val caveat = if (spec?.fieldValidated == true) "" else ", not yet validated on real roads"
+        return "Pothole seen by the camera model on this phone ($frames frame(s), top score $score$caveat). " +
+            "No shock was felt. Not verified: check the photo and label it."
+    }
+
     /** What the camera model said about a shock's burst, appended for the person reviewing. */
     fun reviewNote(verdict: OnDeviceBurstVerdict?, spec: OnDeviceModelSpec?): String {
         if (verdict == null || spec == null) return ""

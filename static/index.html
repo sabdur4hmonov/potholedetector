@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-gqzHZh0d6Pp3qX0e67xKAEomoypU69FpC5Arnm2b9PE='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-qhnKQFQBKksJfPQlsRLJW2MM2uCzWmhiRDWefVspOSM='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -660,6 +660,10 @@ const I18N = {
     sensor_help: "Felt by the phone's accelerometer, not checked by AI. It may be a pothole, a speed bump, a manhole or a rail crossing. Label it in Review so it can train the on-device model.",
     evidence_sensor: "Phone sensor shock; what caused it is unknown until you label it.",
     damage_road_shock: "road shock (unverified)",
+    damage_pothole_candidate: "possible pothole (unverified)",
+    model_verdict: "Seen by the camera model on this phone · not verified",
+    model_help: "The on-device camera model saw a pothole in this complete frame; no shock was felt. The model can be wrong. Label it in Review: Pothole or Not pothole.",
+    evidence_model: "On-device camera model; not verified until you label it.",
     shocks_one: "{n} road shock",
     shocks_many: "{n} road shocks",
     sensor_mode_hud: "Sensor mode, no AI",
@@ -966,6 +970,10 @@ const I18N = {
     sensor_help: "Telefon akselerometri sezgan, AI tekshirmagan. Bu chuqur, sun'iy notekislik, lyuk yoki temir yo'l kesishmasi bo'lishi mumkin. Telefon ichidagi modelni o'qitish uchun uni Ko'rib chiqish bo'limida belgilang.",
     evidence_sensor: "Telefon sensori sezgan zarba; sababi siz belgilamaguningizcha noma'lum.",
     damage_road_shock: "yo'l zarbasi (tasdiqlanmagan)",
+    damage_pothole_candidate: "ehtimoliy chuqur (tasdiqlanmagan)",
+    model_verdict: "Telefondagi kamera modeli ko'rgan · tasdiqlanmagan",
+    model_help: "Telefondagi kamera modeli shu to'liq kadrda chuqur ko'rdi, zarba sezilmadi. Model adashishi mumkin. Uni Ko'rib chiqish bo'limida Chuqur yoki Chuqur emas deb belgilang.",
+    evidence_model: "Telefondagi kamera modeli; siz belgilamaguningizcha tasdiqlanmagan.",
     shocks_one: "{n} ta zarba",
     shocks_many: "{n} ta zarba",
     sensor_mode_hud: "Sensor rejimi, AI'siz",
@@ -1062,7 +1070,8 @@ const damageType = (r) => (r && r.damage_type) || (r && r.is_pothole ? "pothole_
 const assessment = (r) => (r && r.assessment) || (r && r.is_pothole ? "clear" : "absent");
 const tDamage = (value) => value && value.report_origin === "user_reported"
   ? t("manual_verdict") : value && value.report_origin === "sensor_detected"
-  ? t("sensor_verdict") : t("damage_" + (typeof value === "string" ? value : damageType(value)));
+  ? t("sensor_verdict") : value && value.report_origin === "model_detected"
+  ? t("model_verdict") : t("damage_" + (typeof value === "string" ? value : damageType(value)));
 const tAssessment = (value) => t("assessment_" + (typeof value === "string" ? value : assessment(value)));
 const eventCountText = (n) => n === 1 ? t("potholes_one", { n }) : t("potholes_many", { n });
 const shockCountText = (n) => n === 1 ? t("shocks_one", { n }) : t("shocks_many", { n });
@@ -1830,6 +1839,7 @@ function step(delta) {
 function detectionVerdict(r) {
   if (r.report_origin === "user_reported") return t("manual_verdict");
   if (r.report_origin === "sensor_detected") return t("sensor_verdict");
+  if (r.report_origin === "model_detected") return t("model_verdict");
   if (physicalCondition(r) === "fixed") return t("verdict_fixed");
   if (physicalCondition(r) === "repair_review") return t("verdict_repair_review");
   if (r.status === "review") return t("verdict_review", { type: tDamage(r) });
@@ -1884,6 +1894,7 @@ function hazardEvidenceHtml(r) {
     <div>${escapeHtml(t("evidence_severity"))}: ${escapeHtml(evidence.severity === "unknown"
       ? t("evidence_unknown") : tSize(evidence.severity))}</div>
     <div>${escapeHtml(t(r.report_origin === "sensor_detected" ? "evidence_sensor"
+      : r.report_origin === "model_detected" ? "evidence_model"
       : manual ? "evidence_manual" : "evidence_limits"))}</div>
     <div>${escapeHtml(t("evidence_size_limits"))}</div>
     ${evidence.is_fixed === true ? `<div>${escapeHtml(t("evidence_fixed"))}</div>` : ""}
@@ -1930,6 +1941,7 @@ function openDetail(r, list) {
         ${place ? `<div class="meta">&#128205; ${escapeHtml(place)}${Number.isFinite(r.gps_accuracy) ? ` (±${Math.round(r.gps_accuracy)} m)` : ""}</div>` : `<div class="meta" style="color:var(--bad)">&#9888; ${escapeHtml(t("no_location"))}</div>`}
         ${manual ? `<div class="meta">${escapeHtml(t("manual_help"))}</div>`
           : r.report_origin === "sensor_detected" ? `<div class="meta">${escapeHtml(t("sensor_help"))}</div>`
+          : r.report_origin === "model_detected" ? `<div class="meta">${escapeHtml(t("model_help"))}</div>`
           : `<div class="meta">${escapeHtml(r.description || "")}</div>`}
         ${repairEvidenceHtml(r)}
         ${fixed ? "" : `<div class="btn-row">
