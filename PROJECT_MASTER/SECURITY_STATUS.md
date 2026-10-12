@@ -4,6 +4,8 @@ This is a transcription/summary of existing remediation reports, prior verificat
 
 Scoped SEC-008 update on 2026-09-14: live npm dependency/audit checks and an actual plist round trip verified the compatible xmldom patch. Only SEC-008 was remediated; this was not a broad re-audit. See [SEC-008's report](../SECURITY_REMEDIATION_SEC008.md) for the hidden-lock mismatch recovery and verification limits.
 
+2026-10-12 scoped note (no status change): ONDEVICE-002 adds one Android dependency, `com.google.ai.edge.litert:litert:1.4.0` from Google Maven, resolved and compiled on GitHub Actions only. It joins the existing NEW-002 provenance gap: there is still no Gradle verification metadata, and its checksum was not independently reviewed. The runtime makes no network calls and loads only a bundled, card-validated model. None is bundled. The SEC-006 budget contract test was brought up to date after the India removal and now runs in CI. SEC-006 production code is unchanged. The community server's new name filter is input validation only; it adds no new data.
+
 | ID | Recorded status | Meaning / remaining limitation |
 | --- | --- | --- |
 | SEC-001 | PARTIALLY RESOLVED | Keystore-backed authenticated encryption, no plaintext bridge return, browser session-only credentials; Android runtime/build still blocked. |

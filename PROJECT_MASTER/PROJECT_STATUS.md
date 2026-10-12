@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-12 Name moderation, guide, on-device runtime (MOD-001, HELP-001, ONDEVICE-002)
+
+Ranking names are filtered on the server, with an operator hide command. The app has a "How to use" guide. The LiteRT runtime for a future on-device camera model is wired in but dormant: no trained model exists, so nothing runs it yet and Drive behaves as before. Covered by `community_server_test` (16 abusive and 20 ordinary names, renames, hiding), `community_client_test` (in-app refusal message), `guide_test`, `ondevice_runtime_test`, the full-frame invariant test and a JVM `reviewNote` test. CI compiles the LiteRT dependency; it has not run on a phone. The bundled-model load path is untested because no model exists.
+
 ## 2026-10-08 Voice navigation (NAV-001)
 
 Turn-by-turn voice guidance exists in code (`NavigationGuideTest` 7 JVM tests on simulated drives, `tests/navigation_test.py`, server step test). It depends on the community server and OSRM being deployed, so it is hidden in current builds exactly like Route. Not road-tested.

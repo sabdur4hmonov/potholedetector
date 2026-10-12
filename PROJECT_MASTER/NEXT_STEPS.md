@@ -1,5 +1,15 @@
 # Next steps from the preserved tree
 
+## 2026-10-12 after MOD-001 / HELP-001 / ONDEVICE-002
+
+Code work that can be done without a car, a server or data is finished. What is left needs the owner:
+
+1. Road test of the CI debug APK (sensor Drive, warnings, Antiradar with a home-made CSV, trips, guide).
+2. VPS + domain → deploy `server/` → `python3 tools/set-community-server.py https://<domain>` → rebuild. Then test rankings, name refusal, routing and voice navigation.
+3. Official camera list (`CAMERA_DATA_FORMAT.md`).
+4. Labelled frames → train with `ml/train_on_device_detector.py` → put `pothole_detector.{tflite,json}` in `app/src/main/assets/models/`. The runtime then annotates shocks. **ONDEVICE-003** (camera-only reports) is the next coding task once such a model exists and has been checked.
+5. Later: in-app "report this name" and pothole dispute flow, PostgreSQL when users grow, Play Store listing.
+
 ## 2026-10-08 after NAV-001
 
 Voice navigation is ready for testing as soon as the server is deployed (`server/README.md`) and the APK is rebuilt with `tools/set-community-server.py`. Road-test turn timing, roundabouts and rerouting.
