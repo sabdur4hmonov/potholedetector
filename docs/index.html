@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-sQfhdHEAte6dbTJUWpZmBn3lyLVlDqIeBjXvbXKrGMU='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-V/ohGcbXlT6OUGN8wNbDa1FJfNvLhPHBC2lgesM4O8g='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-yc1Gdst86PaYNS4sSfQkZCKa1PjRZhl5POye6M/w5SA='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-V/ohGcbXlT6OUGN8wNbDa1FJfNvLhPHBC2lgesM4O8g='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -661,6 +661,8 @@ const I18N = {
     card_potholes: "potholes found",
     card_privacy: "Start and end of the route are hidden",
     card_rule: "The score rewards smooth, calm driving, never speed.",
+    card_hashtag: "#SafeDriving #Uzbekistan",
+    card_out_of: "out of 100",
     stat_footage: "MB of footage",
     by_type: "By report type",
     by_size: "By pothole size",
@@ -981,6 +983,8 @@ const I18N = {
     card_potholes: "chuqur topildi",
     card_privacy: "Marshrutning boshi va oxiri yashirilgan",
     card_rule: "Bal tezlik uchun emas, silliq va xotirjam haydash uchun beriladi.",
+    card_hashtag: "#XavfsizHaydash #Uzbekiston",
+    card_out_of: "100 dan",
     stat_footage: "MB video",
     by_type: "Hisobot turi bo'yicha",
     by_size: "Chuqur o'lchami bo'yicha",
@@ -5377,26 +5381,84 @@ function renderTrips(drives, reports) {
 // last 300 m are cut off. No map tiles, no exact places, no top speed.
 function drawTripCard(entry) {
   const { drive: d, analysis: a, potholes } = entry;
+  const W = 1080, H = 1920;
   const canvas = document.createElement("canvas");
-  canvas.width = 1080; canvas.height = 1920;
+  canvas.width = W; canvas.height = H;
   const g = canvas.getContext("2d");
-  const grad = g.createLinearGradient(0, 0, 0, 1920);
-  grad.addColorStop(0, "#15161a"); grad.addColorStop(1, "#24140a");
-  g.fillStyle = grad; g.fillRect(0, 0, 1080, 1920);
-  g.fillStyle = "#ff7a1a"; g.font = "bold 64px sans-serif"; g.textAlign = "center";
-  g.fillText(t("card_title"), 540, 160);
-  g.fillStyle = "#d5d5da"; g.font = "36px sans-serif";
-  g.fillText(fmtDate(Number(d.started_at) || 0), 540, 220);
+  const FONT = "-apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif";
+  const color = GRADE_COLORS[a.grade] || "#888888";
+  const rounded = (x, y, w, h, r) => {
+    g.beginPath();
+    g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  };
+  // Shrinks a font until the text fits; long Uzbek labels stay on one line.
+  const fit = (text, weight, size, maxWidth) => {
+    let px = size;
+    do { g.font = `${weight} ${px}px ${FONT}`; px -= 2; } while (px > 14 && g.measureText(text).width > maxWidth);
+    return text;
+  };
 
-  const color = GRADE_COLORS[a.grade] || "#888";
-  g.lineWidth = 28; g.strokeStyle = "#2a2b30";
-  g.beginPath(); g.arc(540, 520, 210, 0, Math.PI * 2); g.stroke();
-  g.strokeStyle = color;
-  g.beginPath(); g.arc(540, 520, 210, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (a.score / 100)); g.stroke();
-  g.fillStyle = "#fff"; g.font = "bold 150px sans-serif"; g.fillText(String(a.score), 540, 575);
-  g.fillStyle = color; g.font = "bold 48px sans-serif"; g.fillText(t("grade_" + a.grade), 540, 800);
-  g.fillStyle = "#d5d5da"; g.font = "36px sans-serif"; g.fillText(t("card_score"), 540, 860);
+  // Background: deep night with a glow in the trip's grade colour behind the score.
+  const bg = g.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#0d0e11"); bg.addColorStop(0.55, "#15110f"); bg.addColorStop(1, "#24130a");
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  const glow = g.createRadialGradient(540, 700, 40, 540, 700, 560);
+  glow.addColorStop(0, color + "55"); glow.addColorStop(1, color + "00");
+  g.fillStyle = glow; g.fillRect(0, 0, W, H);
+  const warm = g.createRadialGradient(540, H + 200, 100, 540, H + 200, 900);
+  warm.addColorStop(0, "rgba(255,122,26,0.30)"); warm.addColorStop(1, "rgba(255,122,26,0)");
+  g.fillStyle = warm; g.fillRect(0, 0, W, H);
 
+  g.textAlign = "center"; g.textBaseline = "alphabetic";
+  // Brand pill. Stories put the poster's name over roughly the top 250 px, so everything
+  // that matters starts below that and ends above the reply bar.
+  g.font = `700 30px ${FONT}`;
+  const brand = "Pothole Reporter";
+  const bw = g.measureText(brand).width + 92;
+  rounded(540 - bw / 2, 236, bw, 62, 31);
+  g.fillStyle = "rgba(255,255,255,0.08)"; g.fill();
+  g.fillStyle = "#ff7a1a"; g.beginPath(); g.arc(540 - bw / 2 + 36, 267, 10, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#f4f4f6"; g.fillText(brand, 540 + 14, 278);
+
+  g.fillStyle = "#ffffff"; g.fillText(fit(t("card_title"), 800, 76, 900), 540, 392);
+  g.fillStyle = "#b9bac2"; g.font = `500 36px ${FONT}`;
+  g.fillText(fmtDate(Number(d.started_at) || 0), 540, 446);
+
+  // Score ring.
+  const cx = 540, cy = 690, r = 190;
+  g.lineCap = "round";
+  g.lineWidth = 34; g.strokeStyle = "rgba(255,255,255,0.08)";
+  g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+  const ring = g.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+  ring.addColorStop(0, color); ring.addColorStop(1, "#ffffff");
+  g.save();
+  g.shadowColor = color; g.shadowBlur = 40;
+  g.strokeStyle = ring;
+  const share = Math.max(0, Math.min(1, (a.score || 0) / 100));
+  if (share > 0) { g.beginPath(); g.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * share); g.stroke(); }
+  g.restore();
+  g.fillStyle = "#ffffff"; g.font = `800 168px ${FONT}`; g.fillText(String(a.score), cx, cy + 58);
+  g.fillStyle = "#9fa1a9"; g.font = `600 32px ${FONT}`; g.fillText(t("card_out_of"), cx, cy + 112);
+
+  // Grade pill and what the score means.
+  const grade = t("grade_" + a.grade);
+  g.font = `800 46px ${FONT}`;
+  const gw = Math.max(260, g.measureText(grade).width + 90);
+  rounded(540 - gw / 2, 922, gw, 84, 42);
+  g.fillStyle = color; g.fill();
+  g.fillStyle = "#111214"; g.fillText(grade, 540, 980);
+  g.fillStyle = "#d5d6dc"; g.fillText(fit(t("card_score"), 600, 36, 900), 540, 1060);
+
+  // Route sketch on a panel; the first and last 300 m are already cut off.
+  const px = 90, py = 1100, pw = 900, ph = 330;
+  rounded(px, py, pw, ph, 36);
+  g.fillStyle = "rgba(255,255,255,0.05)"; g.fill();
+  g.lineWidth = 2; g.strokeStyle = "rgba(255,255,255,0.10)"; g.stroke();
+  g.save(); rounded(px, py, pw, ph, 36); g.clip();
+  g.strokeStyle = "rgba(255,255,255,0.04)"; g.lineWidth = 2;
+  for (let x = px + 60; x < px + pw; x += 60) { g.beginPath(); g.moveTo(x, py); g.lineTo(x, py + ph); g.stroke(); }
+  for (let y = py + 60; y < py + ph; y += 60) { g.beginPath(); g.moveTo(px, y); g.lineTo(px + pw, y); g.stroke(); }
   const route = TripStats.shareRoute(d.gps_track);
   if (route.length > 1) {
     const lats = route.map((p) => p[0]), lngs = route.map((p) => p[1]);
@@ -5404,17 +5466,28 @@ function drawTripCard(entry) {
     const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
     const kx = Math.cos(((minLat + maxLat) / 2) * Math.PI / 180);
     const w = Math.max((maxLng - minLng) * kx, 1e-9), h = Math.max(maxLat - minLat, 1e-9);
-    const scale = Math.min(820 / w, 420 / h);
-    const ox = 540 - (w * scale) / 2, oy = 1150 + (h * scale) / 2;
-    g.strokeStyle = "#ff7a1a"; g.lineWidth = 10; g.lineJoin = "round"; g.lineCap = "round";
-    g.beginPath();
-    route.forEach(([lat, lng], i) => {
-      const x = ox + (lng - minLng) * kx * scale, y = oy - (lat - minLat) * scale;
-      if (i) g.lineTo(x, y); else g.moveTo(x, y);
-    });
-    g.stroke();
+    // The caption takes the top 70 px of the panel; the sketch fits below it.
+    const scale = Math.min((pw - 160) / w, (ph - 150) / h);
+    const ox = px + pw / 2 - (w * scale) / 2, oy = py + 70 + (ph - 70) / 2 + (h * scale) / 2;
+    const path = () => {
+      g.beginPath();
+      route.forEach(([lat, lng], i) => {
+        const x = ox + (lng - minLng) * kx * scale, y = oy - (lat - minLat) * scale;
+        if (i) g.lineTo(x, y); else g.moveTo(x, y);
+      });
+    };
+    g.lineJoin = "round"; g.lineCap = "round";
+    g.strokeStyle = "rgba(255,122,26,0.22)"; g.lineWidth = 28; path(); g.stroke();
+    const line = g.createLinearGradient(px, 0, px + pw, 0);
+    line.addColorStop(0, "#ffb15c"); line.addColorStop(1, "#ff7a1a");
+    g.strokeStyle = line; g.lineWidth = 10; path(); g.stroke();
   }
+  g.restore();
+  g.textAlign = "left"; g.fillStyle = "#9fa1a9";
+  g.fillText(fit(t("card_privacy"), 600, 26, pw - 64), px + 32, py + 50);
+  g.textAlign = "center";
 
+  // Six numbers in two rows of rounded tiles.
   const km = ((a.distance_m || 0) / 1000).toFixed(1);
   const min = String(Math.round((a.moving_time_s || 0) / 60));
   const avg = a.avg_moving_speed_mps == null ? "--" : String(Math.round(a.avg_moving_speed_mps * 3.6));
@@ -5422,13 +5495,16 @@ function drawTripCard(entry) {
     [String(a.turns), t("card_turns")], [String(a.hard_brake), t("card_brakes")],
     [String(potholes), t("card_potholes")]];
   tiles.forEach(([value, label], i) => {
-    const x = 200 + (i % 3) * 340, y = 1520 + Math.floor(i / 3) * 170;
-    g.fillStyle = "#fff"; g.font = "bold 64px sans-serif"; g.fillText(value, x, y);
-    g.fillStyle = "#aaa"; g.font = "30px sans-serif"; g.fillText(label, x, y + 46);
+    const tw = 280, th = 120, gap = 30;
+    const x = 90 + (i % 3) * (tw + gap), y = 1460 + Math.floor(i / 3) * (th + 24);
+    rounded(x, y, tw, th, 26);
+    g.fillStyle = "rgba(255,255,255,0.06)"; g.fill();
+    g.fillStyle = "#ffffff"; g.font = `800 56px ${FONT}`; g.fillText(value, x + tw / 2, y + 66);
+    g.fillStyle = "#a9abb3"; g.fillText(fit(label, 600, 26, tw - 24), x + tw / 2, y + 102);
   });
-  g.fillStyle = "#8a8a90"; g.font = "28px sans-serif";
-  g.fillText(t("card_rule"), 540, 1830);
-  g.fillText(`${t("card_privacy")} · Pothole Reporter`, 540, 1875);
+
+  g.fillStyle = "#ffa64d"; g.fillText(fit(t("card_hashtag"), 800, 34, 900), 540, 1782);
+  g.fillStyle = "#8a8b93"; g.fillText(fit(t("card_rule"), 500, 26, 940), 540, 1830);
   return canvas;
 }
 
