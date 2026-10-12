@@ -715,3 +715,11 @@ finding; none exists after NEW-002.
 * **Tests performed:** phone-width screenshots before and after (home, settings, trips, guide, report list and detail, route, antiradar panel; cards in en/uz, green and red). The full `tests/run-all.sh` passes. All 20 Node tests pass, after restarting the test server (run-all stops it) and after one real fix: `sec009_csp_browser_test` checks the body background `rgb(17, 18, 20)` as proof the stylesheet applied under the CSP. The new darker `--bg` broke that, so `--bg` is back to `#111214`. The test was not changed.
 * **Decisions:** home button text stays one word (the subtitle comes from CSS `attr(data-sub)`), so the accessibility and home tests are unchanged. The Drive background colour is kept exact. Settings ids and order are unchanged. Card content is kept inside the story safe area.
 * **Exact next task:** owner road test (bugs only), then server deployment.
+
+## 2026-10-12 — DESIGN-002 iOS-style redesign
+
+* **Agent/tool:** Claude in a cloud sandbox. **Task:** the owner asked for an iPhone-like design with excellent colours that is very easy to use. **Status:** COMPLETE at browser level. Not seen on a real phone.
+* **Files changed:** `static/index.html` (iOS style layer; `tileHtml()` puts the home emoji in an `aria-hidden` icon tile; iOS `GRADE_COLORS`) and mirrors; CHANGELOG, PROJECT_STATUS and this worklog.
+* **Tests performed:** phone-width screenshots of home, settings, trips, report detail and the antiradar panel, plus the story card. These browser tests pass: home actions, first-run, UI text, trip card, guide, stored XSS, consent, wipe, antiradar, road alerts, sensor Drive, community client, navigation, track retention, dashcam source, start/stop, background Drive, unit and full-frame. The CSP browser test also passes.
+* **Decisions:** no bottom tab bar (it would duplicate the tested header and home navigation); the page background is kept at #111214 for the CSP style check; the Drive orange is unchanged; the switches are drawn with gradients only (no pseudo-elements on inputs) for WebView compatibility.
+* **Exact next task:** owner road test.

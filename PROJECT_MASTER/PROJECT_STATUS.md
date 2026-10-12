@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-10-12 iOS-style redesign (DESIGN-002)
+
+The UI now looks like an iOS dark app: icon rows, switches, segmented control and system colours. Checked with phone-width screenshots and 20 browser/CSP tests. Not yet seen on a real phone.
+
 ## 2026-10-12 Design pass and story card (DESIGN-001, SHARE-002)
 
 The app and the share card were restyled and checked with phone-width screenshots in English and Uzbek; all browser tests pass. Not yet seen on a real phone screen or posted to Instagram.

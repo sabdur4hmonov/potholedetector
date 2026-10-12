@@ -1,5 +1,9 @@
 # Recorded work history
 
+## 2026-10-12 — DESIGN-002 iOS-style look
+
+On the owner's request the UI follows iOS dark design. It uses the system colours (green #30d158, blue #0a84ff, red #ff453a, purple, indigo, yellow; grades and the story card use them too) and a 28 px large title with round grey header buttons. Home actions are iOS Settings-style rows with a coloured rounded icon tile, a subtitle and a chevron; the Drive hero keeps its exact orange. Checkboxes become iOS switches on the right of their row; selects get a chevron; Settings section headers are small and grey. The ranking levels are a segmented control, Share is a tinted blue pill, and the Save bar is frosted. The button text content is unchanged (the emoji sits in an `aria-hidden` tile), as are ids, order and the page background the CSP test checks.
+
 ## 2026-10-12 — DESIGN-001 friendlier UI, SHARE-002 story card
 
 * **DESIGN-001.** A warmer dark theme: a header glow, a brand dot, rounded cards with depth, tap targets of at least 44 px, focus rings and gradient Drive/Save buttons (the Drive colour is unchanged). Home actions get a one-line explanation via `data-sub`, so the button text stays one word. Settings gains section headings and a sticky Save/Back bar, with ids and order unchanged. My trips shows a large score circle, the grade and a round Share button. Dates are in Uzbek in the Uzbek UI ("15-yanvar, 08:00"). The route note no longer says voice navigation is missing.

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-wmbFvhChg++91fwiBVuDOCcaeSg8mmUvXggGyvU7gdo='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-qO8C2w+Dctiv+bMVpbiUiNvF0z9s4lbLo+mbAOQ1uNQ='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-AUcGja0+QAuB7QLhuHrSGAPkcBV+pOJi3lvj736xrW0='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-kErMYZgfoPJAxXJrJuYNYrqtubbLzeG/ycX8hEEqJ5E='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -102,6 +102,70 @@
   h2 { font-size:15px; color:var(--mut); font-weight:700; margin:20px 0 10px; }
   .policy-links { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:10px; }
   .policy-links a { color:#ffb36f; font-size:13px; }
+
+  /* ---------- iOS-style layer (DESIGN-002): system dark colours, grouped rows, switches ---------- */
+  :root { --card:#1c1c1e; --card2:#2c2c2e; --line:rgba(84,84,88,.6); --text:#ffffff; --mut:rgba(235,235,245,.6);
+          --fill:rgba(120,120,128,.24); --fill2:rgba(120,120,128,.36); --ok:#30d158; --bad:#ff453a; --blue:#0a84ff;
+          --purple:#bf5af2; --teal:#64d2ff; --indigo:#5e5ce6; --yellow:#ffd60a; --accent2:#ff9f0a; --radius:14px; }
+  body { font-size:16px; letter-spacing:-.01em; }
+  h1 { font-size:28px; font-weight:800; letter-spacing:-.025em; white-space:nowrap; }
+  .sub { font-size:14px; }
+  #guideBtn, #gearBtn { width:40px; height:40px; min-height:40px; padding:0 !important; border-radius:50%; border:0;
+          background:var(--fill); color:#fff; font-size:17px; display:grid; place-items:center; }
+  .card { background:var(--card); border:0; box-shadow:none; border-radius:var(--radius); }
+  /* Home: one hero action, then iOS Settings-style rows with a coloured icon tile and a chevron. */
+  #home > .primary { display:grid; grid-template-columns:1fr auto auto 1fr; grid-template-areas:". ico lbl ." "sub sub sub sub";
+          align-items:center; column-gap:10px; row-gap:4px; min-height:88px; border-radius:22px; font-size:22px; }
+  #home > .primary .tile-ico { grid-area:ico; font-size:26px; line-height:1; }
+  #home > .primary .tile-lbl { grid-area:lbl; font-weight:800; }
+  #home > .primary[data-sub]::after { grid-area:sub; margin-top:0; }
+  #home > button.ghost, #routeBtn { display:grid; grid-template-columns:44px 1fr; grid-template-areas:"ico lbl" "ico sub";
+          column-gap:14px; align-items:center; min-height:72px; padding:12px 40px 12px 14px; border:0; box-shadow:none;
+          background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='14' viewBox='0 0 8 14'%3E%3Cpath d='M1 1l6 6-6 6' fill='none' stroke='%23ebebf5' stroke-opacity='.35' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 18px center; border-radius:var(--radius);
+          font-size:17px; font-weight:600; }
+  #home > button.ghost:active, #routeBtn:active { background-color:var(--card2); }
+  #home > button.ghost .tile-ico, #routeBtn .tile-ico { grid-area:ico; }
+  #home > button.ghost .tile-lbl, #routeBtn .tile-lbl { grid-area:lbl; align-self:end; }
+  #home > button.ghost[data-sub]::after, #routeBtn[data-sub]::after { grid-area:sub; align-self:start; margin-top:1px;
+          font-size:13px; color:var(--mut); }
+  #home > button.ghost .tile-ico, #routeBtn .tile-ico { width:44px; height:44px; border-radius:11px; display:grid; place-items:center;
+          font-size:22px; line-height:1; box-shadow:inset 0 1px 0 rgba(255,255,255,.25); }
+  #alertsBtn .tile-ico { background:linear-gradient(180deg, #3e9bff, var(--blue)); }
+  #routeBtn .tile-ico { background:linear-gradient(180deg, #5be37f, #28b84b); }
+  #captureBtn .tile-ico { background:linear-gradient(180deg, #d27cf5, var(--purple)); }
+  #dashBtn .tile-ico { background:linear-gradient(180deg, #7d7bff, var(--indigo)); }
+  #home h2 { font-size:22px; font-weight:800; color:var(--text); letter-spacing:-.02em; margin:24px 2px 10px; }
+  /* Buttons: iOS filled and grey-filled styles. */
+  .ghost { background:var(--fill); border:0; color:var(--text); font-weight:600; }
+  .ghost:active { background:var(--fill2); }
+  .danger { background:var(--fill); color:var(--bad); }
+  .send { background-image:none; box-shadow:none; font-weight:700; }
+  .btn-row button, .send, .ghost { min-height:50px; border-radius:14px; font-size:16px; }
+  /* Inputs: rounded, no outline boxes; selects get the iOS chevron. */
+  input[type=text], input[type=password], input[type=search], select, textarea { background-color:var(--card2) !important;
+          border:1px solid transparent !important; border-radius:12px !important; min-height:48px; color:var(--text) !important; }
+  input:focus, select:focus, textarea:focus { border-color:var(--blue) !important; }
+  select { -webkit-appearance:none; appearance:none; padding-right:38px !important;
+          background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23ebebf5' stroke-opacity='.6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important; background-repeat:no-repeat !important;
+          background-position:right 14px center !important; }
+  /* iOS switches instead of checkboxes; the switch sits at the right of its row. */
+  input[type=checkbox] { -webkit-appearance:none; appearance:none; width:51px !important; height:31px !important; margin:0;
+          border-radius:31px; cursor:pointer; flex:none; transition:background .2s ease;
+          background:radial-gradient(circle 13.5px at 15.5px 50%, #fff 92%, transparent 100%), rgba(120,120,128,.32); }
+  input[type=checkbox]:checked { background:radial-gradient(circle 13.5px at calc(100% - 15.5px) 50%, #fff 92%, transparent 100%), var(--ok); }
+  input[type=checkbox]:disabled { opacity:.45; }
+  label:has(> input[type=checkbox]) { flex-direction:row-reverse; justify-content:space-between; gap:14px !important;
+          font-size:15px !important; color:var(--text) !important; min-height:44px; margin-top:12px !important; }
+  .set-section { color:var(--mut); font-weight:600; letter-spacing:.02em; font-size:13px; border-top:0; padding-top:0; margin-top:26px; }
+  .set-section.first { margin-top:6px; }
+  /* Segmented control for the ranking levels. */
+  #rankLevels { background:var(--fill); padding:2px; border-radius:10px; gap:0; }
+  #rankLevels button { min-height:34px; padding:6px 4px; font-size:13px; font-weight:600; border-radius:8px; background:transparent;
+          color:var(--text); box-shadow:none; }
+  #rankLevels button.send { background:#636366; color:#fff; box-shadow:0 3px 8px rgba(0,0,0,.25); }
+  .trip-share { background:rgba(10,132,255,.16); color:#64b5ff; border:0; }
+  .chip { font-weight:600; }
+  .sticky-save { background:rgba(28,28,30,.82); border:0; -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px); }
   html.native-preview-active, html.native-preview-active body { background:transparent !important; }
   html.native-preview-active #nativePreviewFrame,
   html.native-preview-active #nativePreviewSlot { background:transparent !important; }
@@ -122,7 +186,7 @@
 
   <div id="home" class="hidden">
     <button class="primary" id="driveBtn">&#128663; &nbsp;Drive</button>
-    <button class="ghost" id="alertsBtn" style="width:100%;margin-bottom:10px">&#128225; &nbsp;Antiradar</button>
+    <button class="ghost" id="alertsBtn" style="width:100%;margin-bottom:10px"><span class="tile-ico" aria-hidden="true">&#128225;</span><span class="tile-lbl">Antiradar</span></button>
     <div class="card hidden" id="alertsPanel" style="margin-bottom:10px">
       <div class="verdict" id="alertsSpeed" style="margin:0;font-size:28px;color:#fff">-- km/h</div>
       <div class="meta" id="alertsStatus"></div>
@@ -1192,6 +1256,14 @@ function show(screen) {
   return true;
 }
 
+// Home actions are "<emoji> &nbsp;<word>" strings. The emoji goes in its own coloured tile;
+// the text content still reads emoji + word, so labels and screen readers are unchanged.
+function tileHtml(html, extra = "") {
+  const at = html.indexOf("&nbsp;");
+  if (at < 0) return html + extra;
+  return `<span class="tile-ico" aria-hidden="true">${html.slice(0, at).trim()}</span>`
+    + `<span class="tile-lbl">${html.slice(at + 6).trim()}${extra}</span>`;
+}
 const UZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
 function fmtDate(ts) {
   const d = new Date(ts * 1000);
@@ -1272,8 +1344,8 @@ function applyLang() {
                            ["captureBtn", "home_photo_sub"], ["dashBtn", "home_dash_sub"]]) {
     if ($(id)) $(id).dataset.sub = t(key);
   }
-  $("captureBtn").innerHTML = t("report_btn");
-  $("driveBtn").innerHTML = t("drive_btn");
+  $("captureBtn").innerHTML = tileHtml(t("report_btn"));
+  $("driveBtn").innerHTML = tileHtml(t("drive_btn"));
   $("reportsTitle").textContent = t("your_reports");
   $("settingsTitle").textContent = t("settings_title");
   $("keyLabel").textContent = t("key_label");
@@ -1308,7 +1380,7 @@ function applyLang() {
   $("cameraImportBtn").textContent = t("cameras_import");
   $("cameraClearBtn").textContent = t("cameras_clear");
   $("camerasNote").textContent = t("cameras_note");
-  $("routeBtn").innerHTML = t("route_btn");
+  $("routeBtn").innerHTML = tileHtml(t("route_btn"));
   $("routeTitle").textContent = t("route_title");
   $("routeQuery").placeholder = t("route_query");
   $("routeSearch").textContent = t("route_search");
@@ -1354,7 +1426,7 @@ function applyLang() {
   $("setBack").textContent = t("back");
   $("setSave").textContent = t("save");
   $("driveTip").textContent = t("drive_tip");
-  $("dashBtn").innerHTML = t("dash_btn");
+  $("dashBtn").innerHTML = tileHtml(t("dash_btn"));
   $("reviewBtn").textContent = t("review_btn");
   $("exportBtn").textContent = t("export_btn");
   $("lblPothole").textContent = t("lbl_pothole");
@@ -2417,7 +2489,7 @@ function setDrivePanels(native, captureSource = savedDriveCaptureSource()) {
 }
 
 function setDriveActiveButton(active) {
-  $("driveBtn").innerHTML = t("drive_btn") + (active ? " &nbsp;&#9679;" : "");
+  $("driveBtn").innerHTML = tileHtml(t("drive_btn"), active ? " &nbsp;&#9679;" : "");
   $("driveBtn").setAttribute("aria-label", active ? "Drive active — view" : "Drive");
 }
 
@@ -2574,7 +2646,7 @@ let roadAlertBannerTimer = null;
 
 function setAlertsButton(running) {
   const button = $("alertsBtn");
-  if (button) button.innerHTML = t(running ? "alerts_btn_on" : "alerts_btn");
+  if (button) button.innerHTML = tileHtml(t(running ? "alerts_btn_on" : "alerts_btn"));
 }
 
 function updateRoadAlertPanel(status) {
@@ -5336,7 +5408,8 @@ async function analyseFootage(driveId, driveRec) {
 // network and ships nothing it does not carry itself. Tiles do need a connection, so
 // when they cannot load the points are still plotted on a plain scatter.
 // ---------- my trips: safe-driving score and share card (TRIP-003) ----------
-const GRADE_COLORS = { green: "#2ecc71", yellow: "#f1c40f", red: "#e74c3c" };
+// iOS system colours (dark appearance): vivid and readable on black.
+const GRADE_COLORS = { green: "#30d158", yellow: "#ffd60a", red: "#ff453a" };
 let tripCards = new Map();
 
 function renderTrips(drives, reports) {
