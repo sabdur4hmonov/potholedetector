@@ -89,11 +89,14 @@ check('JS request entrance applies explicit caps and browser paid path fails clo
       and 'body: JSON.stringify(bounded)' in js and 'error.code === "AI_USAGE_LIMIT"' in js
       and 'AI inference is available only in the Android app.' in js
       and 'fetchWithTimeout("https://api.openai.com/v1/responses"' not in js)
-check('all JS builders/fallbacks and contract match have explicit ceilings',
+# The India tender/contract matcher, the second 512-token builder and its aiUsageLimit
+# rethrow, was removed with the India code (commit 61bd651). The two remaining builders
+# carry explicit ceilings, and every request body still passes through boundedAiRequest.
+check('all JS builders and fallbacks have explicit ceilings',
       '...boundedAiRequest(body, body && body.stream)' in js
       and 'max_output_tokens: schema === REPAIR_SCHEMA ? 768 : 1536' in js
-      and js.count('max_output_tokens: 512')==2
-      and 'if (e && e.aiUsageLimit) throw e' in js)
+      and js.count('max_output_tokens: 512')==1
+      and len(re.findall(r'\boai\(', js)) == 3)
 check('safe errors and no credential/prompt logging in policy implementations',
       not re.search(r'\b(?:Log\.|println\(|print\(|logger\.)',budget+adapter+bridge+auth)
       and 'catch (_: Exception)' in budget+adapter)
