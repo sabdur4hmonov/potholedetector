@@ -59,10 +59,12 @@ internal class OnDevicePotholeModel private constructor(
         return OnDeviceDetectorContract.decideBurst(scores, spec)
     }
 
-    fun close() = synchronized(lock) {
-        if (closed) return
-        closed = true
-        runCatching { interpreter.close() }
+    fun close() {
+        synchronized(lock) {
+            if (closed) return
+            closed = true
+            runCatching { interpreter.close() }
+        }
     }
 
     companion object {
