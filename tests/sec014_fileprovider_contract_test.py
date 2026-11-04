@@ -33,11 +33,12 @@ paths = ET.parse(APP / "res/xml/file_paths.xml").getroot()
 entries = [(child.tag, child.get("name"), child.get("path")) for child in paths]
 EXPECTED_ROOTS = [
     ("files-path", "drive_footage", "footage/"),
+    ("files-path", "sensor_logs", "sensor_logs/"),
     ("external-files-path", "my_images", "Pictures/"),
     ("cache-path", "my_cache_images", "pothole-reporter-shares/"),
     ("external-cache-path", "email_composer_attachments", "email_composer/"),
 ]
-check(entries == EXPECTED_ROOTS, "app FileProvider exposes exactly the four reviewed directories")
+check(entries == EXPECTED_ROOTS, "app FileProvider exposes exactly the five reviewed directories")
 check(all(p not in (".", "", "/") for _, _, p in entries), "no app FileProvider alias maps a whole storage root")
 check(not any(tag in ("root-path", "external-path", "external-media-path") for tag, _, _ in entries),
       "no shared-storage or filesystem-root alias")
@@ -94,6 +95,12 @@ EXPECTED_MINTERS = sorted([
 check(minters == EXPECTED_MINTERS, f"`.fileprovider` callers unchanged (found {minters})")
 
 plugin = text(APP / "java/dev/aiengg/potholereporter/plugin/DriveModePlugin.kt")
+sensor_share = plugin[plugin.index('fun shareSensorLog('):plugin.index('fun shareFootage(')]
+check('NativeSensorDrive.logFile(context, session)' in sensor_share
+      and 'FLAG_GRANT_READ_URI_PERMISSION' in sensor_share
+      and 'FLAG_GRANT_WRITE_URI_PERMISSION' not in sensor_share
+      and 'status.isRunning || status.isStopping' in sensor_share,
+      'sensor log share is a finished-drive private CSV with read-only temporary grant')
 share_footage = plugin[plugin.index("fun shareFootage("):plugin.index("fun deleteFootage(")]
 check("getSegmentsForSession(requestedSession)" in share_footage
       and "addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)" in share_footage
@@ -125,9 +132,9 @@ share_writes = re.findall(r'writeFile\(\{ path: `\$\{SHARE_CACHE_DIR\}/\$\{[a-z]
 cache_dirs = re.findall(r'directory: "CACHE"', web)
 check(len(shares) == 2 and len(share_writes) == 2 and len(cache_dirs) == 4 and "Share.share" not in engine,
       "both native share calls send only files just written to CACHE/pothole-reporter-shares")
-check(engine.count("EmailComposer.open(") == 1 and 'attachments: [{ type: "base64"' in engine
+check(engine.count("EmailComposer.open(") == 0
       and '"absolute"' not in engine and '"absolute"' not in web,
-      "email composer receives base64 evidence only, never an app-chosen absolute path")
+      "removed authority-email flow stays absent; no app-chosen absolute attachment path")
 asset = text(NM / "capacitor-email-composer/android/src/main/java/de/einfachhans/emailcomposer/AssetUtil.java")
 check('ATTACHMENT_FOLDER = "/email_composer"' in asset and "ctx.getExternalCacheDir()" in asset,
       "email attachments are written to external cache email_composer/")

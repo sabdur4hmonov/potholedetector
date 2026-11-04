@@ -58,9 +58,14 @@ forbidden_identifiers = (
     "cropRoad",
     "road_crop",
 )
-current_implementations = "\n".join((client, web, quality, engine, camera, rtsp, evaluator_source))
+sensor = (NATIVE / "NativeSensorDrive.kt").read_text()
+current_implementations = "\n".join((client, web, quality, engine, camera, rtsp, sensor, evaluator_source))
 require("current implementations contain no crop or road-band machinery",
         all(term not in current_implementations for term in forbidden_identifiers))
+require("sensor evidence preserves the complete persisted primary frame",
+        "BitmapFactory.decodeFile(frame.filePath)" in sensor
+        and "store.saveDetection(image" in sensor
+        and all(term not in sensor for term in ("createBitmap(", "cropRect", "ViewPort", "setCropAspectRatio")))
 require("native CameraX acquisition does not configure a crop or viewport",
         all(term not in camera for term in (
             "UseCaseGroup", "ViewPort", "setCropAspectRatio", "cropRect",

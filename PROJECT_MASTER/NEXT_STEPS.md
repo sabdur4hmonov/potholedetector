@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## Current SENSOR-DRIVE-001 handoff — 2026-11-04
+
+Install the `sensor-drive` debug APK and perform owner/reviewer physical-device acceptance: no-key start, precise GPS and mounted camera, conservative bump capture, complete photos/event locations, review/confirm/delete, pause/resume/stop, sensor-log sharing and Delete All. Use [SENSOR_DRIVE.md](SENSOR_DRIVE.md) and the worklog APK hash. No physical-road calibration or accuracy claim exists. Do not start model integration, threshold tuning, release signing or NEW-002 work without a separately scoped request. Historical entries below retain their original checkpoint meaning.
+
 ## 2026-10-06 next actions after the Uzbekistan refocus
 
 1. Human: decide how to get the on-device detector trained. It needs labelled Uzbek road frames and a GPU, which the cloud session does not have. The app's "save every analysed frame" option plus dataset export already collects frames labelled by the cloud model.

@@ -57,7 +57,9 @@ data class DriveStatusSnapshot(
     val sourceActive: Boolean = cameraActive,
     val sourceState: String = if (cameraActive) NativeFrameSourceState.STREAMING.wireValue
         else NativeFrameSourceState.IDLE.wireValue,
-    val sourceIssue: String? = null
+    val sourceIssue: String? = null,
+    val detectionMode: String = "cloud", val bumpCount: Int = 0, val bumpsWithoutFrame: Int = 0,
+    val sensorIssue: String? = null
 )
 
 data class DriveEndSummary(
@@ -77,6 +79,8 @@ class DriveForegroundService : LifecycleService() {
     private var frameSource: NativeFrameSource? = null
     private var locationProvider: NativeDriveLocationProvider? = null
     private var inferenceEngine: NativeInferenceEngine? = null
+    private var sensorDrive: NativeSensorDrive? = null
+    private var detectionMode = "cloud"
     private var dedupeEngine: NativeDeduplicationEngine? = null
     private var repairEngine: NativeRepairStatusEngine? = null
     private lateinit var database: PotholeDatabase
@@ -217,6 +221,8 @@ class DriveForegroundService : LifecycleService() {
         const val ACTION_RESUME = "dev.aiengg.potholereporter.ACTION_RESUME"
         const val ACTION_STOP = "dev.aiengg.potholereporter.ACTION_STOP"
         const val EXTRA_API_KEY = "extra_api_key"
+        const val EXTRA_DETECTION_MODE = "extra_detection_mode"
+        const val EXTRA_BUMP_SENSITIVITY = "extra_bump_sensitivity"
         const val EXTRA_MODEL = "extra_model"
         const val EXTRA_DETAIL = "extra_detail"
         const val EXTRA_LANGUAGE = "extra_language"
@@ -357,7 +363,9 @@ class DriveForegroundService : LifecycleService() {
                         NativeFrameSourceConfig.create(
                             intent?.getStringExtra(EXTRA_CAPTURE_SOURCE),
                             intent?.getStringExtra(EXTRA_DASHCAM_RTSP_URL)
-                        ).getOrThrow()
+                        ).getOrThrow(),
+                        intent.getStringExtra(EXTRA_DETECTION_MODE) ?: "cloud",
+                        intent.getStringExtra(EXTRA_BUMP_SENSITIVITY) ?: "medium"
                     )
                     // startDriveSession marks the service running before this admission
                     // is released, so observers can never see an Idle gap in between.
@@ -485,10 +493,14 @@ class DriveForegroundService : LifecycleService() {
         debug: Boolean,
         recordVideo: Boolean,
         maxDriveMinutes: Int,
-        sourceConfig: NativeFrameSourceConfig
+        sourceConfig: NativeFrameSourceConfig,
+        requestedDetectionMode: String,
+        bumpSensitivity: String
     ) {
         // A new producer lifetime invalidates any bridge inventory completed before it.
         // The epoch cannot be overwritten by an older reconciliation pass racing here.
+        sensorDrive?.closeInput()
+        sensorDrive = null
         NativeMediaReconciliationEpoch.invalidate()
         captureAccessEpoch.invalidate()
         criticalCameraRecoveryJob?.cancel()
@@ -497,6 +509,8 @@ class DriveForegroundService : LifecycleService() {
         pendingCameraRecoveryIsUserState = false
         criticalCameraRetryBudget.reset()
         lastLocationAccess = null
+        detectionMode = if (apiKey.isBlank() || requestedDetectionMode == "sensor") "sensor" else "cloud"
+        require(detectionMode != "sensor" || sourceConfig.kind == NativeFrameSourceKind.PHONE_CAMERA)
         captureSourceKind = sourceConfig.kind
         cameraPermissionGranted = !captureSourceKind.requiresCameraPermission || hasCameraPermission()
         lastPrerequisiteAccessCheckElapsedMs = 0L
@@ -562,7 +576,22 @@ class DriveForegroundService : LifecycleService() {
         startForegroundNow()
         acquireWakeLock()
 
-        inferenceEngine = NativeInferenceEngine(applicationContext, apiKey, model, detail, language, debug)
+        if (detectionMode == "cloud") {
+            inferenceEngine = NativeInferenceEngine(applicationContext, apiKey, model, detail, language, debug)
+        } else {
+            sensorDrive = NativeSensorDrive(applicationContext, sessionId, bumpSensitivity,
+                latestFix = { locationProvider?.latestFix },
+                nearestFix = { locationProvider?.fixNearestToElapsed(it) },
+                capturing = { sessionRunning && !isPaused && !isStopping && cameraActive &&
+                    !accessCameraReleased && captureInterlockDecision().canCapture },
+                onReport = { id, duplicate ->
+                    if (duplicate) duplicateIds.add(id) else foundCounter.incrementAndGet()
+                    mainHandler.post { onReportListener?.invoke(id, "none", null) }
+                },
+                onIssue = { mainHandler.post { publish(it) } },
+                onDeletedBytes = { frameSource?.noteDeletedMediaBytes(it) }
+            ).also { it.initialize() }
+        }
         jobChannel = Channel(
             // A remote model cannot consume raw camera bursts at capture cadence. Do not
             // add a buffered ~10.5 MiB ARGB burst beyond the two explicitly bounded live
@@ -655,7 +684,9 @@ class DriveForegroundService : LifecycleService() {
         refreshCaptureInterlock()
 
         startScanLoop()
-        startInferenceWorker()
+        if (detectionMode == "sensor") {
+            workerJob = lifecycleScope.launch(Dispatchers.IO) { sensorDrive?.consume() }
+        } else startInferenceWorker()
         startSessionLimitLoop()
         persistSessionTracked("active", null)
     }
@@ -984,6 +1015,19 @@ class DriveForegroundService : LifecycleService() {
                     continue
                 }
                 val item = baseItem.copy(keyframeId = keyframeId)
+                if (detectionMode == "sensor") {
+                    try { sensorDrive?.registerFrame(keyframeId, item.capturedAtElapsedMs) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) {
+                        withContext(Dispatchers.Main.immediate) {
+                            stopDriveSession("Stopped because sensor frame storage could not be maintained. Check app storage.")
+                        }
+                    }
+                    finally { recycle(item) }
+                    lastCapFix = validatedFix; lastCapTimeMs = captureAdmissionElapsedMs
+                    publish("Sensor mode (no AI): bumps saved for review")
+                    continue
+                }
                 if (!isBurstAccessStillValid(item)) {
                     // A transition during JPEG persistence keeps the saved frame pending
                     // for offline replay, but it must not start live inference now.
@@ -1366,6 +1410,7 @@ class DriveForegroundService : LifecycleService() {
             !accessCameraReleased && decision.canCapture &&
             inferenceSuspendedReason == null
         frameSource?.setSamplingEnabled(enabled)
+        sensorDrive?.updateRegistration(enabled)
     }
 
     /**
@@ -1604,7 +1649,8 @@ class DriveForegroundService : LifecycleService() {
                             heading = item.fix.heading,
                             width = frame.bitmap.width,
                             height = frame.bitmap.height,
-                            bytes = actualBytes
+                            bytes = actualBytes,
+                            liveAnalyzed = detectionMode == "sensor"
                         )
                     )
                     rowCommitted = true
@@ -1934,6 +1980,7 @@ class DriveForegroundService : LifecycleService() {
         criticalRecovery?.cancel()
         val accessTransition = accessTransitionJob
         val recordingTransition = recordingTransitionJob
+        sensorDrive?.unregister()
         isPaused = true; pauseTransitioning = true; scanJob?.cancel()
         startPauseTimeout()
         accessTransition?.cancel()
@@ -2175,6 +2222,7 @@ class DriveForegroundService : LifecycleService() {
         criticalRecovery?.cancel()
         val accessTransition = accessTransitionJob
         val recordingTransition = recordingTransitionJob
+        sensorDrive?.closeInput()
         isStopping = true; captureStopped = false; sessionRunning = false; statusText = reason
         sessionLimitJob?.cancel()
         pauseTimeoutJob?.cancel()
@@ -2389,6 +2437,10 @@ class DriveForegroundService : LifecycleService() {
                         val emergencyClosed = runCatching { manager?.closeImmediately() }
                             .onFailure { recordStopError("Emergency camera teardown failed", it) }
                         cameraStoppedCleanly = emergencyClosed.isSuccess
+                    }
+                    if (detectionMode == "sensor") {
+                        runCatching { sensorDrive?.cleanup() }
+                            .onFailure { recordStopError("Could not release sensor sampling frames", it) }
                     }
                     if (cameraStoppedCleanly) {
                         frameSource = null
@@ -2795,7 +2847,9 @@ class DriveForegroundService : LifecycleService() {
             sourceActive = cameraActive,
             sourceState = if (starting) NativeFrameSourceState.CONNECTING.wireValue
                 else sourceState.wireValue,
-            sourceIssue = if (starting) null else sourceIssue
+            sourceIssue = if (starting) null else sourceIssue,
+            detectionMode = detectionMode, bumpCount = sensorDrive?.bumpCount ?: 0,
+            bumpsWithoutFrame = sensorDrive?.withoutFrame ?: 0, sensorIssue = sensorDrive?.issue
         )
     }
 
@@ -2899,6 +2953,7 @@ class DriveForegroundService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        sensorDrive?.closeInput()
         val wasActive = sessionRunning || isStopping
         val destroyedSessionId = sessionId
         val destroyedStartRequest = startRequestId

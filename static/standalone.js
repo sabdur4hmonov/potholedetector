@@ -2149,7 +2149,7 @@ This is a strict before/after verification, not ordinary pothole detection:
   function fullFramePhoto(report) {
     if (!report) return null;
     if (report.photo_full) return report.photo_full;
-    if (isManualCaptureSource(report.capture_source)) return report.photo || null;
+    if (isManualCaptureSource(report.capture_source) || report.capture_source === "drive_sensor") return report.photo || null;
     // v13 is the first Drive contract that guarantees every working and evidence image is
     // a complete frame. v16 remains valid after the confirmation-policy upgrade.
     // Older Web Drive rows may store a crop in `photo`, so fail closed.
@@ -2755,11 +2755,72 @@ This is a strict before/after verification, not ordinary pothole detection:
     return toDict(rec);
   }
 
+  // Scan only this drive, one row at a time. Preserve confirmation in the same commit
+  // as a retried/merged native outbox update; never hydrate the whole photo history.
+  function upsertSensorReport(rec) {
+    return idb().then(d => new Promise((resolve, reject) => {
+      const tx = d.transaction("reports", "readwrite");
+      const store = tx.objectStore("reports");
+      const scan = store.index("by_drive").openCursor(IDBKeyRange.only(rec.drive_id));
+      let result, failure;
+      const write = prior => {
+        const confirmed = prior?.decision === "manual";
+        const next = { ...(prior || {}), ...rec, ...(prior ? {id: prior.id} : {}),
+          report_origin: confirmed ? "user_reported" : "sensor_unconfirmed",
+          decision: confirmed ? "manual" : "needs_review", is_reportable: confirmed ? 1 : 0,
+          is_pothole: confirmed ? 1 : 0, damage_type: confirmed ? "pothole_cavity" : "none" };
+        const request = prior ? store.put(next) : store.add(next);
+        request.onsuccess = () => { result = {id: request.result, duplicate: !!prior}; };
+        request.onerror = () => { failure = request.error; };
+      };
+      scan.onsuccess = () => {
+        const cursor = scan.result;
+        if (!cursor) write(null);
+        else if (cursor.value.sensor_native_id === rec.sensor_native_id) write(cursor.value);
+        else cursor.continue();
+      };
+      scan.onerror = () => { failure = scan.error; };
+      tx.oncomplete = () => resolve(result);
+      tx.onabort = () => reject(storageError(failure || tx.error));
+      tx.onerror = () => {};
+    }));
+  }
+
   async function importNativeReport(native) {
     if (!native || typeof native !== "object") throw new Error("Native report missing.");
     const nativeId = Number(native.id);
     const lat = Number(native.lat), lng = Number(native.lng);
     if (!Number.isFinite(nativeId) || nativeId <= 0) throw new Error("Native report id missing.");
+    if (native.capture_source === "drive_sensor") {
+      if (native.detection_model !== "sensor-accelerometer-v1" || native.decision !== "needs_review"
+          || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+        throw new Error("Invalid sensor report.");
+      }
+      const rec = {
+        sensor_native_id: nativeId,
+        created_at: Number(native.created_at) || Date.now() / 1000,
+        lat, lng, address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        photo: await dataUrlToBlob(native.photo_data_url),
+        photo_full: await dataUrlToBlob(native.photo_full_data_url || native.photo_data_url),
+        issue_type: "road_damage", report_origin: "sensor_unconfirmed",
+        capture_source: "drive_sensor", drive_id: String(native.drive_id),
+        source_event_key: native.source_event_key,
+        decision: "needs_review",
+        assessment: "unverified", status: "draft", size: null,
+        is_reportable: 0, is_pothole: 0, damage_type: "none",
+        measurement_provenance: "not_applicable", measurement_confidence: "not_applicable",
+        description: String(native.description || "Unconfirmed bump").slice(0, 1000),
+        detection_model: "sensor-accelerometer-v1", prompt_version: null,
+        image_detail: null, schema_version: null, evidence_count: 1,
+        captured_at: Number(native.captured_at), gps_accuracy: native.gps_accuracy,
+        speed_mps: native.speed_mps, dedupe_eligible: false, event_sightings: [],
+        sighting_drive_ids: [], seen_count: Math.max(1, Number(native.seen_count) || 1),
+        last_seen_at: Number(native.last_seen_at) || Number(native.captured_at),
+      };
+      if (!rec.photo || !rec.photo_full) throw new Error("Sensor photo missing.");
+      const committed = await upsertSensorReport(rec);
+      return { native_id: nativeId, ...committed };
+    }
     const nativeIsPothole = native.is_pothole === true || Number(native.is_pothole) === 1;
     const nativeIsReportable = native.is_reportable === true || Number(native.is_reportable) === 1;
     const nativeContract = nativeDetectorContract(native);
@@ -2904,7 +2965,9 @@ This is a strict before/after verification, not ordinary pothole detection:
       ? `${rec.lat.toFixed(6)}, ${rec.lng.toFixed(6)}` : "";
     const lines = [
       rec.report_origin === "user_reported"
-        ? "User-reported pothole; not AI verified" : "Pothole detected by Pothole Reporter",
+        ? "User-reported pothole; not AI verified"
+        : rec.capture_source === "drive_sensor" ? "Bump — unconfirmed; not AI verified"
+        : "Pothole detected by Pothole Reporter",
       rec.address ? `Location: ${rec.address}` : "",
       place ? `Coordinates: ${place}` : "",
       place ? `Map: https://www.google.com/maps?q=${place.replace(/\s/g, "")}` : "",
@@ -2914,6 +2977,7 @@ This is a strict before/after verification, not ordinary pothole detection:
         ? "Photo provenance: selected/imported by the user; original capture time unknown"
         : rec.capture_source === "manual_camera" ? "Photo provenance: app camera" : "",
       Number.isFinite(rec.gps_accuracy) ? `GPS accuracy: ±${Math.round(rec.gps_accuracy)} m` : "",
+      rec.capture_source === "drive_sensor" ? rec.description : "",
     ].filter(Boolean);
     return { name: `pothole-${safeId}.jpg`, base64, text: lines.join("\n") };
   }
@@ -2995,7 +3059,7 @@ This is a strict before/after verification, not ordinary pothole detection:
         path: name,
         label: r.human_label,
         labelled_by: "owner",
-        model_said: r.report_origin === "user_reported" ? null : {
+        model_said: r.report_origin === "user_reported" || r.capture_source === "drive_sensor" ? null : {
           is_pothole: !!r.is_pothole,
           is_reportable: r.is_reportable == null ? !!r.is_pothole : !!r.is_reportable,
           damage_type: damageTypeOf(r), assessment: assessmentOf(r),
@@ -3017,7 +3081,7 @@ This is a strict before/after verification, not ordinary pothole detection:
           decision: r.decision || (r.status === "rejected" ? "reject" : "accept"),
           size: r.size, description: r.description,
         },
-        detector: r.report_origin === "user_reported" ? null : { model: r.detection_model || "legacy", detail: r.image_detail || null,
+        detector: r.report_origin === "user_reported" || r.capture_source === "drive_sensor" ? null : { model: r.detection_model || "legacy", detail: r.image_detail || null,
                     prompt_version: r.prompt_version || "legacy", schema_version: r.schema_version || 1,
                     evidence_count: r.evidence_count || 1 },
         lat: r.lat, lng: r.lng, address: r.address,
@@ -3251,6 +3315,14 @@ This is a strict before/after verification, not ordinary pothole detection:
     if (path === "/api/frame" && method === "POST") return createReport(opts.body, true);
     if (path === "/api/native-report" && method === "POST") {
       return importNativeReport(JSON.parse(opts.body || "{}"));
+    }
+    if ((m = path.match(/^\/api\/reports\/(\d+)\/confirm-sensor$/)) && method === "POST") {
+      if (JSON.parse(opts.body || "{}").confirmed !== true) throw new Error("Confirmation required.");
+      return mutateReportAtomically(m[1], rec => {
+        if (rec.capture_source !== "drive_sensor") throw new Error("Sensor report not found.");
+        Object.assign(rec, {report_origin: "user_reported", decision: "manual",
+          is_reportable: 1, is_pothole: 1, damage_type: "pothole_cavity", assessment: "unverified"});
+      });
     }
     if ((m = path.match(/^\/api\/reports\/(\d+)$/))) {
       const rec = await getReport(m[1]);

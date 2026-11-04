@@ -13,12 +13,12 @@ import java.io.File
 /** Central inventory for app/plugin writers. Keep its contract test updated with writers. */
 internal class AndroidAppMediaCleanup(private val context: Context) {
     companion object {
-        val privateMediaChildren = listOf("reports", "footage", "repair_targets", "ion_android_camera_videos")
+        val privateMediaChildren = listOf("reports", "footage", "repair_targets", "ion_android_camera_videos", "sensor_logs")
         const val DEBUG_FRAMES = "pothole-frames"
         const val EMAIL_TEMP = "email_composer"
         private const val JOURNAL = "owned_media_locations"
         private val providerRoots = mapOf(
-            ".fileprovider" to listOf("drive_footage", "my_images", "my_cache_images", "email_composer_attachments"),
+            ".fileprovider" to listOf("drive_footage", "sensor_logs", "my_images", "my_cache_images", "email_composer_attachments"),
             ".camera.provider" to listOf("files", "cache", "external-files", "external-cache", "external-media")
         )
     }

@@ -1,5 +1,7 @@
 # Recorded security status
 
+2026-11-04 SENSOR-DRIVE-001 scope note: sensor Drive is local-only, creates no cloud inference engine and makes no paid-budget reservation. Existing full-frame evidence/quota and commit-before-native-ack boundaries are reused. A dedicated narrow `sensor_logs/` FileProvider root exposes user-shared CSV with temporary read-only grants; SEC-002's registry removes logs/summary sidecars and revokes that alias on Delete All. Owner-authorized logs retain precise peak locations until Delete All, separately from raw-track retention, disclosed in the sensor tip and [SENSOR_DRIVE.md](SENSOR_DRIVE.md). Updated SEC-002/006/009/014 and full-frame contracts cover these additions. No prior finding disposition changes. Physical-device cleanup/share, release and NEW-002 remain unverified/separate; this is not production approval.
+
 This is a transcription/summary of existing remediation reports, prior verification conclusions and the continuation notes as of 2026-09-14. It is not a new audit or fresh dependency-advisory lookup. Resolved source/applicability status does not imply device deployment or production approval.
 
 Scoped SEC-008 update on 2026-09-14: live npm dependency/audit checks and an actual plist round trip verified the compatible xmldom patch. Only SEC-008 was remediated; this was not a broad re-audit. See [SEC-008's report](../SECURITY_REMEDIATION_SEC008.md) for the hidden-lock mismatch recovery and verification limits.

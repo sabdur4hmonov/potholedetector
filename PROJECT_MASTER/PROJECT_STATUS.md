@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-11-04 SENSOR-DRIVE-001
+
+AI-free phone-camera Drive fallback is implemented on `sensor-drive`: no-key sensor admission, gravity-projected bump detection, complete pre-event evidence, same-drive 15 m merging, private unconfirmed review/confirmation/deletion, English/Uzbek HUD/settings, bounded shareable calibration CSV and sampling-frame cleanup. Cloud Drive remains the keyed path. No dependency/schema/release or NEW-002 change. [SENSOR_DRIVE.md](SENSOR_DRIVE.md) records the contract and limits; the worklog records tests and APK identity. Source/browser/JVM evidence does not establish phone/field performance. Exact next task: owner/reviewer physical-device acceptance of the debug APK and review of photos/calibration CSV, including pause/resume/stop/share/Delete All.
+
 ## 2026-10-06 Startup crash fixed (emulator-verified only)
 
 The debug APK crashed at startup on a phone because native plugin authorization called `WebView.getUrl()` off the main thread. Fixed and verified on a CI emulator (process stays alive, first-run Settings renders, no boot error). Not yet verified on a physical phone.

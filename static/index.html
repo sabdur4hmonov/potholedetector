@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-qaWsWwQH8GkyJPJB0qaEVCcN1PTwd979Hhumi5JdDno='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-dJY5dSBbv0AQP1rNKz3z9Gnb6suUnJhXXRZx92ki5Gs='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -169,6 +169,12 @@
       <label id="keyLabel">OpenAI API key</label>
       <input type="password" id="setKey" autocomplete="off" spellcheck="false" placeholder="sk-...">
       <div class="meta" id="credentialStorageNote"></div>
+      <label id="bumpSensitivityLabel" for="setBumpSensitivity">Bump sensitivity</label>
+      <select id="setBumpSensitivity">
+        <option value="low" id="bumpLow">Low</option>
+        <option value="medium" id="bumpMedium">Medium</option>
+        <option value="high" id="bumpHigh">High</option>
+      </select>
       <label id="modelLabel">Photo model</label>
       <select id="setModel">
         <option value="gpt-5-mini">gpt-5-mini — recommended</option>
@@ -305,6 +311,14 @@ let initialSettingsActive = false;
 // ---------- i18n (English / Uzbek) ----------
 const I18N = {
   en: {
+    sensor_mode: "Sensor mode (no AI)",
+    sensor_badge: "Bump — unconfirmed",
+    sensor_confirm: "Confirm pothole",
+    sensor_tip: "Bumps save complete photos for review after driving. Bumps can be speed humps or other jolts; no AI verification. A private calibration log includes peak locations until Delete All.",
+    sensor_count: "{n} bumps · {missing} bumps without frame",
+    sensor_share: "Share sensor log",
+    sensor_sensitivity: "Bump sensitivity",
+    sensor_low: "Low", sensor_medium: "Medium", sensor_high: "High",
     manual_confirm: "Save this photo as a private, user-reported pothole? It will not be AI verified or sent anywhere.",
     manual_verdict: "User-reported pothole · not AI verified",
     manual_help: "Review or export your photo offline. Optional cloud analysis creates a separate result and keeps this report.",
@@ -331,14 +345,14 @@ const I18N = {
     trip_unknown: "Unavailable",
     trip_limits: "Private estimates from sampled GPS, after accuracy and jump filtering. Gaps and uncertain movement are omitted; these are not total journey distance or measured peak speed. No route is shown or uploaded.",
     trip_partial: "Partial GPS coverage or calculation limit reached.",
-    banner_setup: "Photo works offline without a key. An OpenAI API key is optional for cloud analysis and Drive.",
+    banner_setup: "Photo and sensor Drive work without a key. An OpenAI API key is optional for cloud analysis.",
     settings_title: "Settings",
-    key_label: "OpenAI API key (sent to OpenAI as the credential)",
+    key_label: "OpenAI API key (optional; cloud analysis only)",
     credential_storage_native: "Android encrypts retained credentials with a non-exportable Keystore key. Saved credentials are never shown here; leave a field blank to keep its current value.",
     credential_storage_browser: "This browser keeps the API key only in memory until this page closes or reloads. It is not saved in browser storage.",
     model_label: "Photo model",
     detail_label: "Photo detail",
-    accuracy_note: "Drive uses gpt-5.6/high; these choices apply only to Photo.",
+    accuracy_note: "Without a key, Drive uses sensors. With a key, Drive uses gpt-5.6/high; these choices apply only to Photo.",
     capture_source_label: "Drive video source",
     phone_camera_option: "Phone camera",
     dashcam_option: "Dashcam",
@@ -349,19 +363,19 @@ const I18N = {
     dashcam_rtsp_invalid: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
     dashcam_native_only: "Dashcam is disabled: this app cannot provide verified secure RTSP (rtsps://). Select Phone camera.",
     debug_label: "Debug mode: keep the drive video after analysing it",
-    settings_note: "Pothole photos and video-derived frames are sent to OpenAI for detection and can contain number plates or faces. Exact location is sent to OpenStreetMap/Nominatim to look up the street name. Your API key is sent only to OpenAI. Reports stay on this phone and the app never sends them to any authority.",
+    settings_note: "Sensor Drive keeps photos and peak locations on this phone. Optional cloud analysis sends pothole photos and video-derived frames to OpenAI; these can contain number plates or faces. Cloud features send exact location to OpenStreetMap/Nominatim to look up the street name. Your API key is sent only to OpenAI. The app never sends reports to any authority.",
     independent_note: "Independent, unofficial app. It is not affiliated with or endorsed by any government body.",
     privacy_title: "Before capture and location access",
     privacy_permission: "The app asks for Precise Location and, only when Phone camera is selected, Camera.",
     privacy_source: "Drive Mode uses no audio. It uses either this phone's camera or the dashcam RTSP stream you configure, plus this phone's location, in the background—even while Maps or a call is on screen.",
-    privacy_body: "If you continue, the app will ask for Precise Location and, only when Phone camera is selected, Camera. While Drive Mode runs, precise location is collected to tag road damage even when this app is not visible or in use, including while Maps or a call is on screen. Pothole photos—or sampled complete frames from the selected Drive video source—are sent with your API key to OpenAI for detection. On a precise later live-drive revisit, the saved earlier damage photo and current views may be sent together for repair verification. Exact coordinates are sent to OpenStreetMap/Nominatim to look up the street name. Processing can occur outside Uzbekistan.",
+    privacy_body: "If you continue, the app will ask for Precise Location and, only when Phone camera is selected, Camera. While Drive Mode runs, precise location is collected even when Maps or a call is on screen. Sensor mode keeps photos and peak locations on this phone without AI transfer. In optional cloud mode, complete pothole photos and Drive frames are sent with your API key to OpenAI. A precise cloud-drive revisit may send saved and current full photos together for repair verification. Cloud features send exact coordinates to OpenStreetMap/Nominatim for street names. Cloud processing can occur outside Uzbekistan.",
     privacy_local: "Drive Mode uses no audio. It uses either this phone's camera or the dashcam RTSP stream you configure, plus this phone's location, in the background—even when this app is not visible and Maps or a call is on screen. A visible persistent foreground-service notification always shows this use; pause or stop it from the app or notification. On Android, the RTSP address, credentials, and OpenAI key are encrypted with a non-exportable Android Keystore key and are never returned to the WebView; local RTSP itself is normally unencrypted, so use only a trusted dashcam Wi-Fi. A browser keeps its OpenAI key in memory only until the page closes or reloads. Selected complete frames are stored before analysis; the whole dashcam stream is not uploaded. Optional silent local video recording is off by default and is available only for Phone camera. Video and saved frames share a 4 GB cap; report and repair evidence has a separate 512 MB cap. Both stop writing before free storage falls below 500 MB. Drive stops after the selected active-time battery limit and fully stops after 15 minutes continuously paused. Reports, photos, repair evidence, footage, sampled frames, location tracks and settings remain on this device until deleted.",
-    privacy_government: "This independent app is not a government service and never sends reports to any authority by itself. Your location is sent to OpenStreetMap/Nominatim to look up the street name, and photos are sent to OpenAI for detection, as disclosed above.",
+    privacy_government: "This independent app is not a government service and never sends reports to any authority by itself. Optional cloud features send location to OpenStreetMap/Nominatim and photos to OpenAI as disclosed above; sensor Drive keeps its evidence local.",
     privacy_link: "Privacy policy",
     privacy_accept: "Continue",
     privacy_decline: "Not now",
     wipe_btn: "Delete all app data",
-    welcome_hint: "Save private Photo reports offline without a key. Add an OpenAI API key only for optional cloud analysis or Drive. The key is sent to OpenAI only as the request credential.",
+    welcome_hint: "Save private Photo reports and use sensor Drive without a key. Add an OpenAI API key only for optional cloud analysis. The key is sent to OpenAI only as the request credential.",
     back: "Back",
     save: "Save",
     del: "Delete",
@@ -496,6 +510,14 @@ const I18N = {
     by_street: "By street",
   },
   uz: {
+    sensor_mode: "Sensor rejimi (AI'siz)",
+    sensor_badge: "Silkinish — tasdiqlanmagan",
+    sensor_confirm: "Chuqurni tasdiqlash",
+    sensor_tip: "Silkinishlarda to‘liq surat saqlanadi; safardan keyin tekshiring. Bu tezlik to‘sig‘i yoki boshqa zarba bo‘lishi mumkin. AI tekshirmaydi. Kalibrlash jurnali joylashuvlarni Barchasini o‘chirishgacha saqlaydi.",
+    sensor_count: "{n} ta silkinish · {missing} tasi kadrsiz",
+    sensor_share: "Sensor jurnalini ulashish",
+    sensor_sensitivity: "Silkinish sezgirligi",
+    sensor_low: "Past", sensor_medium: "O‘rta", sensor_high: "Yuqori",
     manual_confirm: "Bu rasmni foydalanuvchi o'zi xabar qilgan chuqur sifatida saqlaysizmi? U AI tomonidan tasdiqlanmaydi va hech qayerga yuborilmaydi.",
     manual_verdict: "Foydalanuvchi xabari · AI tasdiqlamagan",
     manual_help: "Rasmni oflayn ko'rib chiqing yoki eksport qiling. Ixtiyoriy bulutli tahlil alohida natija yaratadi va bu hisobotni saqlab qoladi.",
@@ -522,14 +544,14 @@ const I18N = {
     trip_unknown: "Mavjud emas",
     trip_limits: "Aniqligi va sakrashlari filtrlangan GPS namunalaridan olingan shaxsiy taxminlar. Bo'shliqlar va noaniq harakat chiqarib tashlangan; bu umumiy yo'l masofasi yoki o'lchangan maksimal tezlik emas. Marshrut ko'rsatilmaydi va yuklanmaydi.",
     trip_partial: "GPS qamrovi to'liq emas yoki hisoblash chegarasiga yetildi.",
-    banner_setup: "Rasm rejimi kalitsiz ham oflayn ishlaydi. OpenAI API kaliti bulutli tahlil va Haydash uchun ixtiyoriy.",
+    banner_setup: "Rasm va sensor Haydash kalitsiz ishlaydi. OpenAI API kaliti faqat bulutli tahlil uchun ixtiyoriy.",
     settings_title: "Sozlamalar",
-    key_label: "OpenAI API kaliti (OpenAI'ga hisob ma'lumoti sifatida yuboriladi)",
+    key_label: "OpenAI API kaliti (ixtiyoriy; faqat bulutli tahlil uchun)",
     credential_storage_native: "Android saqlangan ma'lumotlarni eksport qilib bo'lmaydigan Keystore kaliti bilan shifrlaydi. Saqlangan kalit bu yerda hech qachon ko'rsatilmaydi; joriy qiymatni saqlash uchun maydonni bo'sh qoldiring.",
     credential_storage_browser: "Bu brauzer API kalitini sahifa yopilguncha yoki yangilanguncha faqat xotirada saqlaydi. U brauzer xotirasiga yozilmaydi.",
     model_label: "Rasm modeli",
     detail_label: "Rasm tafsiloti",
-    accuracy_note: "Haydash gpt-5.6/high ishlatadi; bu tanlovlar faqat Rasm rejimiga tegishli.",
+    accuracy_note: "Kalitsiz Haydash sensorlardan foydalanadi. Kalit bilan Haydash gpt-5.6/high ishlatadi; bu tanlovlar faqat Rasm rejimiga tegishli.",
     capture_source_label: "Haydash video manbai",
     phone_camera_option: "Telefon kamerasi",
     dashcam_option: "Videoregistrator",
@@ -540,19 +562,19 @@ const I18N = {
     dashcam_rtsp_invalid: "Videoregistrator o'chirilgan: ilova xavfsiz RTSP (rtsps://) ni ta'minlay olmaydi. Telefon kamerasini tanlang.",
     dashcam_native_only: "Videoregistrator o'chirilgan: ilova xavfsiz RTSP (rtsps://) ni ta'minlay olmaydi. Telefon kamerasini tanlang.",
     debug_label: "Nosozliklarni tuzatish rejimi: tahlildan keyin ham haydash videosini saqlash",
-    settings_note: "Chuqur rasmlari va videodan olingan kadrlar aniqlash uchun OpenAI'ga yuboriladi va ularda davlat raqamlari yoki yuzlar bo'lishi mumkin. Aniq joylashuv ko'cha nomini topish uchun OpenStreetMap/Nominatim'ga yuboriladi. API kalitingiz faqat OpenAI'ga yuboriladi. Hisobotlar shu telefonda qoladi va ilova ularni hech qaysi idoraga yubormaydi.",
+    settings_note: "Sensor Haydash rasmlar va silkinish joylarini shu telefonda saqlaydi. Ixtiyoriy bulutli tahlilda rasmlar va kadrlar OpenAI'ga yuboriladi; ularda davlat raqamlari yoki yuzlar bo'lishi mumkin. Bulutli funksiyalarda ko'cha nomi uchun aniq joylashuv OpenStreetMap/Nominatim'ga yuboriladi. API kaliti faqat OpenAI'ga yuboriladi. Hisobotlar hech qaysi idoraga yuborilmaydi.",
     independent_note: "Mustaqil, norasmiy ilova. U hech qanday davlat organiga bog'liq emas va ular tomonidan tasdiqlanmagan.",
     privacy_title: "Suratga olish va joylashuvga ruxsatdan oldin",
     privacy_permission: "Ilova Aniq joylashuvni va faqat Telefon kamerasi tanlanganda Kamerani so'raydi.",
     privacy_source: "Haydash rejimi audio ishlatmaydi. U shu telefonning kamerasi yoki siz sozlagan videoregistrator RTSP oqimidan hamda shu telefonning joylashuvidan fonda ham foydalanadi — Xarita yoki qo'ng'iroq ekranda turganda ham.",
-    privacy_body: "Davom etsangiz, ilova Aniq joylashuvni va faqat Telefon kamerasi tanlanganda Kamerani so'raydi. Haydash rejimi ishlayotganda yo'l shikastlarini belgilash uchun aniq joylashuv, ilova ko'rinmasa yoki ishlatilmasa ham, jumladan Xarita yoki qo'ng'iroq ekranda turganda ham yig'iladi. Chuqur rasmlari — yoki tanlangan Haydash video manbaidan olingan to'liq kadrlar — API kalitingiz bilan aniqlash uchun OpenAI'ga yuboriladi. Keyingi aniq jonli qayta o'tishda avval saqlangan shikast rasmi va joriy ko'rinishlar ta'mirni tekshirish uchun birga yuborilishi mumkin. Aniq koordinatalar ko'cha nomini topish uchun OpenStreetMap/Nominatim'ga yuboriladi. Ishlov O'zbekiston tashqarisida bo'lishi mumkin.",
+    privacy_body: "Davom etsangiz, ilova Aniq joylashuvni va faqat Telefon kamerasi tanlanganda Kamerani so'raydi. Haydash ishlayotganda, Xarita yoki qo'ng'iroq ekranda bo'lsa ham, aniq joylashuv yig'iladi. Sensor rejimi rasmlar va silkinish joylarini AI'ga yubormay, shu telefonda saqlaydi. Ixtiyoriy bulutli rejimda to'liq rasmlar va Haydash kadrlari API kalitingiz bilan OpenAI'ga yuboriladi. Bulutli Haydashda qayta o'tilganda saqlangan va joriy to'liq rasmlar ta'mirni tekshirish uchun birga yuborilishi mumkin. Bulutli funksiyalarda ko'cha nomi uchun aniq koordinatalar OpenStreetMap/Nominatim'ga yuboriladi. Bulutli ishlov O'zbekiston tashqarisida bo'lishi mumkin.",
     privacy_local: "Haydash rejimi audio ishlatmaydi. U shu telefonning kamerasi yoki siz sozlagan videoregistrator RTSP oqimidan hamda shu telefonning joylashuvidan fonda ham foydalanadi — ilova ko'rinmasa va Xarita yoki qo'ng'iroq ekranda turganda ham. Ko'rinib turuvchi doimiy bildirishnoma bu foydalanishni har doim ko'rsatadi; uni ilovadan yoki bildirishnomadan to'xtatib turish yoki to'xtatish mumkin. Android'da RTSP manzili, ma'lumotlari va OpenAI kaliti eksport qilib bo'lmaydigan Android Keystore kaliti bilan shifrlanadi va WebView'ga hech qachon qaytarilmaydi; mahalliy RTSP odatda shifrlanmagan, shuning uchun faqat ishonchli videoregistrator Wi-Fi'sidan foydalaning. Brauzer OpenAI kalitini sahifa yopilguncha yoki yangilanguncha faqat xotirada saqlaydi. Tanlangan to'liq kadrlar tahlildan oldin saqlanadi; videoregistratorning butun oqimi yuklanmaydi. Ixtiyoriy ovozsiz mahalliy video yozish sukut bo'yicha o'chiq va faqat Telefon kamerasi uchun mavjud. Video va saqlangan kadrlar 4 GB umumiy chegaraga ega; hisobot va ta'mir dalillari uchun alohida 512 MB chegara bor. Bo'sh joy 500 MB dan kamaymasdan oldin yozish to'xtaydi. Haydash tanlangan faol vaqt batareya chegarasidan keyin to'xtaydi va 15 daqiqa uzluksiz pauzada tursa to'liq to'xtaydi. Hisobotlar, rasmlar, ta'mir dalillari, videolar, namunaviy kadrlar, joylashuv izlari va sozlamalar o'chirilmaguncha shu qurilmada qoladi.",
-    privacy_government: "Bu mustaqil ilova davlat xizmati emas va hisobotlarni o'zi hech qaysi idoraga yubormaydi. Joylashuvingiz ko'cha nomini topish uchun OpenStreetMap/Nominatim'ga, rasmlar esa aniqlash uchun OpenAI'ga yuboriladi, bu yuqorida ko'rsatilgan.",
+    privacy_government: "Bu mustaqil ilova davlat xizmati emas va hisobotlarni hech qaysi idoraga yubormaydi. Ixtiyoriy bulutli funksiyalar joylashuvni OpenStreetMap/Nominatim'ga va rasmlarni OpenAI'ga yuboradi. Sensor Haydash dalillarni telefonda saqlaydi.",
     privacy_link: "Maxfiylik siyosati",
     privacy_accept: "Davom etish",
     privacy_decline: "Hozir emas",
     wipe_btn: "Barcha ilova ma'lumotlarini o'chirish",
-    welcome_hint: "Shaxsiy Rasm hisobotlarini kalitsiz oflayn saqlang. OpenAI API kalitini faqat ixtiyoriy bulutli tahlil yoki Haydash uchun qo'shing. Kalit OpenAI'ga faqat so'rov hisob ma'lumoti sifatida yuboriladi.",
+    welcome_hint: "Shaxsiy Rasm hisobotlarini va sensor Haydashni kalitsiz ishlating. OpenAI API kalitini faqat ixtiyoriy bulutli tahlil uchun qo'shing. Kalit OpenAI'ga faqat so'rov hisob ma'lumoti sifatida yuboriladi.",
     back: "Orqaga",
     save: "Saqlash",
     del: "O'chirish",
@@ -824,6 +846,8 @@ function applyLang() {
   $("reportsTitle").textContent = t("your_reports");
   $("settingsTitle").textContent = t("settings_title");
   $("keyLabel").textContent = t("key_label");
+  $("bumpSensitivityLabel").textContent = t("sensor_sensitivity");
+  for (const level of ["Low", "Medium", "High"]) $("bump" + level).textContent = t("sensor_" + level.toLowerCase());
   $("credentialStorageNote").textContent = window.CredentialBroker.isNative()
     ? t("credential_storage_native") : t("credential_storage_browser");
   $("modelLabel").textContent = t("model_label");
@@ -851,7 +875,7 @@ function applyLang() {
     t("privacy_permission"), withoutLeadingSentences(t("privacy_body"), 1),
   ].filter(Boolean).join(" ");
   $("privacyLocal").textContent = [
-    t("privacy_source"), withoutLeadingSentences(t("privacy_local"), 2),
+    t("privacy_source"), withoutLeadingSentences(t("privacy_local"), 2), t("sensor_tip"),
   ].filter(Boolean).join(" ");
   $("privacyGovernment").textContent = t("privacy_government");
   $("privacyLink").textContent = t("privacy_link");
@@ -1053,7 +1077,7 @@ async function renderReports() {
     <div class="card row" data-id="${escapeAttr(r.id)}" style="cursor:pointer">
       <img class="thumb" src="${safePhotoSrc(photoSrc(r))}" alt="" loading="lazy" decoding="async">
       <div style="min-width:0">
-        <div>${chip(r.status)} ${conditionChip(r)} ${freshnessChip(r)} ${damageType(r) !== "none"
+        <div>${r.capture_source === "drive_sensor" && r.decision !== "manual" ? `<span class="chip">${escapeHtml(t("sensor_badge"))}</span>` : ""} ${chip(r.status)} ${conditionChip(r)} ${freshnessChip(r)} ${damageType(r) !== "none"
           ? `<span class="chip" style="background:#26272c;color:#cfcfd4">${escapeHtml(tDamage(r))}</span>` : ""} ${r.size ? `<span class="chip" style="background:#26272c;color:#cfcfd4">${escapeHtml(tSize(r.size))}</span>` : ""}</div>
         <div class="meta">${escapeHtml(fmtDate(r.created_at))}${r.address ? " · " + escapeHtml(String(r.address).split(",").slice(0, 2).join(", ")) : ""}</div>
       </div>
@@ -1102,7 +1126,7 @@ async function renderReports() {
   releaseThumbs(new Set(reports.map((r) => r.id)));
   const footageRowHtml = (driveId, fo, open, rec) => {
     const hasTrack = !!(rec && Array.isArray(rec.gps_track) && rec.gps_track.length);
-    if (!fo && !hasTrack) return "";
+    if (!fo && !hasTrack && !rec?.sensor_log) return "";
     const trackButton = hasTrack
       ? `<button class="ghost danger" data-deltrack="${driveId}">${t("delete_track")}</button>` : "";
     const footagePart = !fo ? "" : `<div class="meta">${t("footage_line", { mb: (fo.bytes / 1048576).toFixed(0), segments: fo.segments })}${fo.native && fo.keyframes ? ` · ${fo.keyframes} saved frame${fo.keyframes === 1 ? "" : "s"}` : ""}</div>
@@ -1114,6 +1138,7 @@ async function renderReports() {
       </div>`;
     return `<div class="card" data-footagerow="${driveId}" style="padding:10px 12px;${open ? "" : "display:none"}">
       ${footagePart}
+      ${rec?.sensor_log ? `<button class="ghost" data-sharesensor="${driveId}">${escapeHtml(t("sensor_share"))}</button>` : ""}
       ${trackButton ? `<div class="btn-row" style="margin-top:8px">${trackButton}</div>` : ""}
     </div>`;
   };
@@ -1137,10 +1162,12 @@ async function renderReports() {
       ? t("drive_video_suffix", { n: rec.analysis_checked }) : "";
     // "frames checked" is only known from the drive record: rejected frames are not
     // stored unless debug mode is on, so older drives can only report what was kept.
-    const label = rec
+    const sensorSummary = rec?.sensor_log ? t("sensor_mode") + " · " + t("sensor_count", {
+      n: rec.sensor_bumps || 0, missing: rec.sensor_without_frame || 0 }) + " · " + fmtDate(start) : null;
+    const label = sensorSummary || (rec
       ? t("drive_group", { date: fmtDate(start), found: foundTxt, known: knownTxt,
           checked: rec.checked, video: videoTxt })
-      : t("drive_group_partial", { date: fmtDate(start), found: foundTxt, kept: g.items.length });
+      : t("drive_group_partial", { date: fmtDate(start), found: foundTxt, kept: g.items.length }));
     const open = expandedDrives.has(String(g.driveId));
     const footageRow = footageRowHtml(g.driveId, fo, open, rec);
     return `<div class="group-head ${open ? "open" : ""}" data-drive="${g.driveId}">
@@ -1188,6 +1215,13 @@ async function renderReports() {
     el.onclick = (ev) => {
       ev.stopPropagation();
       analyseNativeKeyframes(el.dataset.analysenative);
+    };
+  }
+  for (const el of list.querySelectorAll("[data-sharesensor]")) {
+    el.onclick = async ev => {
+      ev.stopPropagation();
+      try { await nativeDrivePlugin().shareSensorLog({ sessionId: el.dataset.sharesensor }); }
+      catch (e) { alert(e.message || e); }
     };
   }
   for (const el of list.querySelectorAll("[data-sharenative]")) {
@@ -1426,6 +1460,7 @@ function step(delta) {
 }
 
 function detectionVerdict(r) {
+  if (r.capture_source === "drive_sensor" && r.decision !== "manual") return t("sensor_badge");
   if (r.report_origin === "user_reported") return t("manual_verdict");
   if (physicalCondition(r) === "fixed") return t("verdict_fixed");
   if (physicalCondition(r) === "repair_review") return t("verdict_repair_review");
@@ -1524,6 +1559,8 @@ function openDetail(r, list) {
         </div>
         <div>${chip(r.status)} ${conditionChip(r)} ${freshnessChip(r)}</div>
         ${place ? `<div class="meta">&#128205; ${escapeHtml(place)}${Number.isFinite(r.gps_accuracy) ? ` (±${Math.round(r.gps_accuracy)} m)` : ""}</div>` : `<div class="meta" style="color:var(--bad)">&#9888; ${escapeHtml(t("no_location"))}</div>`}
+        ${r.capture_source === "drive_sensor" ? `<div class="meta">${escapeHtml(fmtDate(r.captured_at || r.created_at))} · ${escapeHtml(r.description || "")}</div>
+          ${r.decision !== "manual" ? `<button class="send" id="confirmSensorBtn">${escapeHtml(t("sensor_confirm"))}</button>` : ""}` : ""}
         ${manual ? `<div class="meta">${escapeHtml(t("manual_help"))}</div>` : `<div class="meta">${escapeHtml(r.description || "")}</div>`}
         ${repairEvidenceHtml(r)}
         ${fixed ? "" : `<div class="btn-row">
@@ -1538,6 +1575,16 @@ function openDetail(r, list) {
     const share = $("shareEvidenceBtn");
     if (share) share.onclick = () => shareEvidence(r);
   }
+  const confirmSensor = $("confirmSensorBtn");
+  if (confirmSensor) confirmSensor.onclick = async () => {
+    if (!confirm(t("manual_confirm"))) return;
+    try {
+      const updated = await api(`/api/reports/${r.id}/confirm-sensor`, {
+        method: "POST", body: JSON.stringify({ confirmed: true }),
+      });
+      await loadReports(); openDetail(updated);
+    } catch (e) { alert(e.message); }
+  };
   wireConditionActions(r);
   wireDetailChrome(r);
   const cloudAnalysis = $("cloudAnalysisBtn");
@@ -1558,6 +1605,9 @@ function openDetail(r, list) {
     if (!confirm(t("confirm_delete"))) return;
     let cleanupError = null;
     try {
+      if (r.sensor_native_id && nativeDrivePlugin()?.deleteSensorReport) {
+        await nativeDrivePlugin().deleteSensorReport({ id: r.sensor_native_id });
+      }
       await api(`/api/reports/${r.id}`, { method: "DELETE" });
       const plugin = nativeDrivePlugin();
       if (plugin) {
@@ -2095,6 +2145,11 @@ function updateNativeDriveHud(status) {
     + (keyframes ? ` · ${keyframes} saved frame${keyframes === 1 ? "" : "s"}` : "")
     + (segments ? ` · ${segments} video clip${segments === 1 ? "" : "s"} (${savedMb.toFixed(0)} MB)` : "")
     + (minutesLeft && !status.isStopping ? ` · ${minutesLeft} min left` : "");
+  if (status.detectionMode === "sensor") {
+    $("nativeDriveCount").textContent = t("sensor_count", { n: Number(status.bumpCount) || 0, missing: Number(status.bumpsWithoutFrame) || 0 });
+    $("nativeDriveStatus").textContent = t("sensor_mode") + " · " + (status.sensorIssue || statusMessage);
+    $("driveTip").textContent = t("sensor_tip");
+  }
   $("nativePauseBtn").textContent = status.isPaused ? "Resume" : "Pause";
   const badge = $("nativeCameraBadge");
   if (captureSource === DASHCAM_CAPTURE_SOURCE) {
@@ -2720,10 +2775,7 @@ async function startDriveAdmitted() {
     openSettings(true, false);
     return;
   }
-  if (!window.CredentialBroker.hasOpenAi()) {
-    openSettings(true, false);
-    return;
-  }
+  const detectionMode = window.CredentialBroker.hasOpenAi() ? "cloud" : "sensor";
   const captureConfig = savedDriveCaptureConfig();
   const nativePlugin = nativeDrivePlugin();
   if (captureConfig.captureSource === DASHCAM_CAPTURE_SOURCE) {
@@ -2731,6 +2783,10 @@ async function startDriveAdmitted() {
     openSettings(false, false);
     setDashcamRtspFeedback(t("dashcam_rtsp_invalid"), true);
     $("setCaptureSource").focus();
+    return;
+  }
+  if (!nativePlugin && detectionMode === "sensor") {
+    alert(LANG === "uz" ? "Sensor rejimi Android ilovasida ishlaydi." : "Sensor mode requires the Android app.");
     return;
   }
   const backgroundSyncCancelled = nativePlugin
@@ -2780,6 +2836,8 @@ async function startDriveAdmitted() {
     try {
       const status = await nativePlugin.startDrive({
         startRequestId: ctx.startRequestId,
+        detectionMode,
+        bumpSensitivity: localStorage.getItem("bump_sensitivity") || "medium",
         model: NATIVE_DRIVE_DETECTION_MODEL,
         detail: NATIVE_DRIVE_DETECTION_DETAIL,
         language: LANG,
@@ -4941,6 +4999,7 @@ window.handleAppBack = () => {
 window.openSettings = (showWelcome = false, requireCompletion = false) => {
   if (nativeFinishLocked || nativeWipeLocked) return false;
   initialSettingsActive = requireCompletion || initialSettingsRequired;
+  $("setBumpSensitivity").value = localStorage.getItem("bump_sensitivity") || "medium";
   $("setKey").value = "";
   $("setKey").placeholder = window.CredentialBroker.hasOpenAi()
     ? (window.CredentialBroker.isNative() ? "Stored securely — leave blank to keep"
@@ -5021,6 +5080,7 @@ $("setSave").onclick = async () => {
         updateNativeDriveHud(updated);
       }
     }
+    localStorage.setItem("bump_sensitivity", $("setBumpSensitivity").value);
     localStorage.setItem("detection_model", selectedModel);
     localStorage.setItem("image_detail", selectedDetail);
     localStorage.setItem(CAPTURE_SOURCE_KEY, selectedCaptureSource);

@@ -1,5 +1,9 @@
 # Product decisions
 
+## 2026-11-04 — SENSOR-DRIVE-001 owner decision
+
+Owner chose accelerometer sensor mode as the AI-free Drive fallback until the vision model exists. Without a key, phone-camera Drive records conservative bumps and complete pre-event photos for private human review. Candidates are unconfirmed; Confirm pothole marks them user-reported. Existing keyed cloud Drive remains optional and dashcam remains disabled. The owner requested private per-drive calibration logs with peak locations, capped at 20,000 rows, shared only on user action and removed by Delete All; these are separate from raw GPS tracks. No trained model, detector-accuracy claim, official submission or release decision is implied. See [SENSOR_DRIVE.md](SENSOR_DRIVE.md).
+
 ## 2026-10-06 — Uzbekistan refocus decisions (human-approved in chat)
 
 - **India removed.** All India routing, authority packs, tender matching, complaint/handoff flows and the Kannada/Marathi/Bengali UI are removed. Languages: **English and Uzbek (Latin)**; Russian may come later. Accepted detections are saved as local drafts; nothing is sent to any authority.

@@ -11,13 +11,15 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "android-app/android/app/src/main/java/dev/aiengg/potholereporter/"
 WRITER_PATTERN = '\\bFile\\s*\\(|FileOutputStream|\\.writeBytes\\(|\\.writeText\\(|\\.outputStream\\(|createTempFile|\\.mkdirs\\(|setOutputFile|FileOutputOptions|openOutputStream|openFileDescriptor|MediaStore|DocumentFile|FileWriter|RandomAccessFile|createNewFile|Files\\.(copy|move|write)'
-AUDITED_NATIVE_WRITERS = {'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/DriveForegroundService.kt': 'd40e2534aa9a71cc78cfefd14fca84a92983fa0df303ab058fd97aadbff4fb87',
+# SENSOR-DRIVE-001 ownership review: sensor_logs private CSV/summary; report and footage quota stores reused.
+AUDITED_NATIVE_WRITERS = {'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeSensorDrive.kt': 'a454121b071b8d76a2cca2cb24e996834bd0a415eea6fb28a175f9c7c1c53253',
+ 'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/DriveForegroundService.kt': '6aa9626e8cdd773a6ccc781c90fa4a301bcc04122ad621adef57ab643554d8ed',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeDriveCameraManager.kt': '8a51ce3b7495773004a9a3882a7a4b7f117170d574dd3976c0a5be274417767d',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeInferenceEvidenceStore.kt': '6a28078525308a7eecbe0d5fbc8cb87a35e7ecd51a6aba20d0f896ddf7304397',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeKeyframeFiles.kt': '6889d0f0e27b6c1857b2211e34ae37aa6956872e21453a8b473581d9b0e4b36d',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeReportEvidenceStorage.kt': '724df2ab9f8c255f1fad5a2953e99f6b5f8c3ed1bef4bc9bec67d873e42f07b0',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeSourceMediaLedger.kt': 'ad71edeacf63b5dc9f0ce2a0d8f8c14ee8f1d21e1997a41ed4b97765676bbb4a',
- 'android-app/android/app/src/main/java/dev/aiengg/potholereporter/plugin/DriveModePlugin.kt': '27726aa0062f0255e24ef40edaaca8aecc3942c91fbdd4bcacc8378767714e46',
+ 'android-app/android/app/src/main/java/dev/aiengg/potholereporter/plugin/DriveModePlugin.kt': '9790e796c425b5f2b270327757e184ea466fcb4aeb5ab7034fa221169cdc337a',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/plugin/NativeKeyframeOwnershipPaging.kt': '585af5648ba5a0cf16e8b1b001327c32f9d3c74c64f92ad53f04ff80c7341878',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/plugin/NativePrivateMediaFiles.kt': '1799f47d02c0306ca27c8f6398a5e977754e5b41b3d6b250f795653ed65ff884',
  # SEC-006 ownership review: native-private noBackupFilesDir/ai_usage_budget/usage.bin.
@@ -44,7 +46,8 @@ AUDITED_PLUGIN_WRITERS = {'android-app/node_modules/@capacitor/camera/android/bu
  'android-app/node_modules/capacitor-email-composer/android/src/main/java/de/einfachhans/emailcomposer/AssetUtil.java': '90ccd162fdf1fb12a053ee2dc822b0055f0dc1cdd7fcc389c7fe53a524ef9401',
  'android-app/node_modules/capacitor-email-composer/android/src/main/java/de/einfachhans/emailcomposer/EmailComposer.java': '898eb7c51ac459731bcfb70f8385ee6dcc7410a52453e79a1da9ffae3ff3197c',
  'android-app/node_modules/capacitor-email-composer/android/src/main/java/de/einfachhans/emailcomposer/EmailComposerPlugin.java': '4b9cfea12917ddb0737d480b94c4ead8e510123f42dcde5001f35ef01710aebc',
- 'android-app/package-lock.json': 'c4eb80f7870498d1eb0ed4a14f182d21a19450fc795d203bf78dc17ed980fec7'}
+ # Existing main checkpoint 0f65382 lock; no dependency change in SENSOR-DRIVE-001.
+ 'android-app/package-lock.json': '3b9fa5a00ded691207b9928ee823060111b5424db00552cab35e47d06fbb6d88'}
 AUDITED_WEB_WRITERS = {'shareEvidence': '413cea4a2056e90b3bcaffedc1f62eb04aef387aecfffbb3b35afb27515986ec',
  'shareZip': '6b3e5aeb3f55cfadfdb569d19fc8124efbc82644ac55d64c1ed9e9cb79433470',
  'writeFrameFile': 'c1ae7d8720490f25c4bc7a73ef364d4618fdccc4599c7770ce3561b18651d0c3',
@@ -79,7 +82,7 @@ engine = text(BASE + "media/OwnedMediaCleanup.kt")
 bridge = text(BASE + "media/ManagedMediaPlugin.kt")
 drive = text(BASE + "plugin/DriveModePlugin.kt")
 clear = drive[drive.index("fun clearNativeData"):drive.index("fun getDrives")]
-for root in ("reports", "footage", "repair_targets", "ion_android_camera_videos", "pothole-frames", "email_composer"):
+for root in ("reports", "footage", "repair_targets", "ion_android_camera_videos", "pothole-frames", "email_composer", "sensor_logs"):
     check('"' + root + '"' in registry, "Known media root missing from authoritative registry")
 for api in ("context.filesDir", "context.cacheDir", "getExternalFilesDirs(null)", "externalCacheDirs", "externalMediaDirs", "DIRECTORY_DOCUMENTS"):
     check(api in registry, "Known Android storage class missing")
@@ -95,7 +98,8 @@ check("NativeBridgeAuthorization.isTrustedMainDocument" in bridge and "gate.owns
 check('call.getString("path")' not in bridge and 'call.getString("uri")' not in bridge, "No JS-controlled native deletion paths")
 check('setOf("camera", "email", "share")' in engine, "Only audited operation kinds admitted")
 check('finally {\n      const result = await plugin.endOperation' in client, "Cleanup runs on success/cancel/failure")
-check('withManagedMediaOperation("camera"' in web and 'withManagedMediaOperation("email"' in client, "Camera and composer use native finally cleanup")
+check('withManagedMediaOperation("camera"' in web and 'EmailComposer.open(' not in client,
+      "Camera uses native finally cleanup; removed authority-email flow stays absent")
 check(web.count('withManagedMediaOperation("share"') == 2, "Native share writers participate in wipe barrier")
 check("saveToGallery: false" in web and "allowEditing: false" in web, "No camera originals exported into unrelated user gallery")
 check("window.isManagedMediaWipeInProgress" in client and "if (wipeActive())" in client and "window.isManagedMediaWipeInProgress = () => nativeWipeInProgress" in web, "Late media writers cannot cross native/web wipe completion")

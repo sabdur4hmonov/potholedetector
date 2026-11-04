@@ -1,5 +1,11 @@
 # Recorded work history
 
+## 2026-11-04 — SENSOR-DRIVE-001
+
+- Added AI-free accelerometer phone-camera Drive fallback with explicit/native-enforced mode, pure bounded detector, complete pre-event evidence, event GPS and same-drive sensor merging.
+- Added English/Uzbek unconfirmed review and confirmation/deletion, sensitivity, HUD counts, bounded private calibration CSV sharing and cleanup. Sensor sampling frames cannot enter AI replay.
+- Extended full-frame, storage/URI and branch-isolation guards plus JVM/Chromium tests. Reconciled stale tests for already-removed authority-email/tender paths and the unchanged main lockfile; no dependency or AI-budget implementation changed. Validation/artifact limits are in the worklog and [SENSOR_DRIVE.md](SENSOR_DRIVE.md).
+
 ## 2026-10-06 — Startup crash fix
 
 Fixed an app-killing crash on first native call: plugin authorization read `WebView.getUrl()` on Capacitor's background thread. It now reads the URL on the main thread and fails closed. Added an on-screen JS error overlay and a CI emulator smoke job that launches the debug APK and reports crashes and page state.
