@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## Current HAZARD-ALERT-001 handoff — 2026-11-05
+
+Install the `hazard-alerts` debug APK identified in the worklog. While parked, use Test warning and check tone, vibration, volume, installed offline speech and music/Maps ducking/restoration. Then validate a conservative drive and return leg with Maps in front/screen off: approximate 20-second warnings, grouping, re-arm, unconfirmed wording, manual/confirmed/fixed/deleted eligibility, pause/resume/stop and Delete All. Follow [HAZARD_ALERTS.md](HAZARD_ALERTS.md). No physical-phone sound/background/timing or safety/accuracy claim exists; model, release/NEW-002 and tuning require separate work. Prior handoffs below retain historical checkpoint meaning.
+
 ## Current SENSOR-DRIVE-001 handoff — 2026-11-04
 
 Install the `sensor-drive` debug APK and perform owner/reviewer physical-device acceptance: no-key start, precise GPS and mounted camera, conservative bump capture, complete photos/event locations, review/confirm/delete, pause/resume/stop, sensor-log sharing and Delete All. Use [SENSOR_DRIVE.md](SENSOR_DRIVE.md) and the worklog APK hash. No physical-road calibration or accuracy claim exists. Do not start model integration, threshold tuning, release signing or NEW-002 work without a separately scoped request. Historical entries below retain their original checkpoint meaning.

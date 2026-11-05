@@ -39,6 +39,8 @@ import dev.aiengg.potholereporter.drive.NativeStoredImagePolicy
 import dev.aiengg.potholereporter.drive.NotificationHelper
 import dev.aiengg.potholereporter.drive.TrackRetentionPolicy
 import dev.aiengg.potholereporter.drive.NativeSensorDrive
+import dev.aiengg.potholereporter.drive.NativeHazardStore
+import dev.aiengg.potholereporter.drive.NativeHazardAlerter
 import dev.aiengg.potholereporter.security.NativeSecret
 import dev.aiengg.potholereporter.media.AndroidAppMediaCleanup
 import dev.aiengg.potholereporter.media.AppMediaOperations
@@ -205,6 +207,7 @@ class DriveModePlugin : Plugin() {
         val pendingStartLock = Any()
         var pendingStart: PendingDriveStart? = null
         var nativeClearInProgress = false
+        var hazardSnapshotEpoch = 0L
         val driveControlScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
 
@@ -252,6 +255,8 @@ class DriveModePlugin : Plugin() {
                 put("bumpCount", status.bumpCount)
                 put("bumpsWithoutFrame", status.bumpsWithoutFrame)
                 put("sensorIssue", status.sensorIssue)
+                put("hazardsLoaded", status.hazardsLoaded)
+                put("lastHazardAlert", status.lastHazardAlert)
             }
             notifyListeners("driveStatusChange", data)
         }
@@ -267,6 +272,50 @@ class DriveModePlugin : Plugin() {
 
         DriveForegroundService.onDriveEndedListener = { summary ->
             notifyListeners("driveEnded", endSummaryObject(summary))
+        }
+    }
+
+    @PluginMethod
+    fun setHazards(call: PluginCall) {
+        val values = try { NativeHazardStore.parse(call.data.toString()) }
+        catch (_: Exception) { call.reject("Invalid hazard list: version 1, at most 5000 valid unique hazards required"); return }
+        val epoch = synchronized(pendingStartLock) { if (nativeClearInProgress) null else hazardSnapshotEpoch }
+        if (epoch == null) { call.reject("Data deletion is active"); return }
+        pluginScope.launch {
+            try {
+                NativeMediaFilesystemMutation.mutex.withLock {
+                    synchronized(pendingStartLock) {
+                        check(!nativeClearInProgress && epoch == hazardSnapshotEpoch) { "Data deletion invalidated this warning update" }
+                    }
+                    NativeHazardAlerter.store(context).save(values)
+                    val service = DriveForegroundService.activeService
+                    val ids = service?.warningLiveIds().orEmpty()
+                    val acknowledged = ids.chunked(200).flatMap {
+                        PotholeDatabase.getDatabase(context).reportDao().getReportMediaRefs(it)
+                    }.filter { it.syncedToWeb }.map { "native:${it.id}" }.toSet()
+                    service?.replaceHazards(values, acknowledged)
+                }
+                call.resolve(JSObject().put("loaded", values.size))
+            } catch (_: Exception) { call.reject("Could not save pothole warnings; retry before driving") }
+        }
+    }
+
+    private var warningTest: NativeHazardAlerter? = null
+    @PluginMethod
+    fun testWarning(call: PluginCall) {
+        activity.runOnUiThread {
+            val service = DriveForegroundService.activeService
+            if (service != null && DriveForegroundService.status().isRunning) service.testWarning()
+            else {
+                warningTest?.close()
+                val test = NativeHazardAlerter(context, call.getString("language") ?: "en", true, 20, true) {}
+                warningTest = test
+                test.testOnce()
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    test.close(); if (warningTest === test) warningTest = null
+                }, 7_000)
+            }
+            call.resolve()
         }
     }
 
@@ -371,6 +420,10 @@ class DriveModePlugin : Plugin() {
             putExtra(DriveForegroundService.EXTRA_MODEL, model)
             putExtra(DriveForegroundService.EXTRA_DETAIL, detail)
             putExtra(DriveForegroundService.EXTRA_LANGUAGE, language)
+            putExtra(DriveForegroundService.EXTRA_WARNINGS, call.getBoolean("warningsEnabled") ?: true)
+            putExtra(DriveForegroundService.EXTRA_WARNING_LEAD,
+                call.getInt("warningLeadSeconds")?.takeIf { it in setOf(10, 20, 30) } ?: 20)
+            putExtra(DriveForegroundService.EXTRA_WARNING_UNCONFIRMED, call.getBoolean("warningUnconfirmed") ?: true)
             putExtra(DriveForegroundService.EXTRA_DEBUG, debug)
             putExtra(DriveForegroundService.EXTRA_RECORD_VIDEO, recordVideo)
             putExtra(DriveForegroundService.EXTRA_CAPTURE_SOURCE, sourceConfig.kind.wireValue)
@@ -1180,6 +1233,7 @@ class DriveModePlugin : Plugin() {
         synchronized(pendingStartLock) {
             if (!nativeClearInProgress && AppMediaOperations.gate.beginClear()) {
                 nativeClearInProgress = true
+                hazardSnapshotEpoch++
                 clearAdmitted = true
             }
         }
@@ -1593,6 +1647,7 @@ class DriveModePlugin : Plugin() {
                     if (report != null) {
                         require(report.captureSource == "drive_sensor") { "Not a sensor report" }
                         db.reportDao().deleteReport(id)
+                        DriveForegroundService.activeService?.removeLiveHazard(id)
                         listOfNotNull(report.photoFullPath, report.photoPath).distinct().forEach {
                             NativeReportEvidenceStorage.deleteVerified(File(it))
                         }
@@ -2350,6 +2405,8 @@ class DriveModePlugin : Plugin() {
                 put("bumpCount", status.bumpCount)
                 put("bumpsWithoutFrame", status.bumpsWithoutFrame)
                 put("sensorIssue", status.sensorIssue)
+                put("hazardsLoaded", status.hazardsLoaded)
+                put("lastHazardAlert", status.lastHazardAlert)
     }
 
     private suspend fun nearbyVideoFrameDataUrls(
@@ -2790,6 +2847,8 @@ class DriveModePlugin : Plugin() {
     }
 
     override fun handleOnDestroy() {
+        warningTest?.close()
+        warningTest = null
         pluginScope.cancel()
         val abandonedStage = repairTargetStage
         repairTargetStage = null

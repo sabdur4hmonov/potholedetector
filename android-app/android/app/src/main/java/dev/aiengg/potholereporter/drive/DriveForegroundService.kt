@@ -59,7 +59,8 @@ data class DriveStatusSnapshot(
         else NativeFrameSourceState.IDLE.wireValue,
     val sourceIssue: String? = null,
     val detectionMode: String = "cloud", val bumpCount: Int = 0, val bumpsWithoutFrame: Int = 0,
-    val sensorIssue: String? = null
+    val sensorIssue: String? = null,
+    val hazardsLoaded: Int = 0, val lastHazardAlert: String? = null
 )
 
 data class DriveEndSummary(
@@ -80,6 +81,7 @@ class DriveForegroundService : LifecycleService() {
     private var locationProvider: NativeDriveLocationProvider? = null
     private var inferenceEngine: NativeInferenceEngine? = null
     private var sensorDrive: NativeSensorDrive? = null
+    private var hazardAlerter: NativeHazardAlerter? = null
     private var detectionMode = "cloud"
     private var dedupeEngine: NativeDeduplicationEngine? = null
     private var repairEngine: NativeRepairStatusEngine? = null
@@ -223,6 +225,9 @@ class DriveForegroundService : LifecycleService() {
         const val EXTRA_API_KEY = "extra_api_key"
         const val EXTRA_DETECTION_MODE = "extra_detection_mode"
         const val EXTRA_BUMP_SENSITIVITY = "extra_bump_sensitivity"
+        const val EXTRA_WARNINGS = "extra_warnings"
+        const val EXTRA_WARNING_LEAD = "extra_warning_lead"
+        const val EXTRA_WARNING_UNCONFIRMED = "extra_warning_unconfirmed"
         const val EXTRA_MODEL = "extra_model"
         const val EXTRA_DETAIL = "extra_detail"
         const val EXTRA_LANGUAGE = "extra_language"
@@ -365,7 +370,10 @@ class DriveForegroundService : LifecycleService() {
                             intent?.getStringExtra(EXTRA_DASHCAM_RTSP_URL)
                         ).getOrThrow(),
                         intent.getStringExtra(EXTRA_DETECTION_MODE) ?: "cloud",
-                        intent.getStringExtra(EXTRA_BUMP_SENSITIVITY) ?: "medium"
+                        intent.getStringExtra(EXTRA_BUMP_SENSITIVITY) ?: "medium",
+                        intent.getBooleanExtra(EXTRA_WARNINGS, true),
+                        intent.getIntExtra(EXTRA_WARNING_LEAD, 20).takeIf { it in setOf(10, 20, 30) } ?: 20,
+                        intent.getBooleanExtra(EXTRA_WARNING_UNCONFIRMED, true)
                     )
                     // startDriveSession marks the service running before this admission
                     // is released, so observers can never see an Idle gap in between.
@@ -495,13 +503,18 @@ class DriveForegroundService : LifecycleService() {
         maxDriveMinutes: Int,
         sourceConfig: NativeFrameSourceConfig,
         requestedDetectionMode: String,
-        bumpSensitivity: String
+        bumpSensitivity: String,
+        warningsEnabled: Boolean,
+        warningLeadSeconds: Int,
+        warningUnconfirmed: Boolean
     ) {
         // A new producer lifetime invalidates any bridge inventory completed before it.
         // The epoch cannot be overwritten by an older reconciliation pass racing here.
         sensorDrive?.closeInput()
         sensorDrive = null
         NativeMediaReconciliationEpoch.invalidate()
+        hazardAlerter?.close()
+        hazardAlerter = null
         captureAccessEpoch.invalidate()
         criticalCameraRecoveryJob?.cancel()
         criticalCameraRecoveryJob = null
@@ -576,6 +589,17 @@ class DriveForegroundService : LifecycleService() {
         startForegroundNow()
         acquireWakeLock()
 
+        hazardAlerter = NativeHazardAlerter(applicationContext, language, warningsEnabled,
+            warningLeadSeconds, warningUnconfirmed) { dispatchStatus() }
+        val startingAlerter = hazardAlerter
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching { NativeMediaFilesystemMutation.mutex.withLock {
+                startingAlerter?.replaceSnapshot(NativeHazardAlerter.store(applicationContext).load())
+            } }
+                .onFailure { mainHandler.post { publish("Pothole warning list unavailable; refresh reports before driving") } }
+            mainHandler.post { if (hazardAlerter === startingAlerter) dispatchStatus() }
+        }
+
         if (detectionMode == "cloud") {
             inferenceEngine = NativeInferenceEngine(applicationContext, apiKey, model, detail, language, debug)
         } else {
@@ -586,6 +610,7 @@ class DriveForegroundService : LifecycleService() {
                     !accessCameraReleased && captureInterlockDecision().canCapture },
                 onReport = { id, duplicate ->
                     if (duplicate) duplicateIds.add(id) else foundCounter.incrementAndGet()
+                    addCommittedHazard(id, "unconfirmed")
                     mainHandler.post { onReportListener?.invoke(id, "none", null) }
                 },
                 onIssue = { mainHandler.post { publish(it) } },
@@ -604,7 +629,10 @@ class DriveForegroundService : LifecycleService() {
         )
         locationProvider = NativeDriveLocationProvider(
             context = this,
-            onLocationUpdate = { mainHandler.post(::refreshCaptureInterlock) },
+            onLocationUpdate = { fix -> mainHandler.post {
+                refreshCaptureInterlock()
+                if (sessionRunning && !isPaused && !isStopping) hazardAlerter?.onFix(fix)
+            } },
             onAvailabilityChange = { access ->
                 mainHandler.post { noteLocationAccess(access) }
             }
@@ -1775,6 +1803,7 @@ class DriveForegroundService : LifecycleService() {
                             }
                         }
                         val committedResult = result
+                        committedResult?.existingReportId?.let { addCommittedHazard(it, "confirmed") }
                         if (committedResult?.isDuplicate == true) {
                             committedResult.existingReportId?.let(duplicateIds::add)
                         } else if (committedResult != null) {
@@ -1981,6 +2010,7 @@ class DriveForegroundService : LifecycleService() {
         val accessTransition = accessTransitionJob
         val recordingTransition = recordingTransitionJob
         sensorDrive?.unregister()
+        hazardAlerter?.silence()
         isPaused = true; pauseTransitioning = true; scanJob?.cancel()
         startPauseTimeout()
         accessTransition?.cancel()
@@ -2223,6 +2253,7 @@ class DriveForegroundService : LifecycleService() {
         val accessTransition = accessTransitionJob
         val recordingTransition = recordingTransitionJob
         sensorDrive?.closeInput()
+        hazardAlerter?.close()
         isStopping = true; captureStopped = false; sessionRunning = false; statusText = reason
         sessionLimitJob?.cancel()
         pauseTimeoutJob?.cancel()
@@ -2849,7 +2880,8 @@ class DriveForegroundService : LifecycleService() {
                 else sourceState.wireValue,
             sourceIssue = if (starting) null else sourceIssue,
             detectionMode = detectionMode, bumpCount = sensorDrive?.bumpCount ?: 0,
-            bumpsWithoutFrame = sensorDrive?.withoutFrame ?: 0, sensorIssue = sensorDrive?.issue
+            bumpsWithoutFrame = sensorDrive?.withoutFrame ?: 0, sensorIssue = sensorDrive?.issue,
+            hazardsLoaded = hazardAlerter?.loadedCount ?: 0, lastHazardAlert = hazardAlerter?.lastAlert
         )
     }
 
@@ -2875,6 +2907,33 @@ class DriveForegroundService : LifecycleService() {
             stopCallbacks.clear()
             StopCompletionClaim(summary, callbacks, won = true)
         }
+
+    internal fun warningLiveIds(): List<Long> = hazardAlerter?.liveIds().orEmpty()
+
+    internal fun replaceHazards(values: List<NativeHazard>, acknowledgedIds: Set<String>) {
+        hazardAlerter?.replaceSnapshot(values, acknowledgedIds)
+        dispatchStatus()
+    }
+
+    internal fun removeLiveHazard(id: Long) { hazardAlerter?.removeLive("native:$id") }
+    internal fun testWarning() { hazardAlerter?.testOnce() }
+
+    private fun addCommittedHazard(id: Long, kind: String) {
+        val owner = hazardAlerter ?: return
+        val driveId = sessionId
+        lifecycleScope.launch(Dispatchers.IO) {
+            NativeMediaFilesystemMutation.mutex.withLock {
+                val row = database.reportDao().getReportById(id) ?: return@withLock
+                // Once acknowledged, the web snapshot owns deletion/confirmation/fixed state.
+                // Serialize with native deletion so a delayed callback cannot resurrect it.
+                if (row.syncedToWeb || row.driveId != driveId || row.debugCapture ||
+                    row.lat == null || row.lng == null || !row.lat.isFinite() || !row.lng.isFinite() ||
+                    row.lat !in -90.0..90.0 || row.lng !in -180.0..180.0 ||
+                    (kind == "confirmed" && row.isPothole != 1)) return@withLock
+                owner.addLive(NativeHazard("native:$id", row.lat, row.lng, kind))
+            }
+        }
+    }
 
     private fun publish(text: String) {
         if (terminalStatusSealed || activeService !== this) return
@@ -2917,10 +2976,12 @@ class DriveForegroundService : LifecycleService() {
             val minutes = ceil(remaining / 60_000.0).toInt()
             "$statusText · $minutes min left"
         } else statusText
+        val warningStatus = hazardAlerter?.lastAlert?.takeIf { sessionRunning && !isPaused && !isStopping }
         if ((sessionRunning || isStopping) && !notificationStopRequested) {
             val notificationState = DriveNotificationState(
                 sessionId, isPaused, isStopping, pauseTransitioning,
-                checkedCount, foundCount, alreadyCount, notificationStatus,
+                checkedCount, foundCount, alreadyCount,
+                if (warningStatus != null) "$warningStatus · $notificationStatus" else notificationStatus,
                 recordingEnabled, isRecording, videoSupported, recordingIssue,
                 cameraActive, captureStopped, captureSourceKind
             )
@@ -2954,6 +3015,7 @@ class DriveForegroundService : LifecycleService() {
 
     override fun onDestroy() {
         sensorDrive?.closeInput()
+        hazardAlerter?.close()
         val wasActive = sessionRunning || isStopping
         val destroyedSessionId = sessionId
         val destroyedStartRequest = startRequestId

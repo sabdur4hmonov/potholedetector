@@ -1,5 +1,11 @@
 # Recorded work history
 
+## 2026-11-05 — HAZARD-ALERT-001
+
+- Added private known-pothole approach warnings in sensor/cloud Drive, web-authoritative atomically persisted hazard snapshots and bounded current-drive native additions.
+- Added heading/distance index, grouping/one-shot/re-arm and four-second rate limit, native tone/vibration/offline TTS with transient navigation focus, HUD/notification and EN/UZ settings/test warning. Extended battery choices to 120/180 minutes with 30-minute default.
+- Extended JVM/browser/static/SEC-002 guards; preserved full-frame and existing security boundaries. Corrected sensor-drive CI's visible background-disclosure omission first in separate commit. Build, tests, artifact identity and physical-device limits are in the worklog and [HAZARD_ALERTS.md](HAZARD_ALERTS.md).
+
 ## 2026-11-04 — SENSOR-DRIVE-001
 
 - Added AI-free accelerometer phone-camera Drive fallback with explicit/native-enforced mode, pure bounded detector, complete pre-event evidence, event GPS and same-drive sensor merging.

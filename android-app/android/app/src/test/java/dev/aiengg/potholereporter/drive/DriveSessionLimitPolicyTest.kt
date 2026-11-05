@@ -46,8 +46,10 @@ class DriveSessionLimitPolicyTest {
     fun acceptsBoundaryLimitsAndRejectsInvalidConfigurationOrClock() {
         assertEquals(minutes(15), DriveSessionLimitPolicy(0L, 15).remainingMs(0L))
         assertEquals(minutes(90), DriveSessionLimitPolicy(0L, 90).remainingMs(0L))
+        assertEquals(minutes(120), DriveSessionLimitPolicy(0L, 120).remainingMs(0L))
+        assertEquals(minutes(180), DriveSessionLimitPolicy(0L, 180).remainingMs(0L))
         assertThrows(IllegalArgumentException::class.java) { DriveSessionLimitPolicy(0L, 14) }
-        assertThrows(IllegalArgumentException::class.java) { DriveSessionLimitPolicy(0L, 91) }
+        assertThrows(IllegalArgumentException::class.java) { DriveSessionLimitPolicy(0L, 181) }
         assertThrows(IllegalArgumentException::class.java) { DriveSessionLimitPolicy(-1L) }
 
         val policy = DriveSessionLimitPolicy(100L)

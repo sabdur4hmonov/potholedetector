@@ -59,7 +59,7 @@ internal class DriveSessionLimitPolicy(
 
     companion object {
         const val MIN_LIMIT_MINUTES = 15
-        const val MAX_LIMIT_MINUTES = 90
+        const val MAX_LIMIT_MINUTES = 180
         const val DEFAULT_LIMIT_MINUTES = 30
     }
 }

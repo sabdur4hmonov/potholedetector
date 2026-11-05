@@ -1,5 +1,9 @@
 # Product decisions
 
+## 2026-11-05 — HAZARD-ALERT-001 owner decision
+
+Owner chose 20 s pre-warnings for known potholes, both directions, unconfirmed bumps included by default. Ten/thirty seconds, warning off and excluding unconfirmed bumps are optional next-drive settings. Warning eligibility follows local web reports including manual Photo and human confirmation/fixed/deletion, with current-drive native additions while the page is absent. Private warning coordinates survive WebView death in one bounded snapshot until refreshed or Delete All. Sound/vibration/offline speech and existing notification/HUD supply the warning; approximate GPS proximity is not calibrated route guidance. Battery limits may be 120/180 minutes, retaining 30 minutes by default. See [HAZARD_ALERTS.md](HAZARD_ALERTS.md); physical acceptance remains pending.
+
 ## 2026-11-04 — SENSOR-DRIVE-001 owner decision
 
 Owner chose accelerometer sensor mode as the AI-free Drive fallback until the vision model exists. Without a key, phone-camera Drive records conservative bumps and complete pre-event photos for private human review. Candidates are unconfirmed; Confirm pothole marks them user-reported. Existing keyed cloud Drive remains optional and dashcam remains disabled. The owner requested private per-drive calibration logs with peak locations, capped at 20,000 rows, shared only on user action and removed by Delete All; these are separate from raw GPS tracks. No trained model, detector-accuracy claim, official submission or release decision is implied. See [SENSOR_DRIVE.md](SENSOR_DRIVE.md).

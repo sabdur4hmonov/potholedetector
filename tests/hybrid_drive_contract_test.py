@@ -70,7 +70,7 @@ check("startup waits for a fresh GPS fix before the selected video source is ope
       and "NativeFrameSourceKind.PHONE_CAMERA -> NativeDriveCameraManager(" in start_session
       and "NativeFrameSourceKind.DASHCAM -> NativeRtspFrameSource(" in start_session
       and start_session.index("frameSource = when (captureSourceKind)")
-          < start_session.index("refreshCaptureInterlock()"))
+          < start_session.index("\n        refreshCaptureInterlock()"))
 check("Android 10 never receives the Android 11 camera foreground-service bit",
       "Build.VERSION.SDK_INT >= Build.VERSION_CODES.R" in SERVICE
       and "Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q" in SERVICE
@@ -134,9 +134,9 @@ check("mid-drive downgrade to Approximate Location closes capture",
       and "fixNearestToElapsed(elapsedRealtimeMs" in LOCATION
       and "nearestCaptureReady(elapsedRealtimeMs, GPS_COARSE_M)" in LOCATION
       and "elapsedRealtimeMs" in LOCATION)
-check("30-minute active-time limit is bounded to 15..90 minutes",
+check("30-minute active-time limit is bounded to 15..180 minutes",
       all(value in POLICY for value in (
-          "MIN_LIMIT_MINUTES = 15", "MAX_LIMIT_MINUTES = 90",
+          "MIN_LIMIT_MINUTES = 15", "MAX_LIMIT_MINUTES = 180",
           "DEFAULT_LIMIT_MINUTES = 30", "fun pause(", "fun resume(",
           "fun remainingMs(", "fun expired("))
       and "SystemClock.elapsedRealtime()" in SERVICE
@@ -213,7 +213,7 @@ check("native bridge exposes pending keyframe replay",
 analysis = WEB[WEB.index("function nativeAutomaticReplayAllowed"):]
 analysis = analysis[:analysis.index("function gpsAt")]
 check("UI wires timer and idempotent saved-frame analysis",
-      "const DRIVE_LIMIT_OPTIONS = [15, 30, 60, 90]" in WEB
+      "const DRIVE_LIMIT_OPTIONS = [15, 30, 60, 90, 120, 180]" in WEB
       and "maxDurationMinutes: driveLimitMinutes()" in WEB
       and 'data-analysenative="${driveId}"' in WEB
       and "pendingOnly: true" in analysis

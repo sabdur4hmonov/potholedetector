@@ -2797,7 +2797,7 @@ This is a strict before/after verification, not ordinary pothole detection:
         throw new Error("Invalid sensor report.");
       }
       const rec = {
-        sensor_native_id: nativeId,
+        sensor_native_id: nativeId, native_report_id: nativeId,
         created_at: Number(native.created_at) || Date.now() / 1000,
         lat, lng, address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
         photo: await dataUrlToBlob(native.photo_data_url),
@@ -2886,7 +2886,7 @@ This is a strict before/after verification, not ordinary pothole detection:
       photo: await dataUrlToBlob(native.photo_data_url),
       photo_full: await dataUrlToBlob(native.photo_full_data_url || native.photo_data_url),
       issue_type: "road_damage",
-      report_origin: "ai_detection",
+      report_origin: "ai_detection", native_report_id: nativeId,
       is_reportable: assessment.reportable ? 1 : 0,
       is_pothole: assessment.damage_type === "pothole_cavity" ? 1 : 0,
       looks_like_speed_breaker: false,
@@ -3096,9 +3096,42 @@ This is a strict before/after verification, not ordinary pothole detection:
   }
 
   // ---------- API dispatch ----------
+  function hazardsForWarnings() {
+    return idb().then(d => new Promise((resolve, reject) => {
+      const tx = d.transaction("reports", "readonly");
+      const hazards = [];
+      let failure;
+      const scan = tx.objectStore("reports").openCursor();
+      scan.onsuccess = () => {
+        const cursor = scan.result;
+        if (!cursor) return;
+        const r = cursor.value;
+        const unconfirmed = r.capture_source === "drive_sensor" && r.decision === "needs_review";
+        const confirmed = (r.is_pothole === 1 || r.is_pothole === true) && r.decision !== "reject";
+        if ((unconfirmed || confirmed) && !r.debug_capture && !r.deleted && r.status !== "deleted"
+            && r.status !== "rejected" && r.condition_status !== "fixed" && r.human_label !== "not_reportable"
+            && r.human_label !== "not_pothole" && Number.isFinite(r.lat) && Math.abs(r.lat) <= 90
+            && Number.isFinite(r.lng) && Math.abs(r.lng) <= 180) {
+          const nativeId = r.native_report_id || r.sensor_native_id;
+          hazards.push({id: nativeId ? `native:${nativeId}` : `web:${r.id}`, lat: r.lat, lng: r.lng,
+            kind: unconfirmed ? "unconfirmed" : "confirmed"});
+          if (hazards.length > 5000) {
+            failure = new Error("At most 5000 pothole warnings are supported. Review saved reports before driving.");
+            tx.abort(); return;
+          }
+        }
+        cursor.continue();
+      };
+      tx.oncomplete = () => resolve({version: 1, hazards});
+      tx.onabort = () => reject(failure || tx.error);
+      tx.onerror = () => {};
+    }));
+  }
+
   async function handle(path, opts) {
     const method = ((opts && opts.method) || "GET").toUpperCase();
     let m;
+    if (path === "/api/hazards" && method === "GET") return hazardsForWarnings();
     if (path === "/api/health") {
       await CredentialBroker.ready();
       return { ai_configured: CredentialBroker.hasOpenAi(), provider: "openai",
@@ -3372,7 +3405,15 @@ This is a strict before/after verification, not ordinary pothole detection:
     photoToBase64, toDict, listDict, evidenceForReport, fullFramePhoto,
   };
 
-  window.StandaloneAPI = { __pure, handle, prewarm };
+  window.StandaloneAPI = { __pure, prewarm, handle: async (path, opts) => {
+    const result = await handle(path, opts);
+    const method = (opts?.method || "GET").toUpperCase();
+    if (method !== "GET" && /^\/api\/(?:reports?(?:\/|$)|native-report$|native-repair$|manual-report$|frame$)/.test(path)
+        && typeof window.dispatchEvent === "function" && typeof Event === "function") {
+      window.dispatchEvent(new Event(path === "/api/reports" && method === "DELETE" ? "reports-cleared" : "reportschanged"));
+    }
+    return result;
+  } };
 
   // The home screen remains usable without an AI key because Garbage and Manhole are
   // explicit user reports. Pothole and Drive open Settings when their key is missing.

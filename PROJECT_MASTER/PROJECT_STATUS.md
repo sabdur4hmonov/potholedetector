@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-11-05 HAZARD-ALERT-001
+
+Known-pothole warnings are implemented on `hazard-alerts` for sensor and cloud Drive: web-authoritative bounded private snapshots, same-drive native additions, default 20-second lead, both-direction approach geometry, grouping/rate limit/re-arm, tone/vibration/offline speech and native HUD/notification. English/Uzbek controls and 120/180-minute battery options are added; 30 minutes remains default. [HAZARD_ALERTS.md](HAZARD_ALERTS.md) records behavior/limits; the worklog records build/tests/APK and CI observations. The prior sensor-drive CI privacy-disclosure failure was corrected first in separate commit `558355b`. Exact next task is physical-phone parked audio testing and a conservative return-leg acceptance drive with Maps/screen off; no device verification is claimed.
+
 ## 2026-11-04 SENSOR-DRIVE-001
 
 AI-free phone-camera Drive fallback is implemented on `sensor-drive`: no-key sensor admission, gravity-projected bump detection, complete pre-event evidence, same-drive 15 m merging, private unconfirmed review/confirmation/deletion, English/Uzbek HUD/settings, bounded shareable calibration CSV and sampling-frame cleanup. Cloud Drive remains the keyed path. No dependency/schema/release or NEW-002 change. [SENSOR_DRIVE.md](SENSOR_DRIVE.md) records the contract and limits; the worklog records tests and APK identity. Source/browser/JVM evidence does not establish phone/field performance. Exact next task: owner/reviewer physical-device acceptance of the debug APK and review of photos/calibration CSV, including pause/resume/stop/share/Delete All.

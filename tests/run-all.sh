@@ -38,6 +38,7 @@ LOCAL_TESTS="unit_test android_release_optimization_test pages_assets_test home_
 LOCAL_TESTS="$LOCAL_TESTS private_eval_dataset_test exhaustive_video_eval_test"
 LOCAL_TESTS="$LOCAL_TESTS native_dashcam_contract_test track_retention_test freshness_policy_test"
 LOCAL_TESTS="$LOCAL_TESTS sensor_drive_contract_test"
+LOCAL_TESTS="$LOCAL_TESTS hazard_alerts_contract_test"
 LIVE_TESTS="footage_test"
 TESTS="$LOCAL_TESTS"
 if [ "${RUN_LIVE_TESTS:-0}" = "1" ]; then
