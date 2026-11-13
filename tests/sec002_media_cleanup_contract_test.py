@@ -13,16 +13,17 @@ BASE = "android-app/android/app/src/main/java/dev/aiengg/potholereporter/"
 WRITER_PATTERN = '\\bFile\\s*\\(|FileOutputStream|\\.writeBytes\\(|\\.writeText\\(|\\.outputStream\\(|createTempFile|\\.mkdirs\\(|setOutputFile|FileOutputOptions|openOutputStream|openFileDescriptor|MediaStore|DocumentFile|FileWriter|RandomAccessFile|createNewFile|Files\\.(copy|move|write)'
 # SENSOR-DRIVE-001 ownership review: sensor_logs private CSV/summary; report and footage quota stores reused.
 # HAZARD-ALERT-001: fixed private hazards/ JSON + temp, fsync/atomic rename and wipe mutex reviewed.
-AUDITED_NATIVE_WRITERS = {'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeSensorDrive.kt': 'a454121b071b8d76a2cca2cb24e996834bd0a415eea6fb28a175f9c7c1c53253',
+# ML-DETECT-001: offline report evidence reuses the existing quota. GPX stays in the narrow share cache.
+AUDITED_NATIVE_WRITERS = {'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeSensorDrive.kt': '092c9f0fc05933083587fb8a79fbe1ddb1fdf8d1b814946c0acccba324479cbb',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeHazardStore.kt': '3d0513957aad9544c78910e9dd3c7f4cd5b18b75c78dd4ec35f9423d93fc0215',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeHazardAlerter.kt': '995bbfff2121e0f1c76920f637ba81a4c20e8c9ae8d34dbd63b3a1ce94dbdf16',
- 'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/DriveForegroundService.kt': '40cb876b223a3a1ac2d7603326675bdb5f16bbdd832a507a6eff86700961212e',
+ 'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/DriveForegroundService.kt': '3262af71cbbed859efad0ee501b741cad969ae1176320ca3a9bec5aa212ab552',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeDriveCameraManager.kt': '8a51ce3b7495773004a9a3882a7a4b7f117170d574dd3976c0a5be274417767d',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeInferenceEvidenceStore.kt': '6a28078525308a7eecbe0d5fbc8cb87a35e7ecd51a6aba20d0f896ddf7304397',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeKeyframeFiles.kt': '6889d0f0e27b6c1857b2211e34ae37aa6956872e21453a8b473581d9b0e4b36d',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeReportEvidenceStorage.kt': '724df2ab9f8c255f1fad5a2953e99f6b5f8c3ed1bef4bc9bec67d873e42f07b0',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/drive/NativeSourceMediaLedger.kt': 'ad71edeacf63b5dc9f0ce2a0d8f8c14ee8f1d21e1997a41ed4b97765676bbb4a',
- 'android-app/android/app/src/main/java/dev/aiengg/potholereporter/plugin/DriveModePlugin.kt': '5dab5690b088534a4eeabdf90af77320d0d7e5f63f07d27a0252f0f5de7dc585',
+ 'android-app/android/app/src/main/java/dev/aiengg/potholereporter/plugin/DriveModePlugin.kt': '2a0e63236a8c64e8f7f0f3c7c058a1778482f4b38133c37adf34ccbced4de1ca',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/plugin/NativeKeyframeOwnershipPaging.kt': '585af5648ba5a0cf16e8b1b001327c32f9d3c74c64f92ad53f04ff80c7341878',
  'android-app/android/app/src/main/java/dev/aiengg/potholereporter/plugin/NativePrivateMediaFiles.kt': '1799f47d02c0306ca27c8f6398a5e977754e5b41b3d6b250f795653ed65ff884',
  # SEC-006 ownership review: native-private noBackupFilesDir/ai_usage_budget/usage.bin.

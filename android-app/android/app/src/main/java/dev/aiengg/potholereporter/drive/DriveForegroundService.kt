@@ -60,7 +60,8 @@ data class DriveStatusSnapshot(
     val sourceIssue: String? = null,
     val detectionMode: String = "cloud", val bumpCount: Int = 0, val bumpsWithoutFrame: Int = 0,
     val sensorIssue: String? = null,
-    val hazardsLoaded: Int = 0, val lastHazardAlert: String? = null
+    val hazardsLoaded: Int = 0, val lastHazardAlert: String? = null,
+    val cameraDetectorStatus: String = "not_installed", val inferenceMeanMs: Double = 0.0
 )
 
 data class DriveEndSummary(
@@ -81,6 +82,7 @@ class DriveForegroundService : LifecycleService() {
     private var locationProvider: NativeDriveLocationProvider? = null
     private var inferenceEngine: NativeInferenceEngine? = null
     private var sensorDrive: NativeSensorDrive? = null
+    private var potholeDetector: NativePotholeDetector? = null
     private var hazardAlerter: NativeHazardAlerter? = null
     private var detectionMode = "cloud"
     private var dedupeEngine: NativeDeduplicationEngine? = null
@@ -225,6 +227,7 @@ class DriveForegroundService : LifecycleService() {
         const val EXTRA_API_KEY = "extra_api_key"
         const val EXTRA_DETECTION_MODE = "extra_detection_mode"
         const val EXTRA_BUMP_SENSITIVITY = "extra_bump_sensitivity"
+        const val EXTRA_USE_ONDEVICE = "extra_use_ondevice"
         const val EXTRA_WARNINGS = "extra_warnings"
         const val EXTRA_WARNING_LEAD = "extra_warning_lead"
         const val EXTRA_WARNING_UNCONFIRMED = "extra_warning_unconfirmed"
@@ -373,7 +376,8 @@ class DriveForegroundService : LifecycleService() {
                         intent.getStringExtra(EXTRA_BUMP_SENSITIVITY) ?: "medium",
                         intent.getBooleanExtra(EXTRA_WARNINGS, true),
                         intent.getIntExtra(EXTRA_WARNING_LEAD, 20).takeIf { it in setOf(10, 20, 30) } ?: 20,
-                        intent.getBooleanExtra(EXTRA_WARNING_UNCONFIRMED, true)
+                        intent.getBooleanExtra(EXTRA_WARNING_UNCONFIRMED, true),
+                        intent.getBooleanExtra(EXTRA_USE_ONDEVICE, true)
                     )
                     // startDriveSession marks the service running before this admission
                     // is released, so observers can never see an Idle gap in between.
@@ -506,12 +510,15 @@ class DriveForegroundService : LifecycleService() {
         bumpSensitivity: String,
         warningsEnabled: Boolean,
         warningLeadSeconds: Int,
-        warningUnconfirmed: Boolean
+        warningUnconfirmed: Boolean,
+        useOnDevice: Boolean
     ) {
         // A new producer lifetime invalidates any bridge inventory completed before it.
         // The epoch cannot be overwritten by an older reconciliation pass racing here.
         sensorDrive?.closeInput()
         sensorDrive = null
+        potholeDetector?.close()
+        potholeDetector = null
         NativeMediaReconciliationEpoch.invalidate()
         hazardAlerter?.close()
         hazardAlerter = null
@@ -603,6 +610,7 @@ class DriveForegroundService : LifecycleService() {
         if (detectionMode == "cloud") {
             inferenceEngine = NativeInferenceEngine(applicationContext, apiKey, model, detail, language, debug)
         } else {
+            if (useOnDevice) potholeDetector = NativePotholeDetector(applicationContext)
             sensorDrive = NativeSensorDrive(applicationContext, sessionId, bumpSensitivity,
                 latestFix = { locationProvider?.latestFix },
                 nearestFix = { locationProvider?.fixNearestToElapsed(it) },
@@ -614,7 +622,8 @@ class DriveForegroundService : LifecycleService() {
                     mainHandler.post { onReportListener?.invoke(id, "none", null) }
                 },
                 onIssue = { mainHandler.post { publish(it) } },
-                onDeletedBytes = { frameSource?.noteDeletedMediaBytes(it) }
+                onDeletedBytes = { frameSource?.noteDeletedMediaBytes(it) },
+                inferenceMs = { potholeDetector?.averageMs ?: 0.0 }
             ).also { it.initialize() }
         }
         jobChannel = Channel(
@@ -922,6 +931,7 @@ class DriveForegroundService : LifecycleService() {
     private fun startScanLoop() {
         scanJob?.cancel()
         scanJob = lifecycleScope.launch(Dispatchers.Default) {
+            potholeDetector?.initialize()
             while (isActive && sessionRunning && !isStopping) {
                 // A complete moving three-view window is persisted immediately; only a
                 // genuinely parked camera keeps the slower duplicate-saving cadence.
@@ -1044,7 +1054,17 @@ class DriveForegroundService : LifecycleService() {
                 }
                 val item = baseItem.copy(keyframeId = keyframeId)
                 if (detectionMode == "sensor") {
-                    try { sensorDrive?.registerFrame(keyframeId, item.capturedAtElapsedMs) }
+                    try {
+                        sensorDrive?.registerFrame(keyframeId, item.capturedAtElapsedMs)
+                        if (isBurstAccessStillValid(item)) {
+                            val result = potholeDetector?.detect(item.burstFrames.map { it.bitmap })
+                            if (result != null && isBurstAccessStillValid(item)) {
+                                sensorDrive?.cameraResult(keyframeId, item.capturedAtElapsedMs, result) {
+                                    isBurstAccessStillValid(item)
+                                }
+                            }
+                        }
+                    }
                     catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) {
                         withContext(Dispatchers.Main.immediate) {
@@ -1053,7 +1073,7 @@ class DriveForegroundService : LifecycleService() {
                     }
                     finally { recycle(item) }
                     lastCapFix = validatedFix; lastCapTimeMs = captureAdmissionElapsedMs
-                    publish("Sensor mode (no AI): bumps saved for review")
+                    publish(if (potholeDetector?.status == "ready") "Offline mode (camera + sensor)" else "Sensor mode (no AI): bumps saved for review")
                     continue
                 }
                 if (!isBurstAccessStillValid(item)) {
@@ -2470,6 +2490,7 @@ class DriveForegroundService : LifecycleService() {
                         cameraStoppedCleanly = emergencyClosed.isSuccess
                     }
                     if (detectionMode == "sensor") {
+                        potholeDetector?.close()
                         runCatching { sensorDrive?.cleanup() }
                             .onFailure { recordStopError("Could not release sensor sampling frames", it) }
                     }
@@ -2879,6 +2900,8 @@ class DriveForegroundService : LifecycleService() {
             sourceState = if (starting) NativeFrameSourceState.CONNECTING.wireValue
                 else sourceState.wireValue,
             sourceIssue = if (starting) null else sourceIssue,
+            cameraDetectorStatus = potholeDetector?.status ?: NativePotholeDetector.assetStatus(applicationContext),
+            inferenceMeanMs = if (debugMode) potholeDetector?.averageMs ?: 0.0 else 0.0,
             detectionMode = detectionMode, bumpCount = sensorDrive?.bumpCount ?: 0,
             bumpsWithoutFrame = sensorDrive?.withoutFrame ?: 0, sensorIssue = sensorDrive?.issue,
             hazardsLoaded = hazardAlerter?.loadedCount ?: 0, lastHazardAlert = hazardAlerter?.lastAlert
@@ -2930,7 +2953,8 @@ class DriveForegroundService : LifecycleService() {
                     row.lat == null || row.lng == null || !row.lat.isFinite() || !row.lng.isFinite() ||
                     row.lat !in -90.0..90.0 || row.lng !in -180.0..180.0 ||
                     (kind == "confirmed" && row.isPothole != 1)) return@withLock
-                owner.addLive(NativeHazard("native:$id", row.lat, row.lng, kind))
+                val warningKind = if (NativePotholeFusion.offlineSource(row.captureSource)) NativePotholeFusion.kind(row.captureSource) else kind
+                owner.addLive(NativeHazard("native:$id", row.lat, row.lng, warningKind))
             }
         }
     }
@@ -3014,6 +3038,7 @@ class DriveForegroundService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        potholeDetector?.close()
         sensorDrive?.closeInput()
         hazardAlerter?.close()
         val wasActive = sessionRunning || isStopping

@@ -1,5 +1,11 @@
 # Recorded work history
 
+## 2026-11-13 — ML-DETECT-001
+
+- Added pinned YOLOX-Nano Colab training, full-frame D40 preparation, validation threshold selection, held-out metrics and PyTorch/ONNX comparison.
+- Added optional Android ONNX inference, two-of-three camera detection, same-drive camera/bump fusion and warning integration. Added owner review, local dataset ZIP with location opt-in, and GPX for video sharing.
+- Added tests for model-absent operation, detector math, storage/retention and review/export. The real-model test skips while the training outputs are absent.
+
 ## 2026-11-05 — HAZARD-ALERT-001
 
 - Added private known-pothole approach warnings in sensor/cloud Drive, web-authoritative atomically persisted hazard snapshots and bounded current-drive native additions.

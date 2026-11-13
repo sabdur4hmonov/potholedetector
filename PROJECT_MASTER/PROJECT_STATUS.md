@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-11-13 ML-DETECT-001
+
+The `ondevice-ml` branch adds a Colab training and export pipeline plus optional offline Android camera inference. Complete three-view bursts, camera/bump fusion, private review labels, GPS-free dataset export by default and retained-track GPX sharing are described in [ONDEVICE_ML.md](ONDEVICE_ML.md). Model files remain absent. The exact next step is to run the Colab notebook and supply the resulting ONNX and manifest for verification and phone testing.
+
 ## 2026-11-05 HAZARD-ALERT-001
 
 Known-pothole warnings are implemented on `hazard-alerts` for sensor and cloud Drive: web-authoritative bounded private snapshots, same-drive native additions, default 20-second lead, both-direction approach geometry, grouping/rate limit/re-arm, tone/vibration/offline speech and native HUD/notification. English/Uzbek controls and 120/180-minute battery options are added; 30 minutes remains default. [HAZARD_ALERTS.md](HAZARD_ALERTS.md) records behavior/limits; the worklog records build/tests/APK and CI observations. The prior sensor-drive CI privacy-disclosure failure was corrected first in separate commit `558355b`. Exact next task is physical-phone parked audio testing and a conservative return-leg acceptance drive with Maps/screen off; no device verification is claimed.

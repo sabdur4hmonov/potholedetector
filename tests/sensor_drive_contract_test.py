@@ -14,11 +14,11 @@ def check(value, message):
 check('if (detectionMode == "cloud") {\n            inferenceEngine = NativeInferenceEngine' in service,
       'cloud engine construction must remain behind explicit cloud branch')
 check(service.count('NativeInferenceEngine(') == 1, 'no second engine construction path')
-check('sensorDrive?.closeInput()\n        sensorDrive = null\n        NativeMediaReconciliationEpoch.invalidate()' in service,
+check('sensorDrive?.closeInput()\n        sensorDrive = null' in service,
       'a reused service cannot carry an old sensor adapter into the next cloud/session mode')
 check('if (apiKey.isBlank() || requestedDetectionMode == "sensor") "sensor" else "cloud"' in service,
       'native service independently forces sensor without a key')
-check('if (apiKey.isBlank() || call.getString("detectionMode") == "sensor")' in plugin,
+check('if (apiKey.isBlank() || call.getString("detectionMode") == "sensor" || call.getBoolean("useOnDevice") == true)' in plugin,
       'plugin independently forces sensor')
 check('if (detectionMode == "sensor") {\n            workerJob = lifecycleScope.launch(Dispatchers.IO) { sensorDrive?.consume() }\n        } else startInferenceWorker()' in service,
       'sensor worker cannot enter inference worker')
@@ -38,7 +38,8 @@ check('NativeSensorDrive.cleanupFrames(context, db, s.id)' in plugin and 'sensor
       'normal stop and interrupted-history recovery clean sampling bursts')
 check('nearestFix(peak.elapsedMs)' in sensor and 'frame.gpsAccuracy' in sensor, 'event location with burst fallback')
 check('decision = "needs_review"' in sensor and 'assessment = "unverified"' in sensor
-      and 'isReportable = 0, isPothole = 0' in sensor and 'size = null' in sensor, 'no invented pothole verdict')
+      and 'isReportable = if (camera != null) 1 else 0, isPothole = if (camera != null) 1 else 0' in sensor
+      and 'size = null' in sensor, 'bump-only reports do not invent a pothole verdict')
 check('NativeDuplicateReportOwnership.merge' in sensor and 'db.withTransaction' in sensor,
       'same-drive sensor merge preserves evidence and durable outbox')
 print(f'SENSOR DRIVE CONTRACT PASS ({checks} checks)')

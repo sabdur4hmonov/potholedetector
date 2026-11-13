@@ -94,6 +94,13 @@ android {
     kotlinOptions {
         jvmTarget = '21'
     }
+    // The pinned runtime has four large native libraries. Compress them in the APK
+    // while retaining the x86_64 ABI used by the existing CI emulator.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 repositories {
@@ -124,6 +131,8 @@ dependencies {
     ksp "androidx.room:room-compiler:$roomVersion"
     implementation "androidx.lifecycle:lifecycle-service:$lifecycleVersion"
     implementation "com.squareup.okhttp3:okhttp:$okhttpVersion"
+    implementation "com.microsoft.onnxruntime:onnxruntime-android:1.24.3"
+    testRuntimeOnly "com.microsoft.onnxruntime:onnxruntime:1.24.3"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     testImplementation "org.json:json:20250517"

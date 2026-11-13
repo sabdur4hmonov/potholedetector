@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-TqflN5qYu3x7k02PsZPAfXPdno88RMXBC5hudwqygLQ='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-W9iiKpYDCMYkA7ZAfV9HGMDRukwQDchHf/9hpLUVpf4='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'sha256-jaNRMivYxrQtJPOcfPcjTX9FPGQTm1ThB9xzqHYNcIE='; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: https://api.openai.com https://nominatim.openstreetmap.org; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pothole Reporter</title>
 <link rel="stylesheet" href="vendor/leaflet.css">
@@ -177,6 +177,8 @@
         <option value="high" id="bumpHigh">High</option>
       </select>
       <label><input type="checkbox" id="setWarnings"><span id="warningsLabel">Pothole warnings</span></label>
+      <label><input type="checkbox" id="setOnDevice"><span id="onDeviceLabel">Use on-device detector</span></label>
+      <div class="meta" id="cameraDetectorStatus">Camera detector: not installed</div>
       <label id="warningLeadLabel" for="setWarningLead">Warn before</label>
       <select id="setWarningLead"><option value="10">10 s</option><option value="20">20 s</option><option value="30">30 s</option></select>
       <label><input type="checkbox" id="setWarningUnconfirmed"><span id="warningUnconfirmedLabel">Include unconfirmed bumps</span></label>
@@ -240,6 +242,9 @@
       </div>
       <button class="ghost" id="reviewBtn" style="width:100%;margin-top:12px">Review and label frames</button>
       <button class="ghost" id="exportBtn" style="width:100%;margin-top:8px">Export labelled dataset</button>
+      <label><input type="checkbox" id="exportIncludeLocation"><span id="exportLocationLabel">Include location in dataset export</span></label>
+      <div class="meta" id="modelAttribution">Model weights: CC BY-SA 4.0. RDD2022 — Arya et al.; YOLOX — Megvii (Apache-2.0); ONNX Runtime — Microsoft (MIT).</div>
+      <a id="modelSourcesLink" href="https://sabdur4hmonov.github.io/potholedetector/sources.html" target="_blank" rel="noopener noreferrer">Model and data sources</a>
       <button class="ghost danger" id="wipeBtn" style="width:100%;margin-top:12px">Delete all reports and photos</button>
       <div class="btn-row">
         <button class="ghost" id="setBack">Back</button>
@@ -1512,7 +1517,24 @@ function step(delta) {
   openReportDetail(detailList[i], detailList);
 }
 
+function isOfflineReport(r) {
+  return ["drive_sensor", "drive_camera", "drive_camera_bump"].includes(r.capture_source);
+}
+function useOnDeviceDetector() {
+  const saved = localStorage.getItem("use_ondevice");
+  return saved == null ? !window.CredentialBroker.hasOpenAi() : saved === "1";
+}
+function cameraDetectorText(status) {
+  const text = status === "ready" ? ["ready", "tayyor"] : status === "installed_unverified" ? ["installed; awaiting validation", "o‘rnatilgan; tekshiruv kutilmoqda"]
+    : status === "not_installed" ? ["not installed", "o‘rnatilmagan"] : ["disabled: invalid model or inference error", "o‘chirilgan: model yoki aniqlash xatosi"];
+  return (LANG === "uz" ? "Kamera detektori: " : "Camera detector: ") + text[LANG === "uz" ? 1 : 0];
+}
 function detectionVerdict(r) {
+  if (isOfflineReport(r)) {
+    if (["not_pothole", "not_reportable"].includes(r.human_label)) return LANG === "uz" ? "Yo‘q — egasi tuzatgan" : "No — corrected by owner";
+    if (r.capture_source === "drive_camera_bump") return LANG === "uz" ? "Chuqur — kamera + silkinish" : "Pothole — camera + bump";
+    if (r.capture_source === "drive_camera") return LANG === "uz" ? "Chuqur — kamera" : "Pothole — camera";
+  }
   if (r.capture_source === "drive_sensor" && r.decision !== "manual") return t("sensor_badge");
   if (r.report_origin === "user_reported") return t("manual_verdict");
   if (physicalCondition(r) === "fixed") return t("verdict_fixed");
@@ -1638,6 +1660,17 @@ function openDetail(r, list) {
       await loadReports(); openDetail(updated);
     } catch (e) { alert(e.message); }
   };
+  if (isOfflineReport(r)) {
+    d.querySelector(".card").insertAdjacentHTML("beforeend", `<div class="btn-row"><button class="ghost" id="correctOfflineBtn">${LANG === "uz" ? "To‘g‘ri" : "Correct"}</button><button class="ghost" id="wrongOfflineBtn">${LANG === "uz" ? "Noto‘g‘ri" : "Wrong"}</button></div>`);
+    const label = async value => {
+      try {
+        const updated = await api(`/api/reports/${r.id}/label`, {method: "POST", body: JSON.stringify({label: value})});
+        await loadReports(); openDetail(updated);
+      } catch (e) { alert(e.message); }
+    };
+    $("correctOfflineBtn").onclick = () => label("pothole");
+    $("wrongOfflineBtn").onclick = () => label("not_pothole");
+  }
   wireConditionActions(r);
   wireDetailChrome(r);
   const cloudAnalysis = $("cloudAnalysisBtn");
@@ -2200,7 +2233,10 @@ function updateNativeDriveHud(status) {
     + (minutesLeft && !status.isStopping ? ` · ${minutesLeft} min left` : "");
   if (status.detectionMode === "sensor") {
     $("nativeDriveCount").textContent = t("sensor_count", { n: Number(status.bumpCount) || 0, missing: Number(status.bumpsWithoutFrame) || 0 });
-    $("nativeDriveStatus").textContent = t("sensor_mode") + " · " + (status.sensorIssue || statusMessage);
+    $("nativeDriveStatus").textContent = (status.cameraDetectorStatus === "ready"
+      ? (LANG === "uz" ? "Oflayn rejim (kamera + sensor)" : "Offline mode (camera + sensor)") : t("sensor_mode")) + " · " + (status.sensorIssue || statusMessage);
+    if (isDebug() && Number(status.inferenceMeanMs) > 0) $("nativeDriveStatus").textContent += ` · ${Math.round(status.inferenceMeanMs)} ms`;
+    if (status.cameraDetectorStatus && !["ready", "not_installed"].includes(status.cameraDetectorStatus)) $("nativeDriveStatus").textContent += " · " + cameraDetectorText(status.cameraDetectorStatus);
     $("driveTip").textContent = t("sensor_tip");
   }
   $("nativeHazardStatus").textContent = t("warnings_loaded", {n: Number(status.hazardsLoaded) || 0})
@@ -2830,7 +2866,7 @@ async function startDriveAdmitted() {
     openSettings(true, false);
     return;
   }
-  const detectionMode = window.CredentialBroker.hasOpenAi() ? "cloud" : "sensor";
+  const detectionMode = window.CredentialBroker.hasOpenAi() && !useOnDeviceDetector() ? "cloud" : "sensor";
   const captureConfig = savedDriveCaptureConfig();
   const nativePlugin = nativeDrivePlugin();
   if (captureConfig.captureSource === DASHCAM_CAPTURE_SOURCE) {
@@ -2893,6 +2929,7 @@ async function startDriveAdmitted() {
       const status = await nativePlugin.startDrive({
         startRequestId: ctx.startRequestId,
         detectionMode,
+        useOnDevice: useOnDeviceDetector(),
         bumpSensitivity: localStorage.getItem("bump_sensitivity") || "medium",
         warningsEnabled: localStorage.getItem("pothole_warnings") !== "0",
         warningLeadSeconds: warningLeadSeconds(),
@@ -4976,7 +5013,7 @@ $("exportBtn").onclick = async () => {
   const btn = $("exportBtn");
   btn.disabled = true; btn.textContent = t("working");
   try {
-    const zip = await api("/api/export", { method: "POST" });
+    const zip = await api("/api/export", { method: "POST", body: JSON.stringify({include_location: $("exportIncludeLocation").checked}) });
     alert(t("export_ready", { n: zip.count, mb: (zip.bytes / 1048576).toFixed(1) }));
     await shareZip(zip);
   } catch (e) { alert(e.message); }
@@ -5059,6 +5096,17 @@ window.openSettings = (showWelcome = false, requireCompletion = false) => {
   if (nativeFinishLocked || nativeWipeLocked) return false;
   initialSettingsActive = requireCompletion || initialSettingsRequired;
   $("setBumpSensitivity").value = localStorage.getItem("bump_sensitivity") || "medium";
+  $("setOnDevice").checked = useOnDeviceDetector();
+  $("setOnDevice").dataset.changed = "0";
+  $("setOnDevice").onchange = () => { $("setOnDevice").dataset.changed = "1"; };
+  $("onDeviceLabel").textContent = LANG === "uz" ? "Telefondagi kamera detektoridan foydalanish" : "Use on-device detector";
+  $("exportLocationLabel").textContent = LANG === "uz" ? "Dataset eksportiga joylashuvni qo‘shish" : "Include location in dataset export";
+  $("modelSourcesLink").textContent = LANG === "uz" ? "Model va ma’lumot manbalari" : "Model and data sources";
+  $("exportIncludeLocation").checked = false;
+  $("cameraDetectorStatus").textContent = cameraDetectorText("not_installed");
+  nativeDrivePlugin()?.getDetectorStatus?.().then(value => {
+    $("cameraDetectorStatus").textContent = cameraDetectorText(value.status);
+  }).catch(() => { $("cameraDetectorStatus").textContent = cameraDetectorText("invalid_model"); });
   $("setWarnings").checked = localStorage.getItem("pothole_warnings") !== "0";
   $("setWarningLead").value = String(warningLeadSeconds());
   $("setWarningUnconfirmed").checked = localStorage.getItem("warning_unconfirmed") !== "0";
@@ -5160,6 +5208,7 @@ $("setSave").onclick = async () => {
     localStorage.setItem("image_detail", selectedDetail);
     localStorage.setItem(CAPTURE_SOURCE_KEY, selectedCaptureSource);
     localStorage.setItem("debug_mode", $("setDebug").checked ? "1" : "0");
+    if ($("setOnDevice").dataset.changed === "1") localStorage.setItem("use_ondevice", $("setOnDevice").checked ? "1" : "0");
     localStorage.setItem("keep_frames", $("setKeepFrames").checked ? "1" : "0");
     const keepTracksChoice = $("setKeepTracks").checked;
     localStorage.setItem("keep_tracks", keepTracksChoice ? "1" : "0");

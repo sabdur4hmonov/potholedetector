@@ -32,7 +32,8 @@ internal class NativeSensorDrive(
     private val capturing: () -> Boolean,
     private val onReport: (Long, Boolean) -> Unit,
     private val onIssue: (String) -> Unit,
-    private val onDeletedBytes: (Long) -> Unit
+    private val onDeletedBytes: (Long) -> Unit,
+    private val inferenceMs: () -> Double = { 0.0 }
 ) : SensorEventListener {
     private val manager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
     private val detector = NativeBumpDetector(sensitivity)
@@ -46,6 +47,12 @@ internal class NativeSensorDrive(
     private val frameMutex = Mutex()
     private data class Frame(val id: Long, val elapsedMs: Long)
     private val frames = ArrayDeque<Frame>()
+    private data class CameraHit(
+        val frameId: Long, val at: Long, val lat: Double, val lng: Double, val version: String,
+        val reportId: Long? = null
+    )
+    private val cameraHits = ArrayDeque<CameraHit>()
+    private val recentBumps = ArrayDeque<Pair<NativeBumpDetector.Peak, GpsFix?>>()
     private val db = PotholeDatabase.getDatabase(context)
     private var rows = 0
     private val wallAnchor = System.currentTimeMillis()
@@ -60,7 +67,7 @@ internal class NativeSensorDrive(
 
     fun initialize() {
         check(log.parentFile!!.isDirectory || log.parentFile!!.mkdirs()) { "Sensor log storage unavailable" }
-        log.writeText("elapsedMs,wallclock,peak,speed,lat,lng,accuracy,triggered\n")
+        log.writeText("elapsedMs,wallclock,peak,speed,lat,lng,accuracy,triggered,inferenceMeanMs\n")
     }
 
     fun updateRegistration(enabled: Boolean) {
@@ -130,7 +137,7 @@ internal class NativeSensorDrive(
                 if (rows < 20_000) {
                     val time = Instant.ofEpochMilli(wallAnchor + peak.elapsedMs - elapsedAnchor)
                     log.appendText(listOf(peak.elapsedMs, time, peak.peakVertical, peak.speedMps ?: "",
-                        fix?.lat ?: "", fix?.lng ?: "", fix?.accuracy ?: "", if (peak.triggered) 1 else 0)
+                        fix?.lat ?: "", fix?.lng ?: "", fix?.accuracy ?: "", if (peak.triggered) 1 else 0, inferenceMs())
                         .joinToString(",") + "\n")
                     rows++
                 }
@@ -147,11 +154,36 @@ internal class NativeSensorDrive(
         }
     }
 
+    suspend fun cameraResult(id: Long, elapsedMs: Long, result: NativePotholeDetector.Result,
+                             stillAllowed: () -> Boolean) = frameMutex.withLock {
+        if (!result.yes || !stillAllowed()) return@withLock
+        val frame = db.driveKeyframeDao().getKeyframe(id) ?: return@withLock
+        val lat = frame.lat ?: return@withLock
+        val lng = frame.lng ?: return@withLock
+        val hit = CameraHit(id, elapsedMs, lat, lng, result.version)
+        val bump = recentBumps.lastOrNull { (peak, fix) -> fix != null && NativePotholeFusion.matches(elapsedMs, peak.elapsedMs,
+            NativeDeduplicationEngine.distMeters(lat, lng, fix.lat, fix.lng)) }
+        val reportId = saveObservation(id, bump?.first, bump?.second, hit, stillAllowed) ?: return@withLock
+        cameraHits.addLast(hit.copy(reportId = reportId))
+        while (cameraHits.size > 16 || (cameraHits.firstOrNull()?.at ?: elapsedMs) < elapsedMs - 8_000) cameraHits.removeFirst()
+    }
+
     private suspend fun saveReport(peak: NativeBumpDetector.Peak, eventFix: GpsFix?) = frameMutex.withLock {
+        recentBumps.addLast(peak to eventFix)
+        while (recentBumps.size > 16 || (recentBumps.firstOrNull()?.first?.elapsedMs ?: peak.elapsedMs) < peak.elapsedMs - 8_000) recentBumps.removeFirst()
+        val camera = cameraHits.lastOrNull { hit -> frames.any { it.id == hit.frameId } && eventFix != null &&
+            NativePotholeFusion.matches(hit.at, peak.elapsedMs,
+                NativeDeduplicationEngine.distMeters(hit.lat, hit.lng, eventFix.lat, eventFix.lng)) }
         val items = frames.toList()
         val selected = NativeSensorEventPolicy.selectFrame(peak.elapsedMs, items.map { it.elapsedMs })
-        val frame = selected?.let { db.driveKeyframeDao().getKeyframe(items[it].id) }
-        if (frame == null) { missingCount.incrementAndGet(); return@withLock }
+        val id = camera?.frameId ?: selected?.let { items[it].id }
+        if (id == null) { missingCount.incrementAndGet(); return@withLock }
+        saveObservation(id, peak, eventFix, camera)
+    }
+
+    private suspend fun saveObservation(id: Long, peak: NativeBumpDetector.Peak?, eventFix: GpsFix?,
+                                        camera: CameraHit?, stillAllowed: () -> Boolean = { true }): Long? {
+        val frame = db.driveKeyframeDao().getKeyframe(id) ?: return null
         val store = NativeInferenceEvidenceStore(context)
         val lease = NativeReportEvidenceStorage.reserveInferenceCapacity(context)
         var bitmap: android.graphics.Bitmap? = null
@@ -160,55 +192,80 @@ internal class NativeSensorDrive(
             val image = BitmapFactory.decodeFile(frame.filePath)
                 ?: throw IllegalStateException("Saved primary frame unavailable")
             bitmap = image
-            withContext(NonCancellable) {
+            return withContext(NonCancellable) {
+                if (!stillAllowed()) return@withContext null
                 val file = store.saveDetection(image, sessionId, frame.captureSeq, lease)
                 unowned = file
                 val thumb = store.thumbnailDataUrl(image) ?: error("Thumbnail unavailable")
                 val lat = eventFix?.lat ?: frame.lat ?: error("Frame GPS missing")
                 val lng = eventFix?.lng ?: frame.lng ?: error("Frame GPS missing")
-                val eventWall = (wallAnchor + peak.elapsedMs - elapsedAnchor) / 1000
+                val eventElapsed = peak?.elapsedMs ?: camera!!.at
+                val eventWall = (wallAnchor + eventElapsed - elapsedAnchor) / 1000
+                val source = NativePotholeFusion.source(camera != null, peak != null)
                 val candidate = ReportEntity(
                     createdAt = eventWall, lat = lat, lng = lng,
                     photoPath = file.absolutePath, photoFullPath = file.absolutePath, photoDataUrl = thumb,
-                    isReportable = 0, isPothole = 0, looksLikeSpeedBreaker = false,
-                    damageType = "none", defectType = "not_pothole", assessment = "unverified",
+                    isReportable = if (camera != null) 1 else 0, isPothole = if (camera != null) 1 else 0, looksLikeSpeedBreaker = false,
+                    damageType = if (camera != null) "pothole_cavity" else "none", defectType = if (camera != null) "pothole" else "not_pothole", assessment = "unverified",
                     imageQuality = null, onDrivableSurface = false, hasLocalizedCavity = false,
                     hasUnambiguousLowerInterior = false, hasBrokenEdgeOrRim = false,
                     hasDepthOrSurfaceLoss = false, temporalConsistency = null, size = null,
-                    decision = "needs_review", status = "draft", detectionModel = "sensor-accelerometer-v1",
-                    promptVersion = null, imageDetail = null, evidenceCount = 1,
-                    description = "Unconfirmed bump. Peak vertical: ${peak.peakVertical} m/s²; speed: ${peak.speedMps} m/s. Review photo after driving.",
-                    driveId = sessionId, captureSource = "drive_sensor", dedupeEligible = false,
+                    decision = "needs_review", status = "draft", detectionModel = camera?.version ?: "sensor-accelerometer-v1",
+                    promptVersion = null, imageDetail = null, evidenceCount = if (camera != null) 3 else 1,
+                    description = if (camera != null) "Camera Yes in at least 2 of 3 complete views. ${if (peak != null) "Bump corroborated within 0.15–6 seconds and 40 m." else "No corroborating bump yet; review after driving."}"
+                        else "Unconfirmed bump. Peak vertical: ${peak!!.peakVertical} m/s²; speed: ${peak.speedMps} m/s. Review photo after driving.",
+                    driveId = sessionId, captureSource = source, dedupeEligible = false,
                     capturedAt = frame.capturedAtMs / 1000, lastSeenAt = eventWall,
-                    sourceEventKey = "sensor:$sessionId:${peak.elapsedMs}",
-                    sourceEventKeysJson = JSONArray().put("sensor:$sessionId:${peak.elapsedMs}").toString(),
+                    sourceEventKey = "${if (camera != null) "camera" else "sensor"}:$sessionId:${camera?.at ?: eventElapsed}",
+                    sourceEventKeysJson = JSONArray().put("${if (camera != null) "camera" else "sensor"}:$sessionId:${camera?.at ?: eventElapsed}").toString(),
                     sightingDriveIdsJson = JSONArray().put(sessionId).toString(),
                     sourceOffsetS = frame.sourceOffsetMs / 1000.0,
                     gpsAccuracy = eventFix?.accuracy ?: frame.gpsAccuracy,
-                    speedMps = peak.speedMps, heading = eventFix?.heading ?: frame.heading
+                    speedMps = peak?.speedMps ?: frame.speedMps, heading = eventFix?.heading ?: frame.heading
                 )
                 val result = NativeMediaFilesystemMutation.mutex.withLock {
+                    if (!stillAllowed()) return@withLock null
                     db.withTransaction {
-                        val prior = db.reportDao().getReportsForDrive(sessionId).firstOrNull { r ->
-                            r.lat != null && r.lng != null && NativeSensorEventPolicy.canMerge(
-                                r.driveId == sessionId, r.captureSource == "drive_sensor",
-                                NativeDeduplicationEngine.distMeters(lat, lng, r.lat, r.lng))
-                        }
+                        val dao = db.reportDao()
+                        val matchedCamera = camera?.reportId?.let { dao.getReportById(it) }
+                            ?.takeIf { it.driveId == sessionId && NativePotholeFusion.offlineSource(it.captureSource) }
+                        // A latitude band safely contains every point within 15 m.
+                        val prior = matchedCamera ?: dao.getNearbyOfflineReports(sessionId, lat - .00015, lat + .00015)
+                            .mapNotNull { report ->
+                                val oldLat = report.lat ?: return@mapNotNull null
+                                val oldLng = report.lng ?: return@mapNotNull null
+                                val distance = NativeDeduplicationEngine.distMeters(lat, lng, oldLat, oldLng)
+                                if (NativePotholeFusion.merge(report.driveId == sessionId, distance)) report to distance else null
+                            }.minByOrNull { it.second }?.first
                         if (prior != null) {
                             // Preserve acknowledged evidence by donating the new complete photo when necessary.
-                            val merged = NativeDuplicateReportOwnership.merge(prior, candidate,
+                            val upgrade = camera != null && (prior.captureSource != "drive_camera_bump" || peak != null)
+                            // Upgrade a bump's saved photo to the primary frame that supplied camera evidence.
+                            val replacePhoto = upgrade && prior.captureSource == "drive_sensor"
+                            val mergeBase = if (replacePhoto) prior.copy(photoPath = null, photoFullPath = null, photoDataUrl = null)
+                                else prior
+                            val merged = NativeDuplicateReportOwnership.merge(mergeBase, candidate,
                                 candidate.sourceEventKeysJson, candidate.sightingDriveIdsJson, false)
-                            db.reportDao().updateReport(merged.report.copy(description =
-                                if (merged.candidateEvidenceAdopted) candidate.description else prior.description))
+                            db.reportDao().updateReport(merged.report.copy(
+                                captureSource = if (upgrade) source else prior.captureSource,
+                                detectionModel = if (upgrade) candidate.detectionModel else prior.detectionModel,
+                                isPothole = if (upgrade) candidate.isPothole else prior.isPothole,
+                                isReportable = if (upgrade) candidate.isReportable else prior.isReportable,
+                                damageType = if (upgrade) candidate.damageType else prior.damageType,
+                                defectType = if (upgrade) candidate.defectType else prior.defectType,
+                                evidenceCount = maxOf(prior.evidenceCount, candidate.evidenceCount),
+                                description = if (upgrade || merged.candidateEvidenceAdopted) candidate.description else prior.description))
+                            if (replacePhoto || merged.priorEvidenceDisplaced) NativeMediaReconciliationEpoch.invalidate()
                             Triple(prior.id, true, merged.candidateEvidenceAdopted)
                         } else {
                             val id = db.reportDao().insertReport(candidate)
                             Triple(id, false, true)
                         }
                     }
-                }
+                } ?: return@withContext null
                 if (result.third) unowned = null
                 onReport(result.first, result.second)
+                result.first
             }
         } finally {
             bitmap?.recycle()

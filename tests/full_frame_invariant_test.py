@@ -146,3 +146,15 @@ require("Android and documentation Web bundles exactly mirror the production sou
         and read("docs/index.html") == web)
 
 print("full-frame invariant checks passed")
+
+exp = read('ml/yolox_pothole_exp.py')
+detector = (NATIVE / 'NativePotholeDetector.kt').read_text()
+require('on-device training disables all field-of-view cutting augmentation', all(s in exp for s in (
+    'self.enable_mosaic = False', 'self.mosaic_prob = 0', 'self.enable_mixup = False',
+    'self.mixup_prob = 0', 'self.translate = 0', 'self.degrees = 0', 'self.shear = 0',
+    'self.mosaic_scale = self.mixup_scale = (1.0, 1.0)', 'FullFrameLoader(self.dataset')))
+require('training uses direct full-frame dataset without mosaic wrapper',
+        'MosaicDetection' not in exp and 'FullFrameTransform()' in exp and 'self.no_aug_epochs = 0' in exp)
+require('on-device inference draws the entire source bitmap into letterbox',
+        'canvas.drawBitmap(image, null, Rect(0,0,geometry.width,geometry.height)' in detector
+        and all(s not in detector for s in ('cropRect', 'ViewPort', 'setCropAspectRatio', 'createBitmap(image,')))

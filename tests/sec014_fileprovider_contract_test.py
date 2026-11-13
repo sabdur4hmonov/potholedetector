@@ -153,4 +153,10 @@ for name in ("index.html", "standalone.js"):
     mirrors = [ROOT / d / name for d in ("static", "docs", "android-app/www", "android-app/android/app/src/main/assets/public")]
     check(len({hashlib.sha256(m.read_bytes()).hexdigest() for m in mirrors}) == 1, f"{name} mirrors are identical")
 
+gpx_share = (APP / "java/dev/aiengg/potholereporter/plugin/DriveModePlugin.kt").read_text(encoding="utf-8")
+gpx_share = gpx_share[gpx_share.index("fun shareFootage("):gpx_share.index("fun deleteFootage(")]
+check(all(value in gpx_share for value in ('File(context.cacheDir,"pothole-reporter-shares")',
+      'drive-track-$requestedSession.gpx', 'TrackRetentionPolicy.keepTracks(context)', 'TrackRetentionPolicy.isExpired',
+      'FLAG_GRANT_READ_URI_PERMISSION', 'FootagePathPolicy.sessionDirectory', 'NativeMediaFilesystemMutation.mutex.withLock')),
+      "GPX shares reuse the narrow cache alias, retained tracks and temporary read grants")
 print(f"\nSEC-014 FILEPROVIDER CONTRACT PASS ({checks} checks)")

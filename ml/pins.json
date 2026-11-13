@@ -1,0 +1,8 @@
+{
+  "yolox_commit": "6ddff4824372906469a7fae2dc3206c7aa4bbaee",
+  "onnxruntime": "1.24.3",
+  "opset": 17,
+  "rdd2022_url": "https://ndownloader.figshare.com/files/38030910",
+  "rdd2022_sha256": null,
+  "seed": 20221105
+}

@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## Current ML-DETECT-001 handoff — 2026-11-13
+
+Owner runs [train_pothole_yolox.ipynb](../ml/train_pothole_yolox.ipynb) in Colab with GPU, retains the measured archive pin, dataset statistics and validation/test results, and places the two exported model files in `android-app/android/app/src/main/assets/ml/`. See the [Uzbek and English instructions](../ml/README.md). Then run the real-runtime fixture test, rebuild and verify the model-bearing APK, and perform parked and physical-drive acceptance. Model accuracy, phone latency and field behavior are pending.
+
 ## Current HAZARD-ALERT-001 handoff — 2026-11-05
 
 Install the `hazard-alerts` debug APK identified in the worklog. While parked, use Test warning and check tone, vibration, volume, installed offline speech and music/Maps ducking/restoration. Then validate a conservative drive and return leg with Maps in front/screen off: approximate 20-second warnings, grouping, re-arm, unconfirmed wording, manual/confirmed/fixed/deleted eligibility, pause/resume/stop and Delete All. Follow [HAZARD_ALERTS.md](HAZARD_ALERTS.md). No physical-phone sound/background/timing or safety/accuracy claim exists; model, release/NEW-002 and tuning require separate work. Prior handoffs below retain historical checkpoint meaning.

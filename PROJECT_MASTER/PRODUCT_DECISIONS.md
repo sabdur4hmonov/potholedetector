@@ -1,5 +1,9 @@
 # Product decisions
 
+## 2026-11-13 — ML-DETECT-001 owner decision
+
+D0 uses Megvii YOLOX-Nano, Apache-2.0, at `6ddff4824372906469a7fae2dc3206c7aa4bbaee`. Evaluate Tiny separately if Nano recall is inadequate. Use pinned ONNX Runtime Android 1.24.3 (MIT) and RDD2022 D40 with other damage as negatives, excluding China_Drone. The official Figshare record lists CC BY 4.0 for its data. The owner selected CC BY-SA 4.0 for trained weights, separate from MIT app code. Display binary Yes/No and the camera/bump origin. With no key, default to local camera when installed plus sensor. A stored key keeps optional cloud Drive unless the user selects the on-device setting. Labelled exports omit location by default. Video sharing includes a GPX when the drive still has a retained track.
+
 ## 2026-11-05 — HAZARD-ALERT-001 owner decision
 
 Owner chose 20 s pre-warnings for known potholes, both directions, unconfirmed bumps included by default. Ten/thirty seconds, warning off and excluding unconfirmed bumps are optional next-drive settings. Warning eligibility follows local web reports including manual Photo and human confirmation/fixed/deletion, with current-drive native additions while the page is absent. Private warning coordinates survive WebView death in one bounded snapshot until refreshed or Delete All. Sound/vibration/offline speech and existing notification/HUD supply the warning; approximate GPS proximity is not calibrated route guidance. Battery limits may be 120/180 minutes, retaining 30 minutes by default. See [HAZARD_ALERTS.md](HAZARD_ALERTS.md); physical acceptance remains pending.
