@@ -200,12 +200,25 @@ jobs:
           ASSEMBLE_CODE: ${{ steps.assemble.outputs.code }}
           UNIT_CODE: ${{ steps.unit.outputs.code }}
 
-      - name: Upload debug APK
+      - name: Verify all three debug APKs contain the current web assets
+        if: ${{ !cancelled() && steps.assemble.outputs.code == '0' }}
+        run: |
+          set -euo pipefail
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            python3 tools/verify-release-assets.py --static static --www android-app/www --docs docs \
+              --packaged android-app/android/app/src/main/assets/public \
+              --apk "android-app/android/app/build/outputs/apk/debug/app-$abi-debug.apk"
+          done
+
+      - name: Upload debug APKs
         if: ${{ !cancelled() && steps.assemble.outputs.code == '0' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pothole-reporter-debug-apk
-          path: android-app/android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android-app/android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
+            android-app/android/app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk
+            android-app/android/app/build/outputs/apk/debug/app-x86_64-debug.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -253,7 +266,7 @@ jobs:
           arch: x86_64
           target: google_apis
           disable-animations: true
-          script: bash tools/emulator-smoke.sh apk/app-debug.apk emulator-report
+          script: bash tools/emulator-smoke.sh apk/app-x86_64-debug.apk emulator-report
 
       - name: Annotate what the app did
         if: ${{ !cancelled() }}

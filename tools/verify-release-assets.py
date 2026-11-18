@@ -17,6 +17,7 @@ HOSTED_DOC_FILES = frozenset({
     "example-pothole-thumb.jpg",
     "example-pothole.jpg",
     "privacy.html",
+    "sources.html",
 })
 HOSTED_DOC_PREFIXES: tuple[str, ...] = ()
 AAB_PUBLIC_PREFIX = "base/assets/public/"

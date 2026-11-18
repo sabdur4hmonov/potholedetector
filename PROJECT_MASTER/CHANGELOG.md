@@ -1,5 +1,28 @@
 # Recorded work history
 
+## 2026-11-18 — FINISH-001
+
+- Pinned the official Nano checkpoint URL and measured SHA-256. Added a license-gated transfer path and initialization provenance in exported manifests. Scratch remains the default until the checkpoint's permissive license is confirmed.
+- Split debug APKs by arm64-v8a, armeabi-v7a and x86_64. The debug build helper verifies each APK and the CI emulator uses x86_64. The release artifact invocation still produces its existing single APK.
+
+## 2026-11-13 — ML-DETECT-001
+
+- Added pinned YOLOX-Nano Colab training, full-frame D40 preparation, validation threshold selection, held-out metrics and PyTorch/ONNX comparison.
+- Added optional Android ONNX inference, two-of-three camera detection, same-drive camera/bump fusion and warning integration. Added owner review, local dataset ZIP with location opt-in, and GPX for video sharing.
+- Added tests for model-absent operation, detector math, storage/retention and review/export. The real-model test skips while the training outputs are absent.
+
+## 2026-11-05 — HAZARD-ALERT-001
+
+- Added private known-pothole approach warnings in sensor/cloud Drive, web-authoritative atomically persisted hazard snapshots and bounded current-drive native additions.
+- Added heading/distance index, grouping/one-shot/re-arm and four-second rate limit, native tone/vibration/offline TTS with transient navigation focus, HUD/notification and EN/UZ settings/test warning. Extended battery choices to 120/180 minutes with 30-minute default.
+- Extended JVM/browser/static/SEC-002 guards; preserved full-frame and existing security boundaries. Corrected sensor-drive CI's visible background-disclosure omission first in separate commit. Build, tests, artifact identity and physical-device limits are in the worklog and [HAZARD_ALERTS.md](HAZARD_ALERTS.md).
+
+## 2026-11-04 — SENSOR-DRIVE-001
+
+- Added AI-free accelerometer phone-camera Drive fallback with explicit/native-enforced mode, pure bounded detector, complete pre-event evidence, event GPS and same-drive sensor merging.
+- Added English/Uzbek unconfirmed review and confirmation/deletion, sensitivity, HUD counts, bounded private calibration CSV sharing and cleanup. Sensor sampling frames cannot enter AI replay.
+- Extended full-frame, storage/URI and branch-isolation guards plus JVM/Chromium tests. Reconciled stale tests for already-removed authority-email/tender paths and the unchanged main lockfile; no dependency or AI-budget implementation changed. Validation/artifact limits are in the worklog and [SENSOR_DRIVE.md](SENSOR_DRIVE.md).
+
 ## 2026-10-06 — Startup crash fix
 
 Fixed an app-killing crash on first native call: plugin authorization read `WebView.getUrl()` on Capacitor's background thread. It now reads the URL on the main thread and fails closed. Added an on-screen JS error overlay and a CI emulator smoke job that launches the debug APK and reports crashes and page state.

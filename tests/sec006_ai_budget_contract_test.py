@@ -92,8 +92,10 @@ check('JS request entrance applies explicit caps and browser paid path fails clo
 check('all JS builders/fallbacks and contract match have explicit ceilings',
       '...boundedAiRequest(body, body && body.stream)' in js
       and 'max_output_tokens: schema === REPAIR_SCHEMA ? 768 : 1536' in js
-      and js.count('max_output_tokens: 512')==2
-      and 'if (e && e.aiUsageLimit) throw e' in js)
+      # Uzbekistan main removed the second tender-matching builder; the remaining fallback is bounded.
+      and js.count('max_output_tokens: 512')==1
+      and 'if (e && e.fatal) throw e;' in js
+      and 'error.fatal = true; error.aiUsageLimit = true;' in js)
 check('safe errors and no credential/prompt logging in policy implementations',
       not re.search(r'\b(?:Log\.|println\(|print\(|logger\.)',budget+adapter+bridge+auth)
       and 'catch (_: Exception)' in budget+adapter)

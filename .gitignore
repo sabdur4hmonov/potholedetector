@@ -46,3 +46,12 @@ keystore.properties
 local.properties
 .env.local
 .env.*.local
+ml/data/
+ml/*.zip
+ml/*.partial
+ml/YOLOX/
+ml/checkpoints/
+ml/__pycache__/
+*.onnx
+*.pth
+android-app/android/app/src/main/assets/ml/pothole_model.json

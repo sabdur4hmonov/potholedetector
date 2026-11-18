@@ -38,6 +38,13 @@ import dev.aiengg.potholereporter.drive.NativeRollingBurstWindow
 import dev.aiengg.potholereporter.drive.NativeStoredImagePolicy
 import dev.aiengg.potholereporter.drive.NotificationHelper
 import dev.aiengg.potholereporter.drive.TrackRetentionPolicy
+import dev.aiengg.potholereporter.drive.NativeSensorDrive
+import dev.aiengg.potholereporter.drive.NativePotholeDetector
+import dev.aiengg.potholereporter.drive.NativePotholeFusion
+import dev.aiengg.potholereporter.drive.NativeDriveGpx
+import dev.aiengg.potholereporter.drive.NativeRetryableFileCleanup
+import dev.aiengg.potholereporter.drive.NativeHazardStore
+import dev.aiengg.potholereporter.drive.NativeHazardAlerter
 import dev.aiengg.potholereporter.security.NativeSecret
 import dev.aiengg.potholereporter.media.AndroidAppMediaCleanup
 import dev.aiengg.potholereporter.media.AppMediaOperations
@@ -204,6 +211,7 @@ class DriveModePlugin : Plugin() {
         val pendingStartLock = Any()
         var pendingStart: PendingDriveStart? = null
         var nativeClearInProgress = false
+        var hazardSnapshotEpoch = 0L
         val driveControlScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
 
@@ -247,6 +255,14 @@ class DriveModePlugin : Plugin() {
                 put("sourceActive", status.sourceActive)
                 put("sourceState", status.sourceState)
                 put("sourceIssue", status.sourceIssue)
+                put("detectionMode", status.detectionMode)
+                put("bumpCount", status.bumpCount)
+                put("bumpsWithoutFrame", status.bumpsWithoutFrame)
+                put("sensorIssue", status.sensorIssue)
+                put("cameraDetectorStatus", status.cameraDetectorStatus)
+                put("inferenceMeanMs", status.inferenceMeanMs)
+                put("hazardsLoaded", status.hazardsLoaded)
+                put("lastHazardAlert", status.lastHazardAlert)
             }
             notifyListeners("driveStatusChange", data)
         }
@@ -266,6 +282,50 @@ class DriveModePlugin : Plugin() {
     }
 
     @PluginMethod
+    fun setHazards(call: PluginCall) {
+        val values = try { NativeHazardStore.parse(call.data.toString()) }
+        catch (_: Exception) { call.reject("Invalid hazard list: version 1, at most 5000 valid unique hazards required"); return }
+        val epoch = synchronized(pendingStartLock) { if (nativeClearInProgress) null else hazardSnapshotEpoch }
+        if (epoch == null) { call.reject("Data deletion is active"); return }
+        pluginScope.launch {
+            try {
+                NativeMediaFilesystemMutation.mutex.withLock {
+                    synchronized(pendingStartLock) {
+                        check(!nativeClearInProgress && epoch == hazardSnapshotEpoch) { "Data deletion invalidated this warning update" }
+                    }
+                    NativeHazardAlerter.store(context).save(values)
+                    val service = DriveForegroundService.activeService
+                    val ids = service?.warningLiveIds().orEmpty()
+                    val acknowledged = ids.chunked(200).flatMap {
+                        PotholeDatabase.getDatabase(context).reportDao().getReportMediaRefs(it)
+                    }.filter { it.syncedToWeb }.map { "native:${it.id}" }.toSet()
+                    service?.replaceHazards(values, acknowledged)
+                }
+                call.resolve(JSObject().put("loaded", values.size))
+            } catch (_: Exception) { call.reject("Could not save pothole warnings; retry before driving") }
+        }
+    }
+
+    private var warningTest: NativeHazardAlerter? = null
+    @PluginMethod
+    fun testWarning(call: PluginCall) {
+        activity.runOnUiThread {
+            val service = DriveForegroundService.activeService
+            if (service != null && DriveForegroundService.status().isRunning) service.testWarning()
+            else {
+                warningTest?.close()
+                val test = NativeHazardAlerter(context, call.getString("language") ?: "en", true, 20, true) {}
+                warningTest = test
+                test.testOnce()
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    test.close(); if (warningTest === test) warningTest = null
+                }, 7_000)
+            }
+            call.resolve()
+        }
+    }
+
+    @PluginMethod
     fun startDrive(call: PluginCall) {
         val secretStore = NativeSecretStore.create(context)
         val apiKey: String
@@ -278,6 +338,7 @@ class DriveModePlugin : Plugin() {
             return
         }
         val model = call.getString("model") ?: "gpt-5.6"
+        val detectionMode = if (apiKey.isBlank() || call.getString("detectionMode") == "sensor" || call.getBoolean("useOnDevice") == true) "sensor" else "cloud"
         val detail = call.getString("detail") ?: "original"
         val language = call.getString("language") ?: "en"
         val debug = call.getBoolean("debug") ?: false
@@ -308,10 +369,6 @@ class DriveModePlugin : Plugin() {
         }
         if (!hasNotificationPermission()) {
             call.reject("Enable Pothole Reporter notifications in Android Settings so Drive capture is always visible")
-            return
-        }
-        if (apiKey.isBlank()) {
-            call.reject("An OpenAI API key is required")
             return
         }
         val existing = DriveForegroundService.status()
@@ -364,9 +421,16 @@ class DriveModePlugin : Plugin() {
         val serviceIntent = Intent(context, DriveForegroundService::class.java).apply {
             action = DriveForegroundService.ACTION_START
             putExtra(DriveForegroundService.EXTRA_API_KEY, apiKey)
+            putExtra(DriveForegroundService.EXTRA_DETECTION_MODE, detectionMode)
+            putExtra(DriveForegroundService.EXTRA_USE_ONDEVICE, call.getBoolean("useOnDevice") ?: apiKey.isBlank())
+            putExtra(DriveForegroundService.EXTRA_BUMP_SENSITIVITY, call.getString("bumpSensitivity") ?: "medium")
             putExtra(DriveForegroundService.EXTRA_MODEL, model)
             putExtra(DriveForegroundService.EXTRA_DETAIL, detail)
             putExtra(DriveForegroundService.EXTRA_LANGUAGE, language)
+            putExtra(DriveForegroundService.EXTRA_WARNINGS, call.getBoolean("warningsEnabled") ?: true)
+            putExtra(DriveForegroundService.EXTRA_WARNING_LEAD,
+                call.getInt("warningLeadSeconds")?.takeIf { it in setOf(10, 20, 30) } ?: 20)
+            putExtra(DriveForegroundService.EXTRA_WARNING_UNCONFIRMED, call.getBoolean("warningUnconfirmed") ?: true)
             putExtra(DriveForegroundService.EXTRA_DEBUG, debug)
             putExtra(DriveForegroundService.EXTRA_RECORD_VIDEO, recordVideo)
             putExtra(DriveForegroundService.EXTRA_CAPTURE_SOURCE, sourceConfig.kind.wireValue)
@@ -1176,6 +1240,7 @@ class DriveModePlugin : Plugin() {
         synchronized(pendingStartLock) {
             if (!nativeClearInProgress && AppMediaOperations.gate.beginClear()) {
                 nativeClearInProgress = true
+                hazardSnapshotEpoch++
                 clearAdmitted = true
             }
         }
@@ -1289,7 +1354,10 @@ class DriveModePlugin : Plugin() {
         }
         pluginScope.launch {
             try {
-                PotholeDatabase.getDatabase(context).sessionDao().purgeFinishedTracks()
+                NativeMediaFilesystemMutation.mutex.withLock {
+                    PotholeDatabase.getDatabase(context).sessionDao().purgeFinishedTracks()
+                    clearTrackShares()
+                }
                 call.resolve()
             } catch (e: Exception) {
                 call.reject("Failed to delete saved GPS tracks: ${e.message}")
@@ -1311,7 +1379,10 @@ class DriveModePlugin : Plugin() {
         }
         pluginScope.launch {
             try {
-                PotholeDatabase.getDatabase(context).sessionDao().clearTrack(requestedSession)
+                NativeMediaFilesystemMutation.mutex.withLock {
+                    PotholeDatabase.getDatabase(context).sessionDao().clearTrack(requestedSession)
+                    clearTrackShares(requestedSession)
+                }
                 call.resolve()
             } catch (e: Exception) {
                 call.reject("Failed to delete the GPS track: ${e.message}")
@@ -1334,13 +1405,31 @@ class DriveModePlugin : Plugin() {
                     db.sessionDao().purgeFinishedTracks()
                 }
                 val sessions = db.sessionDao().getAllSessions()
+                NativeMediaFilesystemMutation.mutex.withLock {
+                    val byId = sessions.associateBy { it.id }
+                    trackShareFiles().forEach { file ->
+                        val id = file.name.removePrefix("drive-track-").removeSuffix(".gpx")
+                        val s = byId[id]
+                        if (s == null || !TrackRetentionPolicy.keepTracks(context) || s.gpsTrackJson == "[]" ||
+                            TrackRetentionPolicy.isExpired(s.endedAt, s.startedAt, System.currentTimeMillis()/1000)) {
+                            check(NativeRetryableFileCleanup.deleteVerified(file)) { "Could not remove expired shared GPX" }
+                        }
+                    }
+                }
                 val footageBySession = db.footageDao().getAllSegments().groupBy { it.sessionId }
                 val keyframesBySession = db.driveKeyframeDao().getSummaries()
                     .associateBy { it.sessionId }
                 val array = JSArray()
                 for (s in sessions) {
+                    val live = DriveForegroundService.status()
+                    if (s.status in listOf("stopped", "interrupted") &&
+                        !(live.sessionId == s.id && (live.isRunning || live.isStopping))) {
+                        NativeSensorDrive.cleanupFrames(context, db, s.id)
+                    }
                     val footage = footageBySession[s.id].orEmpty()
-                    val keyframes = keyframesBySession[s.id]
+                    val sensorLogExists = NativeSensorDrive.logFile(context, s.id).isFile
+                    val keyframes = if (sensorLogExists && s.status in listOf("stopped", "interrupted")) null
+                        else keyframesBySession[s.id]
                     val obj = JSObject().apply {
                         put("id", s.id)
                         put("started_at", s.startedAt)
@@ -1351,6 +1440,10 @@ class DriveModePlugin : Plugin() {
                         put("already_ids", parseJsonArray(s.alreadyIdsJson))
                         put("gps_track", parseGpsTrack(s.gpsTrackJson))
                         put("status", s.status)
+                        put("sensor_log", sensorLogExists)
+                        val sensorSummary = NativeSensorDrive.summary(context, s.id)
+                        put("sensor_bumps", sensorSummary.getOrNull(0) ?: 0)
+                        put("sensor_without_frame", sensorSummary.getOrNull(1) ?: 0)
                         put("footage_segments", footage.size)
                         put("footage_bytes", footage.sumOf { it.bytes })
                         put("footage_duration_ms", footage.sumOf { it.durationMs })
@@ -1568,6 +1661,74 @@ class DriveModePlugin : Plugin() {
     }
 
     @PluginMethod
+    fun deleteSensorReport(call: PluginCall) {
+        val id = call.data.optLong("id", -1L)
+        pluginScope.launch {
+            try {
+                NativeMediaFilesystemMutation.mutex.withLock {
+                    val db = PotholeDatabase.getDatabase(context)
+                    val report = db.reportDao().getReportById(id)
+                    if (report != null) {
+                        require(NativePotholeFusion.offlineSource(report.captureSource)) { "Not an offline report" }
+                        db.reportDao().deleteReport(id)
+                        DriveForegroundService.activeService?.removeLiveHazard(id)
+                        listOfNotNull(report.photoFullPath, report.photoPath).distinct().forEach {
+                            NativeReportEvidenceStorage.deleteVerified(File(it))
+                        }
+                    }
+                }
+                call.resolve()
+            } catch (e: Exception) { call.reject("Could not delete sensor report: ${e.message}") }
+        }
+    }
+
+    @PluginMethod
+    fun shareSensorLog(call: PluginCall) {
+        val session = call.getString("sessionId") ?: ""
+        val status = DriveForegroundService.status()
+        if (status.sessionId == session && (status.isRunning || status.isStopping)) {
+            call.reject("Stop this drive before sharing its sensor log")
+            return
+        }
+        pluginScope.launch {
+            try {
+                val file = NativeSensorDrive.logFile(context, session)
+                require(file.isFile) { "No sensor log exists for this drive" }
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                val share = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/csv"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    clipData = android.content.ClipData.newRawUri("Sensor log", uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                activity.runOnUiThread {
+                    try {
+                        activity.startActivity(Intent.createChooser(share, "Share sensor log"))
+                        call.resolve()
+                    } catch (e: Exception) { call.reject("Could not share sensor log: ${e.message}") }
+                }
+            } catch (e: Exception) { call.reject("Could not share sensor log: ${e.message}") }
+        }
+    }
+
+    @PluginMethod
+    fun getDetectorStatus(call: PluginCall) {
+        val active = DriveForegroundService.activeService
+        if (active != null) {
+            call.resolve(JSObject().apply { put("status", DriveForegroundService.status().cameraDetectorStatus) })
+            return
+        }
+        pluginScope.launch {
+            val detector = NativePotholeDetector(context.applicationContext)
+            try {
+                detector.initialize()
+                call.resolve(JSObject().apply { put("status", detector.status) })
+            } catch (_: Exception) { call.reject("Camera detector could not be checked") }
+            finally { detector.close() }
+        }
+    }
+
+    @PluginMethod
     fun shareFootage(call: PluginCall) {
         val requestedSession = call.getString("sessionId")
         if (requestedSession.isNullOrBlank()) {
@@ -1576,20 +1737,44 @@ class DriveModePlugin : Plugin() {
         }
         pluginScope.launch {
             try {
-                val segments = PotholeDatabase.getDatabase(context).footageDao()
+                val result = NativeMediaFilesystemMutation.mutex.withLock {
+                check(synchronized(pendingStartLock) { !nativeClearInProgress }) { "App data deletion is in progress" }
+                FootagePathPolicy.sessionDirectory(context.filesDir, requestedSession)
+                val live = DriveForegroundService.status()
+                check(!(live.sessionId == requestedSession && (live.isRunning || live.isStopping))) { "Stop this drive before sharing" }
+                val db = PotholeDatabase.getDatabase(context)
+                val session = db.sessionDao().getSession(requestedSession) ?: error("Drive unavailable")
+                val segments = db.footageDao()
                     .getSegmentsForSession(requestedSession)
                     .map { File(it.filePath) }
                     .filter(File::isFile)
                 if (segments.isEmpty()) {
-                    call.reject("No saved video exists for this drive")
-                    return@launch
+                    error("No saved video exists for this drive")
                 }
                 val uris = ArrayList(segments.map { file ->
                     FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
                 })
+                val keep = TrackRetentionPolicy.keepTracks(context) &&
+                    !TrackRetentionPolicy.isExpired(session.endedAt,session.startedAt,System.currentTimeMillis()/1000)
+                val points = if (keep) NativeDriveGpx.points(session.gpsTrackJson) else emptyList()
+                clearTrackShares(requestedSession)
+                if (points.isNotEmpty()) {
+                    val directory = File(context.cacheDir,"pothole-reporter-shares")
+                    check(directory.isDirectory || directory.mkdirs())
+                    val file = File(directory,"drive-track-$requestedSession.gpx")
+                    file.writeText(NativeDriveGpx.encode(session.startedAt,points), Charsets.UTF_8)
+                    uris.add(FileProvider.getUriForFile(context,"${context.packageName}.fileprovider",file))
+                }
+                uris to NativeDriveGpx.shareText(session.startedAt,session.endedAt,points)
+                }
+                val uris = result.first
                 val share = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
-                    type = "video/mp4"
+                    type = if (uris.any { it.toString().endsWith(".gpx") }) "*/*" else "video/mp4"
                     putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                    putExtra(Intent.EXTRA_TEXT, result.second)
+                    clipData = android.content.ClipData.newRawUri("Drive evidence",uris.first()).apply {
+                        uris.drop(1).forEach { addItem(android.content.ClipData.Item(it)) }
+                    }
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 activity.runOnUiThread {
@@ -1599,6 +1784,15 @@ class DriveModePlugin : Plugin() {
             } catch (error: Exception) {
                 call.reject("Failed to share footage: ${error.message}")
             }
+        }
+    }
+
+    private fun trackShareFiles(): List<File> = File(context.cacheDir,"pothole-reporter-shares")
+        .listFiles()?.filter { it.name.startsWith("drive-track-") && it.name.endsWith(".gpx") }.orEmpty()
+
+    private fun clearTrackShares(session: String? = null) {
+        trackShareFiles().filter { session == null || it.name == "drive-track-$session.gpx" }.forEach {
+            check(NativeRetryableFileCleanup.deleteVerified(it)) { "Could not remove shared GPX" }
         }
     }
 
@@ -2281,6 +2475,14 @@ class DriveModePlugin : Plugin() {
         put("sourceActive", status.sourceActive)
         put("sourceState", status.sourceState)
         put("sourceIssue", status.sourceIssue)
+                put("detectionMode", status.detectionMode)
+                put("bumpCount", status.bumpCount)
+                put("bumpsWithoutFrame", status.bumpsWithoutFrame)
+                put("sensorIssue", status.sensorIssue)
+                put("cameraDetectorStatus", status.cameraDetectorStatus)
+                put("inferenceMeanMs", status.inferenceMeanMs)
+                put("hazardsLoaded", status.hazardsLoaded)
+                put("lastHazardAlert", status.lastHazardAlert)
     }
 
     private suspend fun nearbyVideoFrameDataUrls(
@@ -2721,6 +2923,8 @@ class DriveModePlugin : Plugin() {
     }
 
     override fun handleOnDestroy() {
+        warningTest?.close()
+        warningTest = null
         pluginScope.cancel()
         val abandonedStage = repairTargetStage
         repairTargetStage = null

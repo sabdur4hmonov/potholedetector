@@ -166,6 +166,11 @@ interface ReportDao {
     @Query("SELECT * FROM reports WHERE driveId = :driveId")
     suspend fun getReportsForDrive(driveId: String): List<ReportEntity>
 
+    @Query("""SELECT * FROM reports WHERE driveId = :driveId
+        AND captureSource IN ('drive_sensor', 'drive_camera', 'drive_camera_bump')
+        AND lat BETWEEN :minLat AND :maxLat""")
+    suspend fun getNearbyOfflineReports(driveId: String, minLat: Double, maxLat: Double): List<ReportEntity>
+
     @Query("DELETE FROM reports")
     suspend fun clearAll()
 

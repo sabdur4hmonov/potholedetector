@@ -94,6 +94,21 @@ android {
     kotlinOptions {
         jvmTarget = '21'
     }
+    // ABI splits apply project-wide. Keep the existing single APK for release artifact tasks.
+    splits {
+        abi {
+            enable !requestedReleaseBuild
+            reset()
+            include 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+            universalApk false
+        }
+    }
+    // Compress the native runtime in each APK.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 repositories {
@@ -124,6 +139,8 @@ dependencies {
     ksp "androidx.room:room-compiler:$roomVersion"
     implementation "androidx.lifecycle:lifecycle-service:$lifecycleVersion"
     implementation "com.squareup.okhttp3:okhttp:$okhttpVersion"
+    implementation "com.microsoft.onnxruntime:onnxruntime-android:1.24.3"
+    testRuntimeOnly "com.microsoft.onnxruntime:onnxruntime:1.24.3"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     testImplementation "org.json:json:20250517"

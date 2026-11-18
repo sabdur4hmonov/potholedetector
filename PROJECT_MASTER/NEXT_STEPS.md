@@ -1,5 +1,21 @@
 # Next steps from the preserved tree
 
+## Current FINISH-001 handoff — 2026-11-18
+
+Review the FINISH-001 draft PR and CI checks before deciding whether to merge. Run the [Colab notebook](../ml/train_pothole_yolox.ipynb) from `finish-001`, keep the training receipt and metrics, then supply the ONNX and manifest for a model-bearing debug build. Install `app-arm64-v8a-debug.apk` for the parked and physical-drive checks. Follow the [setup instructions](../ml/README.md).
+
+## Current ML-DETECT-001 handoff — 2026-11-13
+
+Owner runs [train_pothole_yolox.ipynb](../ml/train_pothole_yolox.ipynb) in Colab with GPU, retains the measured archive pin, dataset statistics and validation/test results, and places the two exported model files in `android-app/android/app/src/main/assets/ml/`. See the [Uzbek and English instructions](../ml/README.md). Then run the real-runtime fixture test, rebuild and verify the model-bearing APK, and perform parked and physical-drive acceptance. Model accuracy, phone latency and field behavior are pending.
+
+## Current HAZARD-ALERT-001 handoff — 2026-11-05
+
+Install the `hazard-alerts` debug APK identified in the worklog. While parked, use Test warning and check tone, vibration, volume, installed offline speech and music/Maps ducking/restoration. Then validate a conservative drive and return leg with Maps in front/screen off: approximate 20-second warnings, grouping, re-arm, unconfirmed wording, manual/confirmed/fixed/deleted eligibility, pause/resume/stop and Delete All. Follow [HAZARD_ALERTS.md](HAZARD_ALERTS.md). No physical-phone sound/background/timing or safety/accuracy claim exists; model, release/NEW-002 and tuning require separate work. Prior handoffs below retain historical checkpoint meaning.
+
+## Current SENSOR-DRIVE-001 handoff — 2026-11-04
+
+Install the `sensor-drive` debug APK and perform owner/reviewer physical-device acceptance: no-key start, precise GPS and mounted camera, conservative bump capture, complete photos/event locations, review/confirm/delete, pause/resume/stop, sensor-log sharing and Delete All. Use [SENSOR_DRIVE.md](SENSOR_DRIVE.md) and the worklog APK hash. No physical-road calibration or accuracy claim exists. Do not start model integration, threshold tuning, release signing or NEW-002 work without a separately scoped request. Historical entries below retain their original checkpoint meaning.
+
 ## 2026-10-06 next actions after the Uzbekistan refocus
 
 1. Human: decide how to get the on-device detector trained. It needs labelled Uzbek road frames and a GPU, which the cloud session does not have. The app's "save every analysed frame" option plus dataset export already collects frames labelled by the cloud model.

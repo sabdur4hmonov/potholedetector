@@ -7,7 +7,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
-APK=android-app/android/app/build/outputs/apk/debug/app-debug.apk
+APK_DIR=android-app/android/app/build/outputs/apk/debug
+ABIS=(arm64-v8a armeabi-v7a x86_64)
 WEB_FILES=(standalone.js index.html hazard-model.js trip-stats.js)
 
 echo "1/4 mirroring static/ into www/"
@@ -17,9 +18,7 @@ echo "2/4 syncing www into the android assets gradle actually packages"
 (cd android-app && npx cap copy android >/dev/null)
 
 echo "3/4 building"
-rm -f "$APK"
 (cd android-app/android && ./gradlew --offline assembleDebug -q)
-[ -f "$APK" ] || { echo "FAIL: gradle produced no APK"; exit 1; }
 
 echo "4/4 verifying the APK contains this source"
 fail=0
@@ -30,10 +29,13 @@ same() {  # a file inside the APK must be byte-identical to the source
     echo "  FAIL $1 in the APK differs from android-app/www/$1"; fail=1
   fi
 }
-for f in "${WEB_FILES[@]}"; do same "$f"; done
-
-n=$(unzip -p "$APK" assets/public/standalone.js | grep -c 'sk-proj\|sk-[A-Za-z0-9]\{20\}' || true)
-[ "$n" = "0" ] && echo "  ok   no API key baked in" || { echo "  FAIL an API key is in the APK"; fail=1; }
+for abi in "${ABIS[@]}"; do
+  APK="$APK_DIR/app-$abi-debug.apk"
+  [ -s "$APK" ] || { echo "FAIL: gradle produced no $abi APK"; exit 1; }
+  for f in "${WEB_FILES[@]}"; do same "$f"; done
+  n=$(unzip -p "$APK" assets/public/standalone.js | grep -c 'sk-proj\|sk-[A-Za-z0-9]\{20\}' || true)
+  [ "$n" = "0" ] && echo "  ok   no API key baked in" || { echo "  FAIL an API key is in $APK"; fail=1; }
+  printf 'APK %s bytes  %s\n' "$(wc -c < "$APK")" "$ROOT/$APK"
+done
 
 [ "$fail" = "0" ] || { echo "APK REJECTED"; exit 1; }
-printf "APK OK  %.1f MB  %s\n" "$(echo "scale=2; $(stat -f%z "$APK")/1048576" | bc)" "$ROOT/$APK"

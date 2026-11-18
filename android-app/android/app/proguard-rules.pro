@@ -35,3 +35,4 @@
     @com.getcapacitor.annotation.PermissionCallback <methods>;
     @com.getcapacitor.annotation.ActivityCallback <methods>;
 }
+-keep class ai.onnxruntime.** { *; }

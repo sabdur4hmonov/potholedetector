@@ -4,6 +4,7 @@
          Alias names are unchanged so AndroidAppMediaCleanup prefix revocation still matches. -->
     <!-- DriveModePlugin.shareFootage: recorded clips under files/footage/<session>/. -->
     <files-path name="drive_footage" path="footage/" />
+    <files-path name="sensor_logs" path="sensor_logs/" />
     <!-- Camera.getPhoto and WebView file-input capture write to getExternalFilesDir(Pictures). -->
     <external-files-path name="my_images" path="Pictures/" />
     <!-- Share evidence/dataset copies written by the web app to CACHE/pothole-reporter-shares. -->
