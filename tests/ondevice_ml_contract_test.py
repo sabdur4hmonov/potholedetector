@@ -1,5 +1,6 @@
 """Contract checks that cross Python, native Drive, and export boundaries."""
 import json
+import re
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
@@ -23,4 +24,20 @@ notebook = json.loads(read(root / 'ml/train_pothole_yolox.ipynb'))
 for cell in notebook['cells']:
     if cell['cell_type'] == 'code':
         compile(''.join(cell['source']), 'Colab cell', 'exec')
-print('ON-DEVICE ML CONTRACT PASS (8 checks including executable notebook cell syntax)')
+weights = pins['nano_pretrained']
+assert re.fullmatch(r'[0-9a-f]{64}', weights['sha256'])
+assert weights['url'].endswith('/0.1.1rc0/yolox_nano.pth') and weights['license'] is None
+training = '\n'.join(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code')
+assert 'prepare_initial_weights(pins, weights)' in training and 'load_training_receipt(receipt_path, pins) == receipt' in training
+exp = read(root / 'ml/yolox_pothole_exp.py')
+assert exp.index('verify_weights(checkpoint') < exp.index('torch.load(checkpoint')
+assert 'weights_only=True' in exp and "'backbone.'" in exp and 'strict=False' in exp and 'requires_grad' not in exp
+export = read(root / 'ml/evaluate_export.py')
+assert 'load_training_receipt(args.checkpoint.with_name' in export and '**init)' in export
+ci = read(root / '.github/workflows/ci.yml')
+build = read(root / 'tools/build-apk.sh')
+abis = ('arm64-v8a', 'armeabi-v7a', 'x86_64')
+assert "include 'arm64-v8a', 'armeabi-v7a', 'x86_64'" in gradle and 'universalApk false' in gradle
+assert all(f'app-{abi}-debug.apk' in ci and abi in build for abi in abis)
+assert 'tools/emulator-smoke.sh apk/app-x86_64-debug.apk' in ci and 'app-debug.apk' not in ci + build
+print('ON-DEVICE ML CONTRACT PASS (17 checks including notebook syntax, initialization and ABI routing)')

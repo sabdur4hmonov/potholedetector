@@ -1,5 +1,10 @@
 # Recorded work history
 
+## 2026-11-18 — FINISH-001
+
+- Pinned the official Nano checkpoint URL and measured SHA-256. Added a license-gated transfer path and initialization provenance in exported manifests. Scratch remains the default until the checkpoint's permissive license is confirmed.
+- Split debug APKs by arm64-v8a, armeabi-v7a and x86_64. The debug build helper verifies each APK and the CI emulator uses x86_64. The release artifact invocation still produces its existing single APK.
+
 ## 2026-11-13 — ML-DETECT-001
 
 - Added pinned YOLOX-Nano Colab training, full-frame D40 preparation, validation threshold selection, held-out metrics and PyTorch/ONNX comparison.

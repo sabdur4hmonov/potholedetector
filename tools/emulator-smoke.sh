@@ -8,7 +8,10 @@ OUT=${2:?output directory}
 PKG=dev.aiengg.potholereporter
 mkdir -p "$OUT"
 
-adb install -r "$APK" > "$OUT/install.txt" 2>&1
+if ! adb install -r "$APK" > "$OUT/install.txt" 2>&1; then
+  cat "$OUT/install.txt"
+  exit 1
+fi
 adb logcat -c
 adb shell pm grant $PKG android.permission.CAMERA > /dev/null 2>&1 || true
 adb shell pm grant $PKG android.permission.ACCESS_FINE_LOCATION > /dev/null 2>&1 || true

@@ -1,5 +1,9 @@
 # Current project status
 
+## 2026-11-18 FINISH-001
+
+The `finish-001` branch produces separate debug APKs for arm64-v8a, armeabi-v7a and x86_64. Install `app-arm64-v8a-debug.apk` on the owner's phone. CI uses the x86_64 build. The Colab notebook records initialization provenance and can transfer official Nano features once the exact weights have a verified permissive license. The publisher's checkpoint grant could not be confirmed, so scratch initialization remains the default. Model training and physical-phone validation remain pending. See the [worklog](AGENT_WORKLOG.md) and [Colab instructions](../ml/README.md).
+
 ## 2026-11-13 ML-DETECT-001
 
 The `ondevice-ml` branch adds a Colab training and export pipeline plus optional offline Android camera inference. Complete three-view bursts, camera/bump fusion, private review labels, GPS-free dataset export by default and retained-track GPX sharing are described in [ONDEVICE_ML.md](ONDEVICE_ML.md). Model files remain absent. The exact next step is to run the Colab notebook and supply the resulting ONNX and manifest for verification and phone testing.

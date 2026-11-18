@@ -62,6 +62,22 @@ class Exp(BaseExp):
                 if isinstance(m, nn.BatchNorm2d):
                     m.eps, m.momentum = 1e-3, .03
             self.model.head.initialize_biases(1e-2)
+            checkpoint = os.environ.get('POTHOLE_INITIAL_WEIGHTS')
+            if checkpoint:
+                import json
+                from pathlib import Path
+                import torch
+                from training_init import initialization_receipt, verify_weights
+
+                pins = json.loads(Path(__file__).with_name('pins.json').read_text())
+                receipt = initialization_receipt(pins, use_pretrained=True)
+                verify_weights(checkpoint, receipt['init_weights_sha256'])
+                state = torch.load(checkpoint, map_location='cpu', weights_only=True)['model']
+                # Transfer the backbone and neck. Keep the entire new one-class head fresh.
+                feature_state = {k: v for k, v in state.items() if k.startswith('backbone.')}
+                missing, unexpected = self.model.load_state_dict(feature_state, strict=False)
+                if not feature_state or unexpected or any(not k.startswith('head.') for k in missing):
+                    raise ValueError('Official checkpoint does not match the pinned Nano backbone')
         return self.model
 
     def get_dataset(self, cache=False, cache_type='ram'):

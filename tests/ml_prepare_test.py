@@ -3,9 +3,12 @@ import importlib.util
 import json
 from pathlib import Path
 import tempfile
+import sys
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'ml'))
+import training_init
 spec = importlib.util.spec_from_file_location('prepare', ROOT / 'ml/prepare_rdd2022.py')
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
@@ -50,4 +53,24 @@ with tempfile.TemporaryDirectory() as tmp:
     checks += 2
     assert m.country_for(Path('RDD2022/China_Drone/train')) is None
     checks += 1
+    weight_pins = json.loads((ROOT / 'ml/pins.json').read_text())
+    assert training_init.initialization_receipt(weight_pins, False) == training_init.SCRATCH
+    try:
+        training_init.initialization_receipt(weight_pins, True)
+        raise AssertionError('Unverified weights license accepted')
+    except ValueError as error:
+        assert 'license' in str(error)
+    weight_pins['nano_pretrained'].update(license='Apache-2.0', sha256=digest)
+    receipt = training_init.initialization_receipt(weight_pins, True)
+    manifest = root / 'training_init.json'
+    manifest.write_text(json.dumps(receipt))
+    assert training_init.load_training_receipt(manifest, weight_pins) == receipt
+    try:
+        training_init.prepare_initial_weights(weight_pins, archive)
+        raise AssertionError('Mismatched cached weights accepted')
+    except ValueError as error:
+        assert 'SHA-256 mismatch' in str(error)
+    archive.write_bytes(b'synthetic-not-a-dataset')
+    training_init.prepare_initial_weights(weight_pins, archive)
+    checks += 5
 print(f'ML PREPARATION PASS ({checks} checks; three tiny VOC fixtures, no network/training)')

@@ -7,6 +7,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import torch
+from training_init import load_training_receipt
 
 
 def letterbox(image):
@@ -124,6 +125,8 @@ def main():
     p.add_argument('--output', type=Path, default=Path('/content/model_export'))
     args = p.parse_args()
     here = Path(__file__).resolve().parent
+    pins = json.loads((here / 'pins.json').read_text())
+    init = load_training_receipt(args.checkpoint.with_name('training_init.json'), pins)
     spec = importlib.util.spec_from_file_location('pothole_exp', here / 'yolox_pothole_exp.py')
     expmodule = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(expmodule)
@@ -158,14 +161,13 @@ def main():
         dimensions = (image.shape[1], image.shape[0])
         np.testing.assert_allclose(decode(actual, threshold, scale, *dimensions),
                                    decode(expected, threshold, scale, *dimensions), rtol=1e-3, atol=.1)
-    pins = json.loads((here / 'pins.json').read_text())
     if not pins['rdd2022_sha256']:
         raise ValueError('Missing measured dataset SHA-256')
     metadata = dict(version='yolox-nano-rdd2022-v1', input_size=416, score_threshold=threshold,
                     nms_iou=.45, sha256=hashlib.sha256(onnx_path.read_bytes()).hexdigest(),
                     metrics=dict(validation=val_metrics, test=test_metrics, parity_images=20),
                     dataset_sha256=pins['rdd2022_sha256'], yolox_commit=pins['yolox_commit'],
-                    output_format='yolox_raw_bgr_0_255', opset=17, license='CC-BY-SA-4.0')
+                    output_format='yolox_raw_bgr_0_255', opset=17, license='CC-BY-SA-4.0', **init)
     (args.output / 'pothole_model.json').write_text(json.dumps(metadata, indent=2))
     print('Parity: 20/20. Exported model and manifest; field accuracy remains unverified.')
 

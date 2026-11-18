@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## Current FINISH-001 handoff — 2026-11-18
+
+Review the FINISH-001 draft PR and CI checks before deciding whether to merge. Run the [Colab notebook](../ml/train_pothole_yolox.ipynb) from `finish-001`, keep the training receipt and metrics, then supply the ONNX and manifest for a model-bearing debug build. Install `app-arm64-v8a-debug.apk` for the parked and physical-drive checks. Follow the [setup instructions](../ml/README.md).
+
 ## Current ML-DETECT-001 handoff — 2026-11-13
 
 Owner runs [train_pothole_yolox.ipynb](../ml/train_pothole_yolox.ipynb) in Colab with GPU, retains the measured archive pin, dataset statistics and validation/test results, and places the two exported model files in `android-app/android/app/src/main/assets/ml/`. See the [Uzbek and English instructions](../ml/README.md). Then run the real-runtime fixture test, rebuild and verify the model-bearing APK, and perform parked and physical-drive acceptance. Model accuracy, phone latency and field behavior are pending.

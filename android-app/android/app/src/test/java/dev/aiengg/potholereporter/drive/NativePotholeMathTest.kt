@@ -34,7 +34,11 @@ class NativePotholeMathTest {
     @Test fun manifestThresholdIsAuthoritativeAndInvalidManifestRefused() {
         val json="""{"version":"yolox-test-v1","input_size":416,"opset":17,"output_format":"yolox_raw_bgr_0_255","score_threshold":0.73,"nms_iou":0.4,"sha256":"${"0".repeat(64)}","dataset_sha256":"${"1".repeat(64)}","yolox_commit":"6ddff4824372906469a7fae2dc3206c7aa4bbaee"}"""
         assertEquals(.73,NativePotholeMath.config(json).threshold,1e-9)
-        assertThrows(IllegalArgumentException::class.java) { NativePotholeMath.config(json.replace("0.73","1.2")) }
+        val withInit = org.json.JSONObject(json).put("init", "scratch")
+            .put("init_weights_sha256", org.json.JSONObject.NULL)
+        assertEquals(NativePotholeMath.config(json), NativePotholeMath.config(withInit.toString()))
+        withInit.put("score_threshold", 1.2)
+        assertThrows(IllegalArgumentException::class.java) { NativePotholeMath.config(withInit.toString()) }
     }
     @Test fun twoOfExactlyThreeIndependentViewsRequired() {
         assertTrue(NativePotholeMath.consistent(listOf(true,false,true)))

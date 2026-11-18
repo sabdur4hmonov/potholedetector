@@ -4,13 +4,15 @@
 
 Model hali o‘qitilmagan. Ilova model bo‘lmasa sensor, ogohlantirish, Photo va ixtiyoriy cloud bilan ishlaydi. Aniqlik yoki yo‘ldagi ishlash haqida da’vo yo‘q.
 
-1. `ml/train_pothole_yolox.ipynb` ni Google Colab’da oching (GitHub’dan `ondevice-ml` tarmog‘ini tanlang yoki notebookni yuklang).
+1. `ml/train_pothole_yolox.ipynb` ni Google Colab’da oching (GitHub’dan `finish-001` tarmog‘ini tanlang yoki notebookni yuklang).
 2. **Runtime → Change runtime type → GPU** ni tanlang, **Run all** ni bosing. Colab oynasida Google Drive’ni ulang; token/parollarni repoga yozmang.
-3. Rasmiy RDD2022 arxivi taxminan 13.3 GB; ochilgan ma’lumot va checkpointlar uchun yetarli bo‘sh joy kerak. GPU va bepul sessiya vaqti o‘zgarishi mumkin. Sukut 40 epoch, batch 16; xotira yetmasa batchni kamaytiring. Checkpointlar `MyDrive/pothole-yolox/pothole_nano/` da saqlanadi; yangi sessiyada notebookni boshidan ishga tushirsangiz davom etadi.
+3. Rasmiy RDD2022 arxivi taxminan 13.3 GB. Sukut 40 epoch, batch 16. Xotira yetmasa batchni kamaytiring. Checkpointlar `MyDrive/pothole-yolox/finish-001-scratch/pothole_nano/` ichida saqlanadi. Yangi Colab sessiyasida notebookni boshidan ishga tushirsangiz, mos checkpointdan davom etadi.
 4. Birinchi yuklash SHA-256 ni chiqaradi va `pins.json` ga yozadi; saqlangan pin boshqa yuklashda mos kelmasa jarayon to‘xtaydi. Bu birinchi pin mustaqil nashriyot tekshiruvi degani emas. Notebook pin va haqiqiy statistika nusxasini Drive’da saqlaydi.
 5. Validation’da precision kamida 0.80 bo‘lgan eng yaxshi F1 chegarasi tanlanadi. Mos chegara bo‘lmasa eksport to‘xtaydi: ma’lumotni ko‘rib chiqish, ko‘proq o‘qitish yoki alohida Tiny tajribasi kerak. Test bo‘yicha precision/recall/F1 va mamlakatlar recall’i chiqariladi. 20 test rasmida PyTorch/ONNX tengligi tekshiriladi.
 6. Yuklangan `pothole_yolox_nano.onnx` va `pothole_model.json` fayllarini **`android-app/android/app/src/main/assets/ml/`** ichiga qo‘ying. Pin/statistikani ham saqlang va Codex/Claude’ga model tayyorligini ayting. Vazn, dataset, checkpoint va APK’ni Git’ga qo‘shmang.
-7. Yig‘ilgandan keyin avval to‘xtab turgan holatda, so‘ng ehtiyotkor amaliy safarda tekshiring. O‘qitish statistikasi O‘zbekiston yo‘llaridagi aniqlikni isbotlamaydi.
+7. Telefonga `android-app/android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk` ni o‘rnating. Avval to‘xtab turgan holatda, so‘ng ehtiyotkor amaliy safarda tekshiring.
+
+Megvii vaznining permissiv litsenziyasi tasdiqlanmagani uchun o‘qitish sukut bo‘yicha noldan boshlanadi. URL va tekshirilgan SHA-256 `pins.json` hamda [MODEL_LICENSE.md](../MODEL_LICENSE.md) da. Tasdiqlangan permissiv litsenziya qayd etilgach, ixtiyoriy transfer yo‘li xeshni tekshiradi va yangi bir sinfli head bilan boshlaydi. Notebook boshlang‘ich usulni chiqaradi, manifest esa `init` va `init_weights_sha256` ni yozadi.
 
 O‘z yo‘llaringiz: hisobotdagi **To‘g‘ri/Noto‘g‘ri** ni bosing, Settings’dan dataset ZIP’ni qo‘lda eksport qiling. GPS sukut bo‘yicha yo‘q; faqat tegishli katak belgilansa qo‘shiladi. ZIP’ni Colab’ga `/content/owner_export.zip` deb yuklash kifoya (`prepare_rdd2022.py --extra ...` ham mavjud). **No** rasmlari manfiy misollar sifatida ishlatiladi. **Yes** butun rasm yorlig‘i obyektdagi to‘rtburchak koordinatalarini bildirmaydi: `labels.json` ga inson belgilagan `boxes: [[x,y,width,height], ...]` (to‘liq, orientatsiyasi tuzatilgan rasm koordinatalari) kerak. Bunday belgilarsiz musbat rasmlar `owner_positive_review.json` da kutadi; ular manfiyga aylantirilmaydi va modelning o‘z taxmini ground truth qilinmaydi.
 
@@ -19,6 +21,10 @@ O‘z yo‘llaringiz: hisobotdagi **To‘g‘ri/Noto‘g‘ri** ni bosing, Setti
 No model has been trained or field-validated. The absent-model build preserves sensor warnings, Photo and optional cloud.
 
 Open the notebook in Colab → Runtime → GPU → Run all → authorize Drive in Colab → download the two model files → put them in `android-app/android/app/src/main/assets/ml/` → tell Codex/Claude. Preserve the measured pins/statistics. Never commit weights, datasets, APKs or credentials. Forty epochs/batch sixteen is a resumable starting configuration, not a guaranteed free-session completion time. Latest/best checkpoints live on Drive. Re-running after disconnection resumes the latest checkpoint.
+
+Open the notebook from `finish-001`. Install `app-arm64-v8a-debug.apk` from `android-app/android/app/build/outputs/apk/debug/` on the owner's phone. CI uses `app-x86_64-debug.apk`.
+
+Scratch is the default while the official Nano checkpoint's permissive license remains unverified. [MODEL_LICENSE.md](../MODEL_LICENSE.md) records the URL and measured SHA-256. After the pin records a verified permissive grant, the notebook enables the optional transfer by default, with an opt-out. It verifies the weight digest, transfers the backbone and neck, and keeps the one-class head fresh and all layers trainable. Initialization is printed, recorded beside checkpoints and exported as `init` and `init_weights_sha256`. Scratch checkpoints live in `MyDrive/pothole-yolox/finish-001-scratch/pothole_nano/`.
 
 The official 13.3 GB archive is downloaded only by the notebook, SHA-256 printed/pinned on first download and enforced thereafter. The repository's initial null checksum and pending statistics are honest placeholders, not invented measurements. D40 alone is pothole; all other damage classes and annotated images without D40 are negatives. Unlabelled challenge-test images are excluded, never assumed negative. Country + positive/negative stratification uses a fixed 80/10/10 image split; duplicate image bytes are removed. Adjacent road frames may still be correlated: this is not geographic independence or a field benchmark. China_Drone is excluded.
 

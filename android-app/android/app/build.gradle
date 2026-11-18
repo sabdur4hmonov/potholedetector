@@ -94,8 +94,16 @@ android {
     kotlinOptions {
         jvmTarget = '21'
     }
-    // The pinned runtime has four large native libraries. Compress them in the APK
-    // while retaining the x86_64 ABI used by the existing CI emulator.
+    // ABI splits apply project-wide. Keep the existing single APK for release artifact tasks.
+    splits {
+        abi {
+            enable !requestedReleaseBuild
+            reset()
+            include 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+            universalApk false
+        }
+    }
+    // Compress the native runtime in each APK.
     packaging {
         jniLibs {
             useLegacyPackaging = true
