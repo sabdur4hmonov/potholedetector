@@ -9,6 +9,6 @@
   "onnxruntime": "1.24.3",
   "opset": 17,
   "rdd2022_url": "https://ndownloader.figshare.com/files/38030910",
-  "rdd2022_sha256": null,
+  "rdd2022_sha256": "5d230a2941e8f2ac5fbca1a0faddee393314368dd17f9304effc11ec532845b6",
   "seed": 20221105
 }

@@ -10,17 +10,33 @@ import tempfile
 import tarfile
 import unittest
 from unittest.mock import patch
+import urllib.error
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'ml/kaggle'))
 from watch_logic import classify_failure, next_action, run_budget, should_relaunch, verify_artifacts
 import watch
+import cloud_run
 sys.path.insert(0, str(ROOT / 'ml'))
 from prepare_rdd2022 import extract
 
 
 class WatcherTest(unittest.TestCase):
+    def test_figshare_403_tries_only_the_second_official_endpoint(self):
+        first = 'https://api.figshare.com/v2/file/download/38030910'
+        second = 'https://ndownloader.figshare.com/files/38030910'
+        denied = urllib.error.HTTPError(first, 403, 'Forbidden', {}, None)
+        response = io.BytesIO(b'whole archive fixture')
+        response.status = 200
+        response.headers = {'Content-Length': '21'}
+        with tempfile.TemporaryDirectory() as tmp, patch.object(cloud_run.urllib.request, 'urlopen',
+                side_effect=[denied, response]) as opener:
+            archive = Path(tmp) / 'rdd.zip'
+            cloud_run.download_rdd2022(first, second, archive)
+            self.assertEqual([first, second], [call.args[0].full_url for call in opener.call_args_list])
+            self.assertEqual(b'whole archive fixture', archive.read_bytes())
+
     def test_full_frame_sampler_converts_scalar_tensors_to_dataset_indices(self):
         class ScalarTensor:
             def __int__(self):

@@ -10,7 +10,28 @@ import sys
 import sysconfig
 import tempfile
 import time
+import urllib.error
 import urllib.request
+
+
+def download_rdd2022(primary, alternate, archive):
+    request = urllib.request.Request(primary, headers={'Cache-Control': 'no-cache'})
+    try:
+        response = urllib.request.urlopen(request, timeout=120)
+    except urllib.error.HTTPError as error:
+        if error.code != 403:
+            raise
+        error.close()
+        print('Public Figshare file returned HTTP 403. Trying the alternate official URL for file 38030910.', flush=True)
+        request = urllib.request.Request(alternate, headers={'Cache-Control': 'no-cache'})
+        response = urllib.request.urlopen(request, timeout=120)
+    with response, archive.open('wb') as target:
+        if response.status != 200:
+            raise RuntimeError(f'Unexpected RDD2022 download HTTP status {response.status}')
+        shutil.copyfileobj(response, target, 1024 * 1024)
+        size = response.headers.get('Content-Length')
+        if size is not None and target.tell() != int(size):
+            raise ConnectionError('RDD2022 download ended before Content-Length')
 
 
 def dry_run(root):
@@ -67,15 +88,13 @@ def run(root, commit, started, budget_seconds, smoke=False):
             saved = json.loads(attached[0].with_name('measured_pins.json').read_text())
             if saved['yolox_commit'] != pins['yolox_commit']:
                 raise ValueError('Resume dataset/source pin mismatch')
+            if pins['rdd2022_sha256'] and saved['rdd2022_sha256'] != pins['rdd2022_sha256']:
+                raise ValueError('Resume dataset SHA-256 differs from the training pin')
             pins['rdd2022_sha256'] = saved['rdd2022_sha256']
             pins_path.write_text(json.dumps(pins))
         archive = Path('/kaggle/tmp/RDD2022.zip')
         print('Downloading RDD2022 to Kaggle temporary disk', flush=True)
-        with urllib.request.urlopen(pins['rdd2022_url'], timeout=120) as response, archive.open('wb') as target:
-            shutil.copyfileobj(response, target, 1024 * 1024)
-            size = response.headers.get('Content-Length')
-            if size is not None and target.tell() != int(size):
-                raise ConnectionError('RDD2022 download ended before Content-Length')
+        download_rdd2022('https://api.figshare.com/v2/file/download/38030910', pins['rdd2022_url'], archive)
         digest = verify_archive(archive, pins_path)
         source = Path('/kaggle/tmp/rdd_source')
         extract(archive, source, annotated_only=True)

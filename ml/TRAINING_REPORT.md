@@ -175,3 +175,58 @@ IndexError: invalid index of a 0-dim tensor. Use `tensor.item()` in Python or `t
     [NbConvertApp] Writing 288335 bytes to __results__.html
 
 - 2026-11-20T00:32:54+05:00 — RuntimeError: Kaggle version 3 stopped. See downloaded failure evidence in the report.
+
+- 2026-11-20T00:38:01+05:00 — Private smoke version 4 submitted. https://www.kaggle.com/code/sardor007/pothole-yolox-train
+
+- 2026-11-20T00:51:38+05:00 — Smoke version 4 passed in 704s. One epoch and 20 ONNX comparisons verified. Submitting full training.
+
+- 2026-11-20T00:51:47+05:00 — Private full training version 5 submitted. https://www.kaggle.com/code/sardor007/pothole-yolox-train
+
+- 2026-11-20T00:53:16+05:00 — Kaggle version 5 is running.
+
+- 2026-11-20T00:55:10+05:00 — Kaggle failure evidence for sardor007/pothole-yolox-train/5. sardor007/pothole-yolox-train/5 has status "KernelWorkerStatus.ERROR"
+
+  result.json reason: HTTPError: HTTP Error 403: Forbidden
+
+      File "/kaggle/tmp/pothole/ml/kaggle/cloud_run.py", line 144, in <module>
+        run(args.root, args.commit, args.started, args.budget, args.smoke)
+      File "/kaggle/tmp/pothole/ml/kaggle/cloud_run.py", line 74, in run
+        with urllib.request.urlopen(pins['rdd2022_url'], timeout=120) as response, archive.open('wb') as target:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/kaggle/tmp/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 215, in urlopen
+        return opener.open(url, data, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/kaggle/tmp/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 521, in open
+        response = meth(req, response)
+                   ^^^^^^^^^^^^^^^^^^^
+      File "/kaggle/tmp/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 630, in http_response
+        response = self.parent.error(
+                   ^^^^^^^^^^^^^^^^^^
+      File "/kaggle/tmp/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 559, in error
+        return self._call_chain(*args)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+      File "/kaggle/tmp/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 492, in _call_chain
+        result = func(*args)
+                 ^^^^^^^^^^^
+      File "/kaggle/tmp/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 639, in http_error_default
+        raise HTTPError(req.full_url, code, msg, hdrs, fp)
+    urllib.error.HTTPError: HTTP Error 403: Forbidden
+    Traceback (most recent call last):
+      File "/kaggle/src/script.py", line 74, in <module>
+        main()
+        ~~~~^^
+      File "/kaggle/src/script.py", line 65, in main
+        subprocess.run(command, env=env, check=True)
+        ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/usr/lib/python3.13/subprocess.py", line 578, in run
+        raise CalledProcessError(retcode, process.args,
+                                 output=stdout, stderr=stderr)
+    subprocess.CalledProcessError: Command '['/kaggle/tmp/train-env/bin/python', '/kaggle/tmp/pothole/ml/kaggle/cloud_run.py', '/kaggle/tmp/pothole', '2508deba2001eb4505b4bc937583935b1c58bb3d', '826.10580939', '43200']' returned non-zero exit status 1.
+    /usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+      cells[i][c] = re.sub('\\\\\|', '|', cell)
+    /usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+      text = re.sub(r'_', '\_', text) # Escape underscores in display text
+    [NbConvertApp] Converting notebook __script__.ipynb to html
+    [NbConvertApp] Writing 288337 bytes to __results__.html
+
+- 2026-11-20T00:55:10+05:00 — RuntimeError: Kaggle version 5 stopped. See downloaded failure evidence in the report.
