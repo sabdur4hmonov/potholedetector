@@ -181,7 +181,13 @@ def prepare(root, output, seed=20221105, dataset_hash=None, extra=None, link_ima
     if split_limits:
         for split, limit in split_limits.items():
             if len(splits[split]) > limit:
-                splits[split] = rng.sample(splits[split], limit)
+                rows_in_split = splits[split]
+                # Keep a D40 annotation in the small smoke validation and test sets.
+                positives = [row for row in rows_in_split if row[4]]
+                if not positives:
+                    raise ValueError(f'No D40 positives in the {split} split for smoke testing')
+                anchor = rng.choice(positives)
+                splits[split] = rng.sample([row for row in rows_in_split if row is not anchor], limit - 1) + [anchor]
     stats = {'dataset_sha256': dataset_hash, 'seed': seed, 'countries': {}, 'splits': {},
              'excluded': ['China_Drone', 'official unannotated test images'], 'full_frame': True}
     ann = output / 'annotations'

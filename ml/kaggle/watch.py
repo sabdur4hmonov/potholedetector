@@ -89,7 +89,7 @@ def collect_failure(ref, directory, status_text):
     if problems:
         message += '\n\n  ' + safe_diagnostic(' '.join(problems))
     if tail:
-        message += '\n\n' + '\n'.join('    ' + line for line in lines[-40:])
+        message += '\n\n' + '\n'.join(('    ' + line).rstrip() for line in lines[-40:])
     return reason + '\n' + status_text, tail, message
 
 

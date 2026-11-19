@@ -23,43 +23,94 @@ Status: failed
 
   result.json reason: CalledProcessError: Command '['/usr/bin/python3', '-m', 'pip', 'install', '-r', '/kaggle/tmp/pothole/ml/requirements-colab.txt', 'setuptools==75.8.0', 'wheel==0.45.1', 'packaging==24.2']' returned non-zero exit status 1.
 
-    ,{"stream_name":"stderr","time":592.236431452,"data":"  \n"}
-    ,{"stream_name":"stderr","time":592.2364403,"data":"  × Building wheel for onnx (pyproject.toml) did not run successfully.\n"}
-    ,{"stream_name":"stderr","time":592.236444381,"data":"  │ exit code: 1\n"}
-    ,{"stream_name":"stderr","time":592.236447408,"data":"  ╰─\u003e No available output.\n"}
-    ,{"stream_name":"stderr","time":592.236451079,"data":"  \n"}
-    ,{"stream_name":"stderr","time":592.236454293,"data":"  note: This error originates from a subprocess, and is likely not a problem with pip.\n"}
-    ,{"stream_name":"stdout","time":592.237056173,"data":"  Building wheel for onnx (pyproject.toml): finished with status 'error'\n"}
-    ,{"stream_name":"stderr","time":592.237692394,"data":"  ERROR: Failed building wheel for onnx\n"}
-    ,{"stream_name":"stdout","time":592.238185004,"data":"Successfully built numpy pycocotools\n"}
-    ,{"stream_name":"stdout","time":592.238512201,"data":"Failed to build onnx\n"}
-    ,{"stream_name":"stderr","time":592.239824023,"data":"error: failed-wheel-build-for-install\n"}
-    ,{"stream_name":"stderr","time":592.239841103,"data":"\n"}
-    ,{"stream_name":"stderr","time":592.239857432,"data":"× Failed to build installable wheels for some pyproject.toml based projects\n"}
-    ,{"stream_name":"stderr","time":592.23986459,"data":"╰─\u003e onnx\n"}
-    ,{"stream_name":"stderr","time":593.57117824,"data":"Traceback (most recent call last):\n"}
-    ,{"stream_name":"stderr","time":593.572180525,"data":"  File \"/kaggle/src/script.py\", line 42, in \u003cmodule\u003e\n"}
-    ,{"stream_name":"stderr","time":593.572199835,"data":"    main()\n"}
-    ,{"stream_name":"stderr","time":593.572204872,"data":"    ~~~~^^\n"}
-    ,{"stream_name":"stderr","time":593.572209708,"data":"  File \"/kaggle/src/script.py\", line 38, in main\n"}
-    ,{"stream_name":"stderr","time":593.57221405,"data":"    run(root, TRAIN_COMMIT, started, RUN_BUDGET_SECONDS)\n"}
-    ,{"stream_name":"stderr","time":593.572228632,"data":"    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
-    ,{"stream_name":"stderr","time":593.572232072,"data":"  File \"/kaggle/tmp/pothole/ml/kaggle/cloud_run.py\", line 45, in run\n"}
-    ,{"stream_name":"stderr","time":593.572235366,"data":"    install_yolox(root, checkout)\n"}
-    ,{"stream_name":"stderr","time":593.572242302,"data":"    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n"}
-    ,{"stream_name":"stderr","time":593.572245743,"data":"  File \"/kaggle/tmp/pothole/ml/runtime_setup.py\", line 15, in install_yolox\n"}
-    ,{"stream_name":"stderr","time":593.572249124,"data":"    subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', str(root / 'ml/requirements-colab.txt'),\n"}
-    ,{"stream_name":"stderr","time":593.572253322,"data":"    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
-    ,{"stream_name":"stderr","time":593.572257254,"data":"                    'setuptools==75.8.0', 'wheel==0.45.1', 'packaging==24.2'], check=True)\n"}
-    ,{"stream_name":"stderr","time":593.572261181,"data":"                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
-    ,{"stream_name":"stderr","time":593.572264697,"data":"  File \"/usr/lib/python3.13/subprocess.py\", line 578, in run\n"}
-    ,{"stream_name":"stderr","time":593.572268321,"data":"    raise CalledProcessError(retcode, process.args,\n"}
-    ,{"stream_name":"stderr","time":593.572271725,"data":"                             output=stdout, stderr=stderr)\n"}
-    ,{"stream_name":"stderr","time":593.572275445,"data":"subprocess.CalledProcessError: Command '['/usr/bin/python3', '-m', 'pip', 'install', '-r', '/kaggle/tmp/pothole/ml/requirements-colab.txt', 'setuptools==75.8.0', 'wheel==0.45.1', 'packaging==24.2']' returned non-zero exit status 1.\n"}
-    ,{"stream_name":"stderr","time":596.147880137,"data":"/usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
-    ,{"stream_name":"stderr","time":596.14790825,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
-    ,{"stream_name":"stderr","time":596.490749973,"data":"/usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
-    ,{"stream_name":"stderr","time":596.490789871,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
-    ,{"stream_name":"stderr","time":597.659649534,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
-    ,{"stream_name":"stderr","time":598.999897338,"data":"[NbConvertApp] Writing 280579 bytes to __results__.html\n"}
-    ]
+      error: subprocess-exited-with-error
+
+      × Building wheel for onnx (pyproject.toml) did not run successfully.
+      │ exit code: 1
+      ╰─> No available output.
+
+      note: This error originates from a subprocess, and is likely not a problem with pip.
+      Building wheel for onnx (pyproject.toml): finished with status 'error'
+      ERROR: Failed building wheel for onnx
+    Successfully built numpy pycocotools
+    Failed to build onnx
+    error: failed-wheel-build-for-install
+
+    × Failed to build installable wheels for some pyproject.toml based projects
+    ╰─> onnx
+    Traceback (most recent call last):
+      File "/kaggle/src/script.py", line 42, in <module>
+        main()
+        ~~~~^^
+      File "/kaggle/src/script.py", line 38, in main
+        run(root, TRAIN_COMMIT, started, RUN_BUDGET_SECONDS)
+        ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/kaggle/tmp/pothole/ml/kaggle/cloud_run.py", line 45, in run
+        install_yolox(root, checkout)
+        ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+      File "/kaggle/tmp/pothole/ml/runtime_setup.py", line 15, in install_yolox
+        subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', str(root / 'ml/requirements-colab.txt'),
+        ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        'setuptools==75.8.0', 'wheel==0.45.1', 'packaging==24.2'], check=True)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/usr/lib/python3.13/subprocess.py", line 578, in run
+        raise CalledProcessError(retcode, process.args,
+                                 output=stdout, stderr=stderr)
+    subprocess.CalledProcessError: Command '['/usr/bin/python3', '-m', 'pip', 'install', '-r', '/kaggle/tmp/pothole/ml/requirements-colab.txt', 'setuptools==75.8.0', 'wheel==0.45.1', 'packaging==24.2']' returned non-zero exit status 1.
+    /usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+      cells[i][c] = re.sub('\\\\\|', '|', cell)
+    /usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+      text = re.sub(r'_', '\_', text) # Escape underscores in display text
+    [NbConvertApp] Converting notebook __script__.ipynb to html
+    [NbConvertApp] Writing 280579 bytes to __results__.html
+
+- 2026-11-20T00:03:42+05:00 — Private smoke version 2 submitted. https://www.kaggle.com/code/sardor007/pothole-yolox-train?version=2
+
+- 2026-11-20T00:06:11+05:00 — Kaggle version 2 is running.
+
+- 2026-11-20T00:15:46+05:00 — Kaggle failure evidence for sardor007/pothole-yolox-train/2. sardor007/pothole-yolox-train/2 has status "KernelWorkerStatus.ERROR"
+
+  result.json reason: ModuleNotFoundError: No module named 'yolox'
+
+              Please be careful with folders in your working directory with the same
+              name as your package as they may take precedence during imports.
+              ********************************************************************************
+
+      !!
+        with strategy, WheelFile(wheel_path, "w") as wheel_obj:
+      Created wheel for yolox: filename=yolox-0.3.0-0.editable-cp312-cp312-linux_x86_64.whl size=11814 sha256=e5e239c86be565c4812d03c6f04f9c7858153aebe6cc0074f2f3b0c45c82bb4a
+      Stored in directory: /tmp/pip-ephem-wheel-cache-rzl_hee9/wheels/4c/53/d0/18251481f6f93e74b13a4add2a51f7e1ff76c84fa1b7bd1478
+    Successfully built yolox
+    Installing collected packages: yolox
+    Successfully installed yolox-0.3.0
+    Downloading RDD2022 to Kaggle temporary disk
+    RDD2022 SHA-256: 5d230a2941e8f2ac5fbca1a0faddee393314368dd17f9304effc11ec532845b6
+    First-download pin recorded; retain pins.json with the training receipt.
+    Prepared full-frame splits: {'train': {'images': 128, 'boxes': 20}, 'val': {'images': 24, 'boxes': 0}, 'test': {'images': 24, 'boxes': 5}}
+    Traceback (most recent call last):
+      File "/kaggle/tmp/pothole/ml/kaggle/cloud_run.py", line 139, in <module>
+        run(args.root, args.commit, args.started, args.budget, args.smoke)
+      File "/kaggle/tmp/pothole/ml/kaggle/cloud_run.py", line 98, in run
+        from yolox_pothole_exp import Exp
+      File "/kaggle/tmp/pothole/ml/yolox_pothole_exp.py", line 6, in <module>
+        from yolox.exp import Exp as BaseExp
+    ModuleNotFoundError: No module named 'yolox'
+    Traceback (most recent call last):
+      File "/kaggle/src/script.py", line 74, in <module>
+        main()
+        ~~~~^^
+      File "/kaggle/src/script.py", line 65, in main
+        subprocess.run(command, env=env, check=True)
+        ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/usr/lib/python3.13/subprocess.py", line 578, in run
+        raise CalledProcessError(retcode, process.args,
+                                 output=stdout, stderr=stderr)
+    subprocess.CalledProcessError: Command '['/kaggle/tmp/train-env/bin/python', '/kaggle/tmp/pothole/ml/kaggle/cloud_run.py', '/kaggle/tmp/pothole', '2afe4b76c3d34d9d9d9674c60b4b20a3caf6e27d', '539.969840549', '2640', '--smoke']' returned non-zero exit status 1.
+    /usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+      cells[i][c] = re.sub('\\\\\|', '|', cell)
+    /usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+      text = re.sub(r'_', '\_', text) # Escape underscores in display text
+    [NbConvertApp] Converting notebook __script__.ipynb to html
+    [NbConvertApp] Writing 288335 bytes to __results__.html
+
+- 2026-11-20T00:15:46+05:00 — RuntimeError: Kaggle version 2 stopped. See downloaded failure evidence in the report.

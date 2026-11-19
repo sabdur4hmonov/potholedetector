@@ -41,19 +41,19 @@ class WatcherTest(unittest.TestCase):
             state = directory / 'state.json'
             state.write_text(json.dumps(dict(phase='running', version=7, mode='smoke', run_budget=2640)))
             log = ''.join(f'line {i}\n' for i in range(50))
+            events = json.dumps([{'data': line + '\n'} for line in log.splitlines()], separators=(',\n', ':'))
             def kaggle(group, command, ref, *args, **kwargs):
                 self.assertEqual(f'{watch.KERNEL}/7', ref)
                 if command == 'status':
                     return f'{ref} has status "KernelWorkerStatus.CANCEL_ACKNOWLEDGED"'
                 if command == 'output':
                     (Path(args[1]) / 'result.json').write_text('{"reason": "Cancelled by owner"}')
-                if command == 'logs':
-                    return log
+                    (Path(args[1]) / 'pothole-yolox-train.log').write_text(events)
             with patch.object(watch, 'HERE', directory), patch.object(watch, 'STATE', state), \
                  patch.object(watch, 'kaggle', side_effect=kaggle) as cli, patch.object(watch, 'report') as report:
                 with self.assertRaisesRegex(RuntimeError, 'version 7 stopped'):
                     watch.tick(False)
-                self.assertEqual(['status', 'output', 'logs'], [call.args[1] for call in cli.call_args_list])
+                self.assertEqual(['status', 'output'], [call.args[1] for call in cli.call_args_list])
                 self.assertIn('Cancelled by owner', report.call_args.args[1])
                 self.assertNotIn('line 9\n', report.call_args.args[1])
                 self.assertIn('line 10\n', report.call_args.args[1])

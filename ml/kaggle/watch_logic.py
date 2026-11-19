@@ -32,18 +32,15 @@ def should_relaunch(reason, log, already_relaunched):
 
 
 def log_lines(raw):
-    """Decode the per-line events in Kaggle's downloaded JSON log, or plain logs."""
-    events = []
-    for line in raw.splitlines():
-        if line.strip() in ('[', ']', ''):
-            continue
-        try:
-            event = json.loads(line.lstrip(','))
-        except ValueError:
-            return raw.splitlines()
-        if isinstance(event, dict) and isinstance(event.get('data'), str):
-            events.append(event['data'])
-    return ''.join(events).splitlines() if events else raw.splitlines()
+    """Decode Kaggle's JSON event array, with a plain-log fallback."""
+    try:
+        events = json.loads(raw)
+    except ValueError:
+        return raw.splitlines()
+    if isinstance(events, list):
+        return ''.join(event['data'] for event in events if isinstance(event, dict) and
+                       isinstance(event.get('data'), str)).splitlines()
+    return raw.splitlines()
 
 
 def safe_diagnostic(text):

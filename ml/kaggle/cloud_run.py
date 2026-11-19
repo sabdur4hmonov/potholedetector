@@ -4,8 +4,10 @@ import json
 import os
 from pathlib import Path
 import shutil
+import site
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import time
 import urllib.request
@@ -42,12 +44,18 @@ def run(root, commit, started, budget_seconds, smoke=False):
         from prepare_rdd2022 import extract, prepare, verify_archive
         from training_init import SCRATCH, load_training_receipt
         install_torch()
+        checkout = Path('/kaggle/tmp/YOLOX')
+        install_yolox(root, checkout)
+        # The editable wheel installs its import hook in a .pth file after this
+        # interpreter starts. Process that site directory before importing YOLOX.
+        site.addsitedir(sysconfig.get_path('purelib'))
         import torch
+        from yolox_pothole_exp import Exp
+        from yolox.tools.train import make_parser
+        from train_budget import train
         if not torch.cuda.is_available():
             raise RuntimeError('CUDA unavailable in the training environment')
         print(f'Python {sys.version.split()[0]} / torch {torch.__version__} / {torch.cuda.get_device_name(0)}', flush=True)
-        checkout = Path('/kaggle/tmp/YOLOX')
-        install_yolox(root, checkout)
         pins_path = root / 'ml/pins.json'
         pins = json.loads(pins_path.read_text())
         attached = list(Path('/kaggle/input').rglob('latest_ckpt.pth'))
@@ -95,9 +103,6 @@ def run(root, commit, started, budget_seconds, smoke=False):
         os.environ.update(POTHOLE_DATA=str(data), POTHOLE_CHECKPOINTS=str(working / 'ckpt'),
                           POTHOLE_EPOCHS='1' if smoke else '500', POTHOLE_DEADLINE=str(started + train_seconds))
         os.environ.pop('POTHOLE_INITIAL_WEIGHTS', None)
-        from yolox_pothole_exp import Exp
-        from yolox.tools.train import make_parser
-        from train_budget import train
         args_list = ['-f', str(root / 'ml/yolox_pothole_exp.py'), '-d', '1', '-b', '16', '--fp16']
         if attached:
             args_list += ['--resume', '-c', str(ckpt / 'latest_ckpt.pth')]
