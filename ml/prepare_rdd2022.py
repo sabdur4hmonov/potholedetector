@@ -144,7 +144,7 @@ def owner_records(archive, output):
     return records
 
 
-def prepare(root, output, seed=20221105, dataset_hash=None, extra=None, link_images=False):
+def prepare(root, output, seed=20221105, dataset_hash=None, extra=None, link_images=False, split_limits=None):
     output = Path(output)
     images = output / 'images'
     images.mkdir(parents=True, exist_ok=True)
@@ -178,6 +178,10 @@ def prepare(root, output, seed=20221105, dataset_hash=None, extra=None, link_ima
             a, b = int(len(selected) * .8), int(len(selected) * .9)
             for split, items in (('train', selected[:a]), ('val', selected[a:b]), ('test', selected[b:])):
                 splits[split].extend(items)
+    if split_limits:
+        for split, limit in split_limits.items():
+            if len(splits[split]) > limit:
+                splits[split] = rng.sample(splits[split], limit)
     stats = {'dataset_sha256': dataset_hash, 'seed': seed, 'countries': {}, 'splits': {},
              'excluded': ['China_Drone', 'official unannotated test images'], 'full_frame': True}
     ann = output / 'annotations'

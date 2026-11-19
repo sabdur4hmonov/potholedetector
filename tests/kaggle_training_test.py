@@ -13,13 +13,82 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'ml/kaggle'))
-from watch_logic import next_action, run_budget, verify_artifacts
+from watch_logic import classify_failure, next_action, run_budget, should_relaunch, verify_artifacts
 import watch
 sys.path.insert(0, str(ROOT / 'ml'))
 from prepare_rdd2022 import extract
 
 
 class WatcherTest(unittest.TestCase):
+    def test_failure_classification_requires_explicit_transient_evidence(self):
+        for reason in ('HTTP Error 503: Service Unavailable', 'ConnectionResetError: reset',
+                       'Figshare download timed out', 'Kaggle infrastructure error: worker lost'):
+            with self.subTest(reason=reason):
+                self.assertTrue(should_relaunch(reason, '', False))
+                self.assertFalse(should_relaunch(reason, '', True))
+        for reason, log in (('KernelWorkerStatus.CANCEL_ACKNOWLEDGED', ''),
+                            ('ModuleNotFoundError: yolox', 'HTTP Error 503'),
+                            ('CalledProcessError: pip', 'ERROR: Failed building wheel for onnx'),
+                            ('Training deadline reached', ''), ('RuntimeError: missing checkpoint', '')):
+            with self.subTest(reason=reason):
+                self.assertEqual('permanent', classify_failure(reason, log))
+                self.assertFalse(should_relaunch(reason, log, False))
+        self.assertEqual('account', classify_failure('GPU quota exceeded', 'HTTP Error 503'))
+
+    def test_cancelled_version_downloads_evidence_and_never_relaunches_without_cause(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            state = directory / 'state.json'
+            state.write_text(json.dumps(dict(phase='running', version=7, mode='smoke', run_budget=2640)))
+            log = ''.join(f'line {i}\n' for i in range(50))
+            def kaggle(group, command, ref, *args, **kwargs):
+                self.assertEqual(f'{watch.KERNEL}/7', ref)
+                if command == 'status':
+                    return f'{ref} has status "KernelWorkerStatus.CANCEL_ACKNOWLEDGED"'
+                if command == 'output':
+                    (Path(args[1]) / 'result.json').write_text('{"reason": "Cancelled by owner"}')
+                if command == 'logs':
+                    return log
+            with patch.object(watch, 'HERE', directory), patch.object(watch, 'STATE', state), \
+                 patch.object(watch, 'kaggle', side_effect=kaggle) as cli, patch.object(watch, 'report') as report:
+                with self.assertRaisesRegex(RuntimeError, 'version 7 stopped'):
+                    watch.tick(False)
+                self.assertEqual(['status', 'output', 'logs'], [call.args[1] for call in cli.call_args_list])
+                self.assertIn('Cancelled by owner', report.call_args.args[1])
+                self.assertNotIn('line 9\n', report.call_args.args[1])
+                self.assertIn('line 10\n', report.call_args.args[1])
+                self.assertEqual(log, (directory / 'output/version-7/kernel.log').read_text())
+
+    def test_verified_smoke_automatically_submits_full_training(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            state = directory / 'state.json'
+            state.write_text(json.dumps(dict(phase='running', version=2, mode='smoke', run_budget=2640, commit='a'*40)))
+            model = directory / 'output/version-2/model/pothole_yolox_nano.onnx'
+            model.parent.mkdir(parents=True)
+            model.write_bytes(b'smoke fixture')
+            result_path = model.parents[1] / 'result.json'
+            receipt = dict(status='smoke_success', train_commit='a'*40, epochs=1, parity_images=20, init='scratch',
+                           model_sha256=hashlib.sha256(model.read_bytes()).hexdigest(), wall_seconds=1200)
+            def kaggle(group, command, ref, *args, **kwargs):
+                if command == 'status':
+                    return f'{ref} has status "KernelWorkerStatus.COMPLETE"'
+            with patch.object(watch, 'HERE', directory), patch.object(watch, 'STATE', state), \
+                 patch.object(watch, 'kaggle', side_effect=kaggle), patch.object(watch, 'report'), \
+                 patch.object(watch, 'push') as push:
+                bad = dict(receipt, parity_images=19)
+                result_path.write_text(json.dumps(bad))
+                initial = state.read_text()
+                with self.assertRaisesRegex(ValueError, '20 export comparisons'):
+                    watch.tick(False)
+                push.assert_not_called()
+                state.write_text(initial)
+                result_path.write_text(json.dumps(receipt))
+                watch.tick(False)
+                promoted = push.call_args.args[0]
+                self.assertEqual(('full', 'new', 2, 2640), (promoted['mode'], promoted['phase'],
+                                                           promoted['smoke_version'], promoted['gpu_seconds']))
+
     def test_push_running_complete_and_failure_transitions(self):
         self.assertEqual('push', next_action('new', None, 0))
         for state in ('pushed', 'queued', 'running'):

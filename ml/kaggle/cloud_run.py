@@ -1,4 +1,5 @@
 """Cloud-only training orchestration. Large data stays under /kaggle/tmp."""
+import argparse
 import json
 import os
 from pathlib import Path
@@ -31,7 +32,7 @@ def dry_run(root):
     print('TRAIN-001 DRY RUN PASS: three full-frame VOC fixtures, COCO split and scratch wiring; no GPU/download')
 
 
-def run(root, commit, started, budget_seconds):
+def run(root, commit, started, budget_seconds, smoke=False):
     working = Path('/kaggle/working')
     working.mkdir(exist_ok=True)
     result_path = working / 'result.json'
@@ -41,6 +42,10 @@ def run(root, commit, started, budget_seconds):
         from prepare_rdd2022 import extract, prepare, verify_archive
         from training_init import SCRATCH, load_training_receipt
         install_torch()
+        import torch
+        if not torch.cuda.is_available():
+            raise RuntimeError('CUDA unavailable in the training environment')
+        print(f'Python {sys.version.split()[0]} / torch {torch.__version__} / {torch.cuda.get_device_name(0)}', flush=True)
         checkout = Path('/kaggle/tmp/YOLOX')
         install_yolox(root, checkout)
         pins_path = root / 'ml/pins.json'
@@ -48,6 +53,8 @@ def run(root, commit, started, budget_seconds):
         attached = list(Path('/kaggle/input').rglob('latest_ckpt.pth'))
         if len(attached) > 1:
             raise ValueError('Ambiguous attached checkpoints')
+        if smoke and attached:
+            raise ValueError('Smoke run must train from scratch')
         if attached:
             saved = json.loads(attached[0].with_name('measured_pins.json').read_text())
             if saved['yolox_commit'] != pins['yolox_commit']:
@@ -55,13 +62,20 @@ def run(root, commit, started, budget_seconds):
             pins['rdd2022_sha256'] = saved['rdd2022_sha256']
             pins_path.write_text(json.dumps(pins))
         archive = Path('/kaggle/tmp/RDD2022.zip')
-        urllib.request.urlretrieve(pins['rdd2022_url'], archive)
+        print('Downloading RDD2022 to Kaggle temporary disk', flush=True)
+        with urllib.request.urlopen(pins['rdd2022_url'], timeout=120) as response, archive.open('wb') as target:
+            shutil.copyfileobj(response, target, 1024 * 1024)
+            size = response.headers.get('Content-Length')
+            if size is not None and target.tell() != int(size):
+                raise ConnectionError('RDD2022 download ended before Content-Length')
         digest = verify_archive(archive, pins_path)
         source = Path('/kaggle/tmp/rdd_source')
         extract(archive, source, annotated_only=True)
         archive.unlink()
         data = Path('/kaggle/tmp/data')
-        stats = prepare(source, data, pins['seed'], digest, link_images=True)
+        limits = {'train': 128, 'val': 24, 'test': 24} if smoke else None
+        stats = prepare(source, data, pins['seed'], digest, link_images=True, split_limits=limits)
+        print('Prepared full-frame splits:', stats['splits'], flush=True)
         shutil.rmtree(source)  # Data retains complete images through same-volume hard links.
         (working / 'dataset_stats.json').write_text(json.dumps(stats, indent=2))
         shutil.copyfile(pins_path, working / 'measured_pins.json')
@@ -77,9 +91,9 @@ def run(root, commit, started, budget_seconds):
                 if old.is_file():
                     shutil.copyfile(old, ckpt / name)
         (ckpt / 'training_init.json').write_text(json.dumps(SCRATCH))
-        train_seconds = min(10*3600 + 15*60, budget_seconds - 105*60)
+        train_seconds = budget_seconds - 5*60 if smoke else min(10*3600 + 15*60, budget_seconds - 105*60)
         os.environ.update(POTHOLE_DATA=str(data), POTHOLE_CHECKPOINTS=str(working / 'ckpt'),
-                          POTHOLE_EPOCHS='500', POTHOLE_DEADLINE=str(started + train_seconds))
+                          POTHOLE_EPOCHS='1' if smoke else '500', POTHOLE_DEADLINE=str(started + train_seconds))
         os.environ.pop('POTHOLE_INITIAL_WEIGHTS', None)
         from yolox_pothole_exp import Exp
         from yolox.tools.train import make_parser
@@ -95,11 +109,13 @@ def run(root, commit, started, budget_seconds):
             args.experiment_name = exp.exp_name
         print('Training initialization: scratch', flush=True)
         latest = train(exp, args)
-        import torch
         epochs = int(torch.load(latest, map_location='cpu', weights_only=False)['start_epoch'])
-        evaluation = subprocess.run([sys.executable, str(root / 'ml/evaluate_export.py'), '--data', str(data),
+        command = [sys.executable, str(root / 'ml/evaluate_export.py'), '--data', str(data),
             '--checkpoint', str(latest), '--output', str(working / 'model'), '--result', str(result_path),
-            '--train-commit', commit, '--epochs', str(epochs)], check=False)
+            '--train-commit', commit, '--epochs', str(epochs)]
+        if smoke:
+            command.append('--smoke')
+        evaluation = subprocess.run(command, check=False)
         if evaluation.returncode and not result_path.is_file():
             raise RuntimeError('Evaluation/export failed before writing a result')
         result = json.loads(result_path.read_text())
@@ -110,3 +126,14 @@ def run(root, commit, started, budget_seconds):
         result_path.write_text(json.dumps({'status': 'error', 'reason': f'{type(error).__name__}: {error}',
             'train_commit': commit, 'init': 'scratch', 'epochs': 0}, indent=2))
         raise
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('root', type=Path)
+    parser.add_argument('commit')
+    parser.add_argument('started', type=float)
+    parser.add_argument('budget', type=int)
+    parser.add_argument('--smoke', action='store_true')
+    args = parser.parse_args()
+    run(args.root, args.commit, args.started, args.budget, args.smoke)

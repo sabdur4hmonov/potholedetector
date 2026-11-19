@@ -126,6 +126,7 @@ def main():
     p.add_argument('--result', type=Path)
     p.add_argument('--train-commit')
     p.add_argument('--epochs', type=int, default=0)
+    p.add_argument('--smoke', action='store_true', help='Check export wiring without creating an installable manifest')
     args = p.parse_args()
     here = Path(__file__).resolve().parent
     pins = json.loads((here / 'pins.json').read_text())
@@ -154,7 +155,7 @@ def main():
     result = dict(status='gate_failed', epochs=args.epochs, validation=val_metrics, test=test_metrics,
                   threshold=threshold, dataset_sha256=pins['rdd2022_sha256'], model_sha256=None,
                   train_commit=args.train_commit, **init)
-    if not gate_passed:
+    if not gate_passed and not args.smoke:
         (args.output / 'pothole_model.json').unlink(missing_ok=True)
         if args.result:
             args.result.write_text(json.dumps(result, indent=2))
@@ -179,10 +180,19 @@ def main():
         assert actual.shape == (1, 3549, 6)
         np.testing.assert_allclose(actual, expected, rtol=1e-3, atol=1e-3)
         dimensions = (image.shape[1], image.shape[0])
-        np.testing.assert_allclose(decode(actual, threshold, scale, *dimensions),
-                                   decode(expected, threshold, scale, *dimensions), rtol=1e-3, atol=.1)
+        parity_threshold = .5 if args.smoke else threshold
+        np.testing.assert_allclose(decode(actual, parity_threshold, scale, *dimensions),
+                                   decode(expected, parity_threshold, scale, *dimensions), rtol=1e-3, atol=.1)
     if not pins['rdd2022_sha256']:
         raise ValueError('Missing measured dataset SHA-256')
+    if args.smoke:
+        (args.output / 'pothole_model.json').unlink(missing_ok=True)
+        result.update(status='smoke_success', model_sha256=hashlib.sha256(onnx_path.read_bytes()).hexdigest(),
+                      parity_images=20)
+        if args.result:
+            args.result.write_text(json.dumps(result, indent=2))
+        print('Smoke ONNX export parity: 20/20. No installable manifest.', flush=True)
+        return
     metadata = dict(version='yolox-nano-rdd2022-v1', input_size=416, score_threshold=threshold,
                     nms_iou=.45, sha256=hashlib.sha256(onnx_path.read_bytes()).hexdigest(),
                     metrics=dict(validation=val_metrics, test=test_metrics, parity_images=20),
