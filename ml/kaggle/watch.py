@@ -21,6 +21,7 @@ TASK_NAME = 'PotholeTrainWatch'
 OWNER = 'sardor007'
 KERNEL = OWNER + '/pothole-yolox-train'
 DATASET = OWNER + '/pothole-yolox-ckpt'
+NO_WINDOW = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
 
 
 def atomic_json(path, data):
@@ -44,7 +45,8 @@ def report(status, message):
 
 def run_command(command, timeout=300):
     result = subprocess.run(command, cwd=ROOT, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, encoding='utf-8', errors='replace', timeout=timeout)
+                            stderr=subprocess.STDOUT, encoding='utf-8', errors='replace', timeout=timeout,
+                            creationflags=NO_WINDOW)
     if result.returncode:
         codes = re.findall(r'\b(?:401|403|404|429|500|502|503)\b', result.stdout)
         detail = ' HTTP ' + ','.join(sorted(set(codes))) if codes else ''
@@ -94,7 +96,8 @@ def collect_failure(ref, directory, status_text):
 def unregister():
     result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
         "if(Get-ScheduledTask -TaskName 'PotholeTrainWatch' -ErrorAction SilentlyContinue){Unregister-ScheduledTask -TaskName 'PotholeTrainWatch' -Confirm:$false}"],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=30)
+        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=30,
+        creationflags=NO_WINDOW)
     if result.returncode:
         raise RuntimeError('Could not unregister PotholeTrainWatch')
 
@@ -391,4 +394,5 @@ def main():
 
 
 if __name__ == '__main__':
+    os.environ['PYTHONUTF8'] = '1'
     main()
