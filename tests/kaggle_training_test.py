@@ -1,4 +1,5 @@
 """Offline TRAIN-001 state/acceptance tests. No account, downloads, GPU or model inference."""
+import ast
 import hashlib
 import importlib.util
 import io
@@ -20,6 +21,24 @@ from prepare_rdd2022 import extract
 
 
 class WatcherTest(unittest.TestCase):
+    def test_full_frame_sampler_converts_scalar_tensors_to_dataset_indices(self):
+        class ScalarTensor:
+            def __int__(self):
+                return 7
+
+        class InfiniteSampler:
+            def __iter__(self):
+                return iter([ScalarTensor(), ScalarTensor()])
+
+        path = ROOT / 'ml/yolox_pothole_exp.py'
+        node = next(node for node in ast.parse(path.read_text()).body if isinstance(node, ast.ClassDef)
+                    and node.name == 'FullFrameSampler')
+        scope = dict(InfiniteSampler=InfiniteSampler)
+        exec(compile(ast.Module(body=[node], type_ignores=[]), str(path), 'exec'), scope)
+        indices = list(scope['FullFrameSampler']())
+        self.assertEqual([7, 7], indices)
+        self.assertTrue(all(type(index) is int for index in indices))
+
     def test_failure_classification_requires_explicit_transient_evidence(self):
         for reason in ('HTTP Error 503: Service Unavailable', 'ConnectionResetError: reset',
                        'Figshare download timed out', 'Kaggle infrastructure error: worker lost'):

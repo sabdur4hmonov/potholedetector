@@ -54,10 +54,6 @@ def kaggle(*args, timeout=300):
     return run_command([sys.executable, '-m', 'kaggle', *args], timeout)
 
 
-def version_url(version):
-    return f'https://www.kaggle.com/code/{KERNEL}' + (f'?version={version}' if version else '')
-
-
 def collect_failure(ref, directory, status_text):
     directory.mkdir(parents=True, exist_ok=True)
     problems = []
@@ -134,10 +130,14 @@ def push(state):
         raise RuntimeError('Kaggle did not acknowledge a successful GPU push; check account GPU/phone/internet access')
     state['run_budget'] = budget
     state['version'] = int(version.group(1))
+    # Use the server link when available. The API version number is not the web script version ID.
+    url = re.search(r'https://www\.kaggle\.com/code/' + re.escape(KERNEL) +
+                    r'(?:/log)?(?:\?scriptVersionId=\d+)?(?=\s|$)', response)
+    state['url'] = url.group() if url else f'https://www.kaggle.com/code/{KERNEL}/log'
     state['phase'] = 'pushed'
     atomic_json(STATE, state)
     mode = 'smoke' if smoke else 'full training'
-    report('running', f'Private {mode} version {state["version"]} submitted. {version_url(state["version"])}')
+    report('running', f'Private {mode} version {state["version"]} submitted. {state["url"]}')
 
 
 def upload_checkpoint(directory, state):

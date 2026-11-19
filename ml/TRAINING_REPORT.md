@@ -114,3 +114,64 @@ Status: failed
     [NbConvertApp] Writing 288335 bytes to __results__.html
 
 - 2026-11-20T00:15:46+05:00 — RuntimeError: Kaggle version 2 stopped. See downloaded failure evidence in the report.
+
+- 2026-11-20T00:16:58+05:00 — Private smoke version 3 submitted. https://www.kaggle.com/code/sardor007/pothole-yolox-train?version=3
+
+- 2026-11-20T00:32:54+05:00 — Kaggle failure evidence for sardor007/pothole-yolox-train/3. sardor007/pothole-yolox-train/3 has status "KernelWorkerStatus.ERROR"
+
+  result.json reason: IndexError: Caught IndexError in DataLoader worker process 0.
+Original Traceback (most recent call last):
+  File "/kaggle/tmp/train-env/lib/python3.12/site-packages/torch/utils/data/_utils/worker.py", line 349, in _worker_loop
+    data = fetcher.fetch(index)  # type: ignore[possibly-undefined]
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/kaggle/tmp/train-env/lib/python3.12/site-packages/torch/utils/data/_utils/fetch.py", line 52, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+            ~~~~~~~~~~~~^^^^^
+  File "/kaggle/tmp/YOLOX/yolox/data/datasets/datasets_wrapper.py", line 117, in wrapper
+    self.enable_mosaic = index[0]
+                         ~~~~~^^^
+IndexError: invalid index of a 0-dim tensor. Use `tensor.item()` in Python or `tensor.item<T>()` in C++ to convert a 0-dim tensor to a number
+
+
+    ├───────────────────┼────────────────────────┤
+    │ test_size         │ (416, 416)             │
+    ├───────────────────┼────────────────────────┤
+    │ test_conf         │ 0.01                   │
+    ├───────────────────┼────────────────────────┤
+    │ nmsthre           │ 0.65                   │
+    ├───────────────────┼────────────────────────┤
+    │ random_size       │ (13, 13)               │
+    ├───────────────────┼────────────────────────┤
+    │ enable_mosaic     │ False                  │
+    ╘═══════════════════╧════════════════════════╛
+    2026-11-19 19:28:50 | INFO     | yolox.core.trainer:138 - Model Summary: Params: 0.90M, Gflops: 1.08
+    2026-11-19 19:28:50 | INFO     | yolox.data.datasets.coco:63 - loading annotations into memory...
+    2026-11-19 19:28:50 | INFO     | yolox.data.datasets.coco:63 - Done (t=0.00s)
+    2026-11-19 19:28:50 | INFO     | pycocotools.coco:86 - creating index...
+    2026-11-19 19:28:50 | INFO     | pycocotools.coco:86 - index created!
+    2026-11-19 19:28:50 | INFO     | yolox.core.trainer:157 - init prefetcher, this might take one minute or less...
+    object address  : 0x7b6a85860a60
+    object refcount : 4
+    object type     : 0x13fe168
+    object type name: IndexError
+    object repr     : IndexError('Caught IndexError in DataLoader worker process 0.\nOriginal Traceback (most recent call last):\n  File "/kaggle/tmp/train-env/lib/python3.12/site-packages/torch/utils/data/_utils/worker.py", line 349, in _worker_loop\n    data = fetcher.fetch(index)  # type: ignore[possibly-undefined]\n           ^^^^^^^^^^^^^^^^^^^^\n  File "/kaggle/tmp/train-env/lib/python3.12/site-packages/torch/utils/data/_utils/fetch.py", line 52, in fetch\n    data = [self.dataset[idx] for idx in possibly_batched_index]\n            ~~~~~~~~~~~~^^^^^\n  File "/kaggle/tmp/YOLOX/yolox/data/datasets/datasets_wrapper.py", line 117, in wrapper\n    self.enable_mosaic = index[0]\n                         ~~~~~^^^\nIndexError: invalid index of a 0-dim tensor. Use `tensor.item()` in Python or `tensor.item<T>()` in C++ to convert a 0-dim tensor to a number\n')
+    lost sys.stderr
+    Traceback (most recent call last):
+      File "/kaggle/src/script.py", line 74, in <module>
+        main()
+        ~~~~^^
+      File "/kaggle/src/script.py", line 65, in main
+        subprocess.run(command, env=env, check=True)
+        ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/usr/lib/python3.13/subprocess.py", line 578, in run
+        raise CalledProcessError(retcode, process.args,
+                                 output=stdout, stderr=stderr)
+    subprocess.CalledProcessError: Command '['/kaggle/tmp/train-env/bin/python', '/kaggle/tmp/pothole/ml/kaggle/cloud_run.py', '/kaggle/tmp/pothole', '7213573017623857c3ca29310be4ef0da6bc8ce5', '179.819417069', '2640', '--smoke']' returned non-zero exit status 1.
+    /usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+      cells[i][c] = re.sub('\\\\\|', '|', cell)
+    /usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+      text = re.sub(r'_', '\_', text) # Escape underscores in display text
+    [NbConvertApp] Converting notebook __script__.ipynb to html
+    [NbConvertApp] Writing 288335 bytes to __results__.html
+
+- 2026-11-20T00:32:54+05:00 — RuntimeError: Kaggle version 3 stopped. See downloaded failure evidence in the report.

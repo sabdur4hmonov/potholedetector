@@ -16,7 +16,7 @@ def classify_failure(reason, log):
                  r'kaggle[^\n]*\b(?:401|403|429)\b|(?:401|403) client error', details):
         return 'account'
     if re.search(r'failed building wheel|failed-wheel-build|no matching distribution|'
-                 r'(?:modulenotfound|import|syntax|assertion|attribute|type|value)error:|out of memory|no space left', details):
+                 r'(?:modulenotfound|import|syntax|assertion|attribute|index|key|type|value)error:|out of memory|no space left', details):
         return 'permanent'
     if re.search(r'http(?: error| status|/\d(?:\.\d)?)?\s+(?:408|500|502|503|504)\b|'
                  r'(?:read|connect|download|connection) (?:timed out|timeout)|readtimeouterror|'

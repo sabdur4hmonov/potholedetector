@@ -3,6 +3,7 @@ import os
 import numpy as np
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from yolox.data import InfiniteSampler
 from yolox.exp import Exp as BaseExp
 
 
@@ -24,6 +25,12 @@ class FullFrameLoader(DataLoader):
     def close_mosaic(self):
         # YOLOX trainer calls this in its last epoch. No mosaic was installed.
         pass
+
+
+class FullFrameSampler(InfiniteSampler):
+    def __iter__(self):
+        # COCODataset treats non-int indices as augmentation-control tuples.
+        return map(int, super().__iter__())
 
 
 class Exp(BaseExp):
@@ -86,11 +93,11 @@ class Exp(BaseExp):
                            img_size=self.input_size, preproc=FullFrameTransform(), cache=False)
 
     def get_data_loader(self, batch_size, is_distributed, no_aug=False, cache_img=None):
-        from yolox.data import InfiniteSampler, worker_init_reset_seed
+        from yolox.data import worker_init_reset_seed
         if is_distributed:
             raise ValueError('This notebook uses one Colab GPU')
         self.dataset = self.get_dataset()
-        sampler = InfiniteSampler(len(self.dataset), seed=self.seed)
+        sampler = FullFrameSampler(len(self.dataset), seed=self.seed)
         return FullFrameLoader(self.dataset, num_workers=self.data_num_workers, pin_memory=True,
                                sampler=sampler, batch_size=batch_size, worker_init_fn=worker_init_reset_seed)
 
