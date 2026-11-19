@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 import re
 
-MAX_RESUMES = 2
+MAX_RESUMES = 1
 SMOKE_BUDGET = 44*60
 
 
@@ -56,17 +56,19 @@ def run_budget(gpu_seconds):
     return budget
 
 
-def next_action(kernel_status, result_status, resumes):
+def next_action(kernel_status, result_status, resumes, final_f1=None, first_f1=None):
     if kernel_status in ('new',):
         return 'push'
     if kernel_status in ('queued', 'running', 'pushed'):
         return 'wait'
-    if kernel_status != 'complete':
+    if kernel_status != 'complete' or not 0 <= resumes <= MAX_RESUMES:
         return 'fail'
+    if result_status == 'gate_failed':
+        return 'resume' if resumes == 0 else 'final_gate_failed'
     if result_status == 'success':
-        return 'install'
-    if result_status == 'gate_failed' and resumes < MAX_RESUMES:
-        return 'resume'
+        if resumes == 0:
+            return 'install_resume'
+        return 'install' if first_f1 is None or final_f1 > first_f1 else 'keep'
     return 'fail'
 
 

@@ -1,6 +1,7 @@
 """One durable watcher tick. Scheduled every 15 minutes under the current Windows user."""
 import argparse
 from datetime import datetime, timezone, timedelta
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,7 @@ import sys
 
 from watch_logic import (MAX_RESUMES, SMOKE_BUDGET, classify_failure, log_lines, next_action, read_json,
                          run_budget, safe_diagnostic, should_relaunch, verify_artifacts, verify_smoke)
+from training_plan import resume_target
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -140,21 +142,35 @@ def push(state):
     report('running', f'Private {mode} version {state["version"]} submitted. {state["url"]}')
 
 
-def upload_checkpoint(directory, state):
+def published_commit():
+    commit = run_command(['git', 'rev-parse', 'HEAD']).strip()
+    if run_command(['git', 'branch', '--show-current']).strip() != 'train-001':
+        raise ValueError('Launch requires train-001')
+    remote = run_command(['git', 'ls-remote', 'origin', 'refs/heads/train-001'])
+    if not remote.startswith(commit + '\t'):
+        raise ValueError('The exact training revision must be pushed first')
+    return commit
+
+
+def upload_checkpoint(directory, state, plan):
+    if state['resumes'] != 0:
+        raise ValueError('Single checkpoint resume already used')
     latest = directory / 'ckpt/pothole_nano/latest_ckpt.pth'
     if not latest.is_file() or not 0 < latest.stat().st_size <= 64*1024*1024:
         raise ValueError('Missing or oversize resume checkpoint')
     result = read_json(directory / 'result.json')
     if result.get('train_commit') != state['commit'] or result.get('init') != 'scratch':
         raise ValueError('Resume checkpoint source/init mismatch')
-    stage = HERE / '.state/checkpoint_upload'
-    stage.mkdir(exist_ok=True)
+    stage = HERE / '.state/checkpoint_upload' / f'version-{state["version"]}'
+    stage.mkdir(parents=True, exist_ok=True)
     for name in ('latest_ckpt.pth', 'best_ckpt.pth', 'training_init.json'):
         source = latest.with_name(name)
         if source.is_file():
             shutil.copyfile(source, stage / name)
     for name in ('measured_pins.json', 'dataset_stats.json'):
         shutil.copyfile(directory / name, stage / name)
+    plan['checkpoint_sha256'] = hashlib.sha256((stage / latest.name).read_bytes()).hexdigest()
+    atomic_json(stage / 'resume_plan.json', plan)
     atomic_json(stage / 'dataset-metadata.json', {'id': DATASET, 'title': 'Pothole YOLOX ckpt',
                 'licenses': [{'name': 'CC-BY-SA-4.0'}], 'isPrivate': True})
     if state.get('dataset_created'):
@@ -168,10 +184,12 @@ def upload_checkpoint(directory, state):
             raise RuntimeError('Kaggle did not acknowledge private checkpoint dataset creation')
         state['dataset_created'] = True
     state['resumes'] += 1
-    atomic_json(STATE, state)
+    state['commit'] = plan['train_commit']
+    state['resume_target'] = plan['target_epoch']
     state['phase'] = 'waiting_dataset'
     atomic_json(STATE, state)
-    report('running', 'Private checkpoint dataset uploaded; waiting for Kaggle dataset processing.')
+    report('running', f'Private checkpoint uploaded at epoch {plan["start_epoch"]}. '
+           f'The single resume will target epoch {plan["target_epoch"]}. Waiting for Kaggle dataset processing.')
 
 
 def install_and_build(directory, state):
@@ -192,28 +210,87 @@ def install_and_build(directory, state):
     built = read_json(directory / 'build_report.json')
     if built.get('status') != 'ready' or not built.get('real_runtime_passed'):
         raise ValueError('Build verification did not complete')
+    return built['apks']
+
+
+def finish(state, message):
     state['phase'] = 'ready'
     atomic_json(STATE, state)
-    report('ready', 'Model and three split APKs verified. Physical-phone and road validation pending. ' + json.dumps(built['apks']))
+    report('ready', message)
     unregister()
+
+
+def handle_full_result(directory, state, result):
+    if result.get('train_commit') != state['commit'] or result.get('init') != 'scratch':
+        raise ValueError('Full result source or initialization mismatch')
+    epochs = result.get('epochs')
+    if type(epochs) is not int or epochs <= 0:
+        raise ValueError('Full result must include a completed checkpoint epoch')
+    status = result.get('status')
+    f1 = None
+    if status == 'success':
+        verify_artifacts(directory, state['commit'])
+        f1 = result['validation']['F1']
+    action = next_action('complete', status, state['resumes'], f1, state.get('first_f1'))
+    if state['resumes']:
+        if result.get('schedule_target_epoch') != state['resume_target']:
+            raise ValueError('Final result does not match the planned resume schedule')
+        report('running', f'Final run finished at epoch {epochs}; planned target {state["resume_target"]}. '
+               f'Validation metrics: {json.dumps(result.get("validation"))}')
+    if action in ('install_resume', 'resume'):
+        report('running', f'First run ended at epoch {epochs} with {status}. '
+               f'Validation metrics: {json.dumps(result.get("validation"))}')
+        plan = {'start_epoch': epochs, 'target_epoch': resume_target(epochs, run_budget(state['gpu_seconds'])),
+                'train_commit': published_commit()}
+        if action == 'install_resume':
+            state['first_f1'] = f1
+            try:
+                apks = install_and_build(directory, state)
+            except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+                state['first_build_error'] = safe_diagnostic(str(error))
+                report('running', f'First model passed the gate. APK verification failed: {state["first_build_error"]}. '
+                       'The scheduled training resume will still run.')
+            else:
+                state['first_apks'] = apks
+                report('running', f'First model installed and split APKs verified (val F1 {f1:.6g}). '
+                       'One training resume remains. ' + json.dumps(apks))
+        state['phase'] = 'uploading'
+        atomic_json(STATE, state)
+        upload_checkpoint(directory, state, plan)
+    elif action == 'install':
+        apks = install_and_build(directory, state)
+        finish(state, f'Final model accepted (val F1 {f1:.6g}) and split APKs verified. '
+               'Physical-phone and road validation pending. ' + json.dumps(apks))
+    elif action == 'keep':
+        message = f'Kept the first model (val F1 {state["first_f1"]:.6g}). Final val F1 was {f1:.6g}.'
+        if not state.get('first_apks'):
+            raise RuntimeError(message + ' First APK verification failed; see the earlier build log.')
+        finish(state, message + ' ' + json.dumps(state['first_apks']))
+    elif action == 'final_gate_failed':
+        kept = ' The previously accepted model is retained.' if 'first_f1' in state else ''
+        report('failed', 'UZ: Yakuniy run precision ≥ 0.80 talabidan o‘tmadi. Checkpoint va metrikalar saqlandi. '
+               'Keyingi qadam — egasining rasmiy pretrained YOLOX-Nano vaznlari bo‘yicha qarori.\n\n'
+               '  EN: The final run missed precision ≥ 0.80. Checkpoint and metrics are retained. '
+               "The next lever is the owner’s decision on the official pretrained YOLOX-Nano weights." + kept)
+        raise RuntimeError('Final validation gate failed; the single resume is exhausted')
+    else:
+        raise RuntimeError('Unexpected full training result or resume count')
 
 
 def tick(launch):
     state = read_json(STATE) if STATE.exists() else None
     if launch and (state is None or state['phase'] == 'failed'):
-        commit = run_command(['git', 'rev-parse', 'HEAD']).strip()
-        if run_command(['git', 'branch', '--show-current']).strip() != 'train-001':
-            raise ValueError('Launch requires train-001')
-        remote = run_command(['git', 'ls-remote', 'origin', 'refs/heads/train-001'])
-        if not remote.startswith(commit + '\t'):
-            raise ValueError('The exact training revision must be pushed first')
+        commit = published_commit()
         spent = 0
+        dataset_created = False
         if state is not None:
             if commit == state['commit']:
                 raise ValueError('A stopped run requires a new pushed revision for manual launch')
             atomic_json(STATE.with_name(f'failed-{state["commit"][:12]}.json'), state)
             spent = state.get('gpu_seconds', state.get('run_budget', 0))
-        state = {'phase': 'new', 'commit': commit, 'resumes': 0, 'mode': 'smoke', 'gpu_seconds': spent}
+            dataset_created = state.get('dataset_created', False)
+        state = {'phase': 'new', 'commit': commit, 'resumes': 0, 'mode': 'smoke', 'gpu_seconds': spent,
+                 'dataset_created': dataset_created}
         atomic_json(STATE, state)
     if state is None:
         return
@@ -258,7 +335,7 @@ def tick(launch):
         result = {'status': 'error'}
     if result.get('status') == 'error':
         reason, tail, evidence = collect_failure(ref, directory, status_text)
-        if should_relaunch(reason, tail, state.get('transient_relaunch_used', False)):
+        if state.get('mode') == 'smoke' and should_relaunch(reason, tail, state.get('transient_relaunch_used', False)):
             state['transient_relaunch_used'] = True
             state['phase'] = 'new'
             atomic_json(STATE, state)
@@ -280,16 +357,7 @@ def tick(launch):
                'One epoch and 20 ONNX comparisons verified. Submitting full training.')
         push(state)
         return
-    action = next_action(status, result.get('status'), state['resumes'])
-    if action == 'resume':
-        report('running', 'Validation precision gate failed; uploading a private resumable checkpoint.')
-        state['phase'] = 'uploading'
-        atomic_json(STATE, state)
-        upload_checkpoint(directory, state)
-    elif action == 'install':
-        install_and_build(directory, state)
-    else:
-        raise RuntimeError('Training failed or maximum two resumes exhausted')
+    handle_full_result(directory, state, result)
 
 
 def main():

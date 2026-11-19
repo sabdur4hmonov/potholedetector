@@ -62,8 +62,9 @@ def run(root, commit, started, budget_seconds, smoke=False):
     sys.path.insert(0, str(root / 'ml'))
     try:
         from runtime_setup import install_torch, install_yolox
-        from prepare_rdd2022 import extract, prepare, verify_archive
+        from prepare_rdd2022 import extract, prepare, sha256, verify_archive
         from training_init import SCRATCH, load_training_receipt
+        from training_plan import epochs_per_run, resume_target, training_deadline_seconds
         install_torch()
         checkout = Path('/kaggle/tmp/YOLOX')
         install_yolox(root, checkout)
@@ -73,7 +74,7 @@ def run(root, commit, started, budget_seconds, smoke=False):
         import torch
         from yolox_pothole_exp import Exp
         from yolox.tools.train import make_parser
-        from train_budget import train
+        from train_budget import checkpoint_globals, train
         if not torch.cuda.is_available():
             raise RuntimeError('CUDA unavailable in the training environment')
         print(f'Python {sys.version.split()[0]} / torch {torch.__version__} / {torch.cuda.get_device_name(0)}', flush=True)
@@ -118,9 +119,25 @@ def run(root, commit, started, budget_seconds, smoke=False):
                 if old.is_file():
                     shutil.copyfile(old, ckpt / name)
         (ckpt / 'training_init.json').write_text(json.dumps(SCRATCH))
-        train_seconds = budget_seconds - 5*60 if smoke else min(10*3600 + 15*60, budget_seconds - 105*60)
+        train_seconds = budget_seconds - 5*60 if smoke else training_deadline_seconds(budget_seconds)
+        if smoke:
+            target_epoch = stop_epoch = 1
+        elif attached:
+            plan = json.loads(prior.with_name('resume_plan.json').read_text())
+            if plan['train_commit'] != commit or sha256(prior) != plan['checkpoint_sha256']:
+                raise ValueError('Resume plan does not match the pinned source or checkpoint')
+            with checkpoint_globals():
+                checkpoint = torch.load(ckpt / 'latest_ckpt.pth', map_location='cpu', weights_only=True)
+            start_epoch = checkpoint['start_epoch']
+            del checkpoint
+            target_epoch = stop_epoch = resume_target(start_epoch, budget_seconds)
+            if start_epoch != plan['start_epoch'] or target_epoch != plan['target_epoch']:
+                raise ValueError('Resume plan does not match the checkpoint epoch or kernel budget')
+        else:
+            stop_epoch = epochs_per_run(budget_seconds)
+            target_epoch = 2 * stop_epoch
         os.environ.update(POTHOLE_DATA=str(data), POTHOLE_CHECKPOINTS=str(working / 'ckpt'),
-                          POTHOLE_EPOCHS='1' if smoke else '500', POTHOLE_DEADLINE=str(started + train_seconds))
+                          POTHOLE_EPOCHS=str(target_epoch), POTHOLE_DEADLINE=str(started + train_seconds))
         os.environ.pop('POTHOLE_INITIAL_WEIGHTS', None)
         args_list = ['-f', str(root / 'ml/yolox_pothole_exp.py'), '-d', '1', '-b', '16', '--fp16']
         if attached:
@@ -131,8 +148,8 @@ def run(root, commit, started, budget_seconds, smoke=False):
         # Preserve the experiment's five-epoch validation and best-checkpoint selection.
         if args.experiment_name is None:
             args.experiment_name = exp.exp_name
-        print('Training initialization: scratch', flush=True)
-        latest = train(exp, args)
+        print(f'Training initialization: scratch. Schedule target {target_epoch}, run stops after epoch {stop_epoch}.', flush=True)
+        latest = train(exp, args, stop_epoch)
         epochs = int(torch.load(latest, map_location='cpu', weights_only=False)['start_epoch'])
         command = [sys.executable, str(root / 'ml/evaluate_export.py'), '--data', str(data),
             '--checkpoint', str(latest), '--output', str(working / 'model'), '--result', str(result_path),
@@ -144,6 +161,8 @@ def run(root, commit, started, budget_seconds, smoke=False):
             raise RuntimeError('Evaluation/export failed before writing a result')
         result = json.loads(result_path.read_text())
         result['wall_seconds'] = time.monotonic() - started
+        result['schedule_target_epoch'] = target_epoch
+        result['run_stop_epoch'] = stop_epoch
         result_path.write_text(json.dumps(result, indent=2))
         print(result_path.read_text(), flush=True)
     except Exception as error:

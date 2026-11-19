@@ -242,3 +242,15 @@ IndexError: invalid index of a 0-dim tensor. Use `tensor.item()` in Python or `t
 - 2026-11-20T01:27:36+05:00 — Kaggle version 7 is running.
 
 - 2026-11-20T01:31:21+05:00 — Full version 7 live log verified on Tesla T4. "epoch: 1/500, iter: 610/1799" advanced through "epoch: 1/500, iter: 720/1799" at 01:30 +0500. Evidence under ml/kaggle/output/version-7/reconnected-kernel.log. Final metrics, model installation and APK checks pending. https://www.kaggle.com/code/sardor007/pothole-yolox-train/log
+
+- 2026-11-20T01:42:42+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T01:57:33+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T02:12:34+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T02:15:38+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T02:16:28+05:00 — TRAIN-002. V7 ishlashda davom etmoqda. Median trening epochi 313 s (7 ta), validation 34 s (1 ta), o‘qitishgacha tayyorgarlik 816 s. 105 daqiqa evaluation/export zaxirasidan keyin bitta resume uchun 93 epoch. Dastlabki maqsad 205 (v7 112 da tugasa). Aniq maqsad v7 checkpoint epoch + 93.
+
+  EN: One resume is armed. The measured budget leaves 29,784 seconds, enough for 93 whole epochs and validation. The watcher will build a passing v7 model before resuming, and replace it only if the final passing validation F1 is higher. PotholeTrainWatch tick returned 0 at 02:15:34 +05:00. V7 reported RUNNING before and after and continues on 26dbf30.

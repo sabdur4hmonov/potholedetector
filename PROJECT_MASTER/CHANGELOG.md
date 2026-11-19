@@ -1,5 +1,10 @@
 # Recorded work history
 
+## 2026-11-20 — TRAIN-002
+
+- Planned the cosine schedule from v7 timings. A verified private checkpoint receipt supplies the single resume's target, while fresh runs plan both legs before training.
+- Require a passing precision gate and higher validation F1 to replace an accepted first model. Preserve final gate-failure evidence and record the owner decision in Uzbek and English.
+
 ## 2026-11-20 — TRAIN-001-FIX
 
 - Isolated Kaggle training in Python 3.12.12 to use the pinned ONNX wheel. Loaded the editable YOLOX import hook after installation and passed integer indices to its full-frame dataset. Added a bounded smoke run and verified-receipt promotion to full training.

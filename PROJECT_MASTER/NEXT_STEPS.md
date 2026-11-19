@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## Current TRAIN-002 handoff — 2026-11-20
+
+`PotholeTrainWatch` will evaluate v7's receipt when it finishes, install and build it if it passes, then submit one private resume from its latest checkpoint. The target is the completed v7 epoch plus 93 at the full budget. After the final gate, install a passing model if there is no accepted first model or if its validation F1 is higher. A final gate miss preserves metrics and checkpoints for the owner's official pretrained YOLOX-Nano weights decision. See [the live report](../ml/TRAINING_REPORT.md).
+
 ## Current TRAIN-001-FIX handoff — 2026-11-20
 
 The exact next task is the `PotholeTrainWatch` completion path for private full version 7, started after the verified smoke version 6. It checks final metrics and export parity before installing the model and building the split APKs. It makes bounded checkpoint resumes if the validation precision gate fails. Use [the live report](../ml/TRAINING_REPORT.md) for progress. The arm64 APK then needs parked and physical-road acceptance.

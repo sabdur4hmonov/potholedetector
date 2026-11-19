@@ -1,5 +1,7 @@
 # Recorded security status
 
+2026-11-20 TRAIN-002 scope note. The private resume plan binds the actual checkpoint digest and epoch to an exact pushed revision and measured target. Checkpoint inspection uses PyTorch weights-only loading, with the NumPy float64 types used for the pinned trainer's COCO AP. Existing model acceptance, scratch provenance and repository security dispositions remain in force.
+
 2026-11-20 TRAIN-001-FIX scope note. Kaggle failure artifacts remain in ignored per-version folders, and the tracked report copies only the sanitized reason and log tail. The private smoke and full runs verify the measured official RDD2022 digest before preparation. Smoke exports omit an installable model manifest. The production validation and model acceptance gates remain in force.
 
 2026-11-19 TRAIN-001 scope note: the official Kaggle CLI is pinned to 2.2.5 (missing dependency six pinned to 1.17.0). Credentials stay in the owner's configured external access-token file; no credential is uploaded or tracked. Server metadata confirms the training kernel is private. Resumable checkpoint datasets are created private. Training uses only the public RDD2022 dataset, scratch initialization and complete frames. The current-user limited scheduled task stores no password. Model/config/digest, precision and parity gates precede app installation, followed by fresh real-runtime JVM and APK checks. Those cloud results and model-bearing checks remain pending. Existing SEC/NEW dispositions and release gates are unchanged.

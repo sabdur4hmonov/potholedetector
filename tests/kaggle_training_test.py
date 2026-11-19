@@ -16,6 +16,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'ml/kaggle'))
 from watch_logic import classify_failure, next_action, run_budget, should_relaunch, verify_artifacts
+from training_plan import epochs_per_run, estimate_seconds, resume_target, training_deadline_seconds
 import watch
 import cloud_run
 sys.path.insert(0, str(ROOT / 'ml'))
@@ -128,15 +129,100 @@ class WatcherTest(unittest.TestCase):
         self.assertEqual('push', next_action('new', None, 0))
         for state in ('pushed', 'queued', 'running'):
             self.assertEqual('wait', next_action(state, None, 0))
-        self.assertEqual('install', next_action('complete', 'success', 2))
+        self.assertEqual('install', next_action('complete', 'success', 1))
         self.assertEqual('fail', next_action('error', None, 0))
         self.assertEqual('fail', next_action('complete', 'error', 0))
 
-    def test_two_resumes_are_the_absolute_limit(self):
+    def test_one_resume_is_the_absolute_limit(self):
         self.assertEqual('resume', next_action('complete', 'gate_failed', 0))
-        self.assertEqual('resume', next_action('complete', 'gate_failed', 1))
+        self.assertEqual('final_gate_failed', next_action('complete', 'gate_failed', 1))
         for count in (2, 3, 100):
             self.assertEqual('fail', next_action('complete', 'gate_failed', count))
+            self.assertEqual('fail', next_action('complete', 'success', count))
+
+    def test_full_resume_transient_error_does_not_submit_a_third_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_path = root/'state.json'
+            state_path.write_text(json.dumps(dict(phase='running', version=8, mode='full', resumes=1,
+                                                  run_budget=43_200, gpu_seconds=54_900)))
+            with patch.object(watch, 'HERE', root), patch.object(watch, 'STATE', state_path), \
+                 patch.object(watch, 'kaggle', return_value='version 8 has status "KernelWorkerStatus.ERROR"'), \
+                 patch.object(watch, 'collect_failure', return_value=('HTTP Error 503', '', 'saved logs')), \
+                 patch.object(watch, 'report'), patch.object(watch, 'push') as push:
+                with self.assertRaisesRegex(RuntimeError, 'version 8 stopped'):
+                    watch.tick(False)
+                push.assert_not_called()
+
+    def test_measured_epoch_budget_and_resume_target(self):
+        self.assertEqual(93, epochs_per_run(43_200))
+        self.assertLessEqual(estimate_seconds(93), 29_784)
+        self.assertGreater(estimate_seconds(94), 29_784)
+        self.assertEqual(205, resume_target(112, 43_200))
+        self.assertLess(epochs_per_run(30_000), 93)
+        self.assertEqual(36_900, training_deadline_seconds(43_200))
+        with self.assertRaises(ValueError):
+            epochs_per_run(7_000)
+        with self.assertRaises(ValueError):
+            resume_target(0, 43_200)
+
+    def test_watcher_full_result_matrix_installs_and_resumes_at_most_once(self):
+        commit, new_commit = 'a'*40, 'b'*40
+        for first_passed, final_f1, expect_install in ((True, None, False), (False, None, False),
+                (True, .71, True), (True, .70, False), (True, .69, False), (False, .64, True)):
+            with self.subTest(first_passed=first_passed, final_f1=final_f1), tempfile.TemporaryDirectory() as tmp:
+                directory = Path(tmp)
+                state = dict(commit=commit, resumes=0, version=7, gpu_seconds=54_900)
+                first = dict(train_commit=commit, init='scratch', epochs=112,
+                             status='success' if first_passed else 'gate_failed', validation={'F1': .7})
+                with patch.object(watch, 'STATE', directory/'state.json'), patch.object(watch, 'report') as report, \
+                     patch.object(watch, 'published_commit', return_value=new_commit), patch.object(watch, 'verify_artifacts'), \
+                     patch.object(watch, 'install_and_build', return_value=[{'path': 'apk'}]) as install, \
+                     patch.object(watch, 'upload_checkpoint') as upload, patch.object(watch, 'unregister') as unregister:
+                    watch.handle_full_result(directory, state, first)
+                    self.assertEqual(int(first_passed), install.call_count)
+                    self.assertEqual(dict(start_epoch=112, target_epoch=205, train_commit=new_commit), upload.call_args.args[2])
+                    unregister.assert_not_called()
+                    state.update(commit=new_commit, resumes=1, resume_target=205)
+                    last = dict(train_commit=new_commit, init='scratch', epochs=205, schedule_target_epoch=205,
+                                status='success' if final_f1 is not None else 'gate_failed', validation={'F1': final_f1})
+                    if final_f1 is None:
+                        with self.assertRaisesRegex(RuntimeError, 'single resume is exhausted'):
+                            watch.handle_full_result(directory, state, last)
+                        self.assertIn('egasining', report.call_args.args[1])
+                        self.assertIn('owner’s decision', report.call_args.args[1])
+                    else:
+                        watch.handle_full_result(directory, state, last)
+                        self.assertEqual('ready', state['phase'])
+                        unregister.assert_called_once()
+                    self.assertEqual(int(first_passed) + int(expect_install), install.call_count)
+                    upload.assert_called_once()
+
+    def test_private_checkpoint_carries_both_revisions_and_target(self):
+        commit, new_commit = 'a'*40, 'b'*40
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            directory = root/'output/version-7'
+            latest = directory/'ckpt/pothole_nano/latest_ckpt.pth'
+            latest.parent.mkdir(parents=True)
+            latest.write_bytes(b'checkpoint from first run')
+            (directory/'result.json').write_text(json.dumps(dict(train_commit=commit, init='scratch')))
+            for file in ('measured_pins.json','dataset_stats.json'):
+                (directory/file).write_text('{}')
+            state = dict(commit=commit, resumes=0, version=7)
+            plan = dict(start_epoch=112, target_epoch=205, train_commit=new_commit)
+            with patch.object(watch, 'HERE', root), patch.object(watch, 'STATE', root/'state.json'), \
+                 patch.object(watch, 'report'), patch.object(watch, 'kaggle', return_value='Your private Dataset is being created.') as cli:
+                watch.upload_checkpoint(directory, state, plan)
+                self.assertEqual(('datasets', 'create'), cli.call_args.args[:2])
+                self.assertEqual((new_commit, 1, 205, 'waiting_dataset'), (state['commit'], state['resumes'], state['resume_target'], state['phase']))
+                stage = Path(cli.call_args.args[3])
+                receipt = json.loads((stage/'resume_plan.json').read_text())
+                self.assertEqual(hashlib.sha256(latest.read_bytes()).hexdigest(), receipt['checkpoint_sha256'])
+                self.assertEqual((112, 205, new_commit), (receipt['start_epoch'], receipt['target_epoch'], receipt['train_commit']))
+                with self.assertRaisesRegex(ValueError, 'already used'):
+                    watch.upload_checkpoint(directory, state, plan)
+                cli.assert_called_once()
 
     def test_requested_gpu_time_cannot_exceed_thirty_hours(self):
         used = 0

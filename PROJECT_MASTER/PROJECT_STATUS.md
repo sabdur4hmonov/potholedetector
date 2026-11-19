@@ -1,5 +1,11 @@
 # Current project status
 
+## 2026-11-20 TRAIN-002
+
+The local watcher now plans exactly one checkpoint resume for the running Kaggle v7. V7 measured 313 seconds per training epoch (median of seven), 34 seconds for the first five-epoch validation and 816 seconds from submission to training. Budgeting within 10 h 15 min with a 105-minute evaluation/export reserve allows 93 additional epochs. The private resume plan will use the actual completed checkpoint epoch plus 93. The planning estimate is epoch 205 if v7 completes epoch 112. Future fresh runs plan 186 epochs and start with a 93-epoch first leg at the full budget.
+
+The watcher retains a passing v7 model and moves to the final model only if it passes the precision gate and improves validation F1. A failed final gate retains the checkpoint and metrics and records the owner's pretrained-weights decision as the next step. V7 continues on its original revision. Live results are in [the training report](../ml/TRAINING_REPORT.md).
+
 ## 2026-11-20 TRAIN-001-FIX
 
 Kaggle version 1 stopped in dependency setup. Its Python 3.13 image tried to build the pinned ONNX 1.17.0 from source, and pip reported `ERROR: Failed building wheel for onnx`. The repair uses Python 3.12.12 in a Kaggle-only environment so the existing ONNX and NumPy pins can use their published Linux wheels. Smoke version 2 installed those dependencies and prepared RDD2022, then exposed a late-installed YOLOX editable import hook. Smoke version 3 loaded that hook and exposed a DataLoader index type mismatch. Smoke version 4 from `2508deba2001eb4505b4bc937583935b1c58bb3d` uses Python integer indices in the full-frame sampler. Watcher logs and cloud outcomes are in [the training report](../ml/TRAINING_REPORT.md).
