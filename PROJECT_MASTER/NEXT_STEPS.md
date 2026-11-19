@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## Current TRAIN-001-FIX handoff — 2026-11-20
+
+The exact next task is the `PotholeTrainWatch` completion path for private full version 7, started after the verified smoke version 6. It checks final metrics and export parity before installing the model and building the split APKs. It makes bounded checkpoint resumes if the validation precision gate fails. Use [the live report](../ml/TRAINING_REPORT.md) for progress. The arm64 APK then needs parked and physical-road acceptance.
+
 ## Current TRAIN-001 handoff — 2026-11-19
 
 The private [Kaggle run](https://www.kaggle.com/code/sardor007/pothole-yolox-train) is RUNNING. The exact next task is the registered `PotholeTrainWatch` automatic completion path: download results, resume from a private checkpoint at most twice if validation precision is below 0.80, or verify/install/exported model and build/test/verify the split APKs. Follow [TRAINING_REPORT.md](../ml/TRAINING_REPORT.md) for pending/ready/permanent-error status. Leave this Windows user signed in for local watcher execution; after sleep or reboot/sign-in it catches up. Cloud training continues independently. On a ready report, install the arm64 APK for parked and physical-road acceptance. No accuracy or phone claim exists before those results. FINISH-001 draft review remains separate; no merge is performed here.

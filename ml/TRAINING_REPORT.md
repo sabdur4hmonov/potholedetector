@@ -1,7 +1,7 @@
 # TRAIN-001
 
-Holat: xato
-Status: failed
+Holat: ishlayapti
+Status: running
 
 ## Progress / Jarayon
 
@@ -230,3 +230,15 @@ IndexError: invalid index of a 0-dim tensor. Use `tensor.item()` in Python or `t
     [NbConvertApp] Writing 288337 bytes to __results__.html
 
 - 2026-11-20T00:55:10+05:00 — RuntimeError: Kaggle version 5 stopped. See downloaded failure evidence in the report.
+
+- 2026-11-20T00:57:37+05:00 — Private smoke version 6 submitted. https://www.kaggle.com/code/sardor007/pothole-yolox-train
+
+- 2026-11-20T01:12:36+05:00 — Kaggle version 6 is running.
+
+- 2026-11-20T01:14:46+05:00 — Smoke version 6 passed in 956s. One epoch and 20 ONNX comparisons verified. Submitting full training.
+
+- 2026-11-20T01:14:52+05:00 — Private full training version 7 submitted. https://www.kaggle.com/code/sardor007/pothole-yolox-train
+
+- 2026-11-20T01:27:36+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T01:31:21+05:00 — Full version 7 live log verified on Tesla T4. "epoch: 1/500, iter: 610/1799" advanced through "epoch: 1/500, iter: 720/1799" at 01:30 +0500. Evidence under ml/kaggle/output/version-7/reconnected-kernel.log. Final metrics, model installation and APK checks pending. https://www.kaggle.com/code/sardor007/pothole-yolox-train/log

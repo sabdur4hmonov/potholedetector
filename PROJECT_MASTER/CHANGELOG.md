@@ -1,5 +1,11 @@
 # Recorded work history
 
+## 2026-11-20 — TRAIN-001-FIX
+
+- Isolated Kaggle training in Python 3.12.12 to use the pinned ONNX wheel. Loaded the editable YOLOX import hook after installation and passed integer indices to its full-frame dataset. Added a bounded smoke run and verified-receipt promotion to full training.
+- Added failed and cancelled version diagnostics, versioned logs, and a single automatic relaunch for explicit transient failures. Local watcher, ML preparation, ML contract and full-frame checks passed.
+- Added the documented Figshare public file API after the original download returned HTTP 403 on Kaggle. Both official routes are checked against the RDD2022 SHA-256 measured during smoke.
+
 ## 2026-11-19 — TRAIN-001
 
 - Added a private, exact-commit Kaggle T4 bootstrap with shared pinned setup, scratch full-frame training, nested country extraction, checkpoint retention, deadline, metrics on gate failure and resumable export.

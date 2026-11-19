@@ -1,6 +1,6 @@
 # TRAIN-001 unattended Kaggle training
 
-The private kernel is `sardor007/pothole-yolox-train`. The first upload substitutes the pushed `train-001` commit into the single bootstrap script. The cloud runner uses pinned YOLOX and dependencies, scratch initialization, and complete frames. RDD2022 download/extraction stays under `/kaggle/tmp`. Only results, two small checkpoints, ONNX/JSON and logs are written to `/kaggle/working`.
+The private kernel is `sardor007/pothole-yolox-train`. The first upload substitutes the pushed `train-001` commit into the single bootstrap script. The cloud runner uses pinned YOLOX and dependencies, scratch initialization, and complete frames. It downloads the public RDD2022 archive through the Figshare API under `/kaggle/tmp`, with one alternate official URL on HTTP 403, and checks the pinned SHA-256 before extraction. Only results, two small checkpoints, ONNX/JSON and logs are written to `/kaggle/working`.
 
 `run_and_watch.ps1 -Register -Launch` registers `PotholeTrainWatch` for the current user every 15 minutes and launches a private smoke version. Kaggle uses an isolated Python 3.12 environment with the existing package pins. Smoke runs the real dataset preparation, one epoch on 128 complete training frames and ONNX parity on 20 held-out frames. Its kernel limit is 44 minutes. A verified smoke result starts full training automatically. The task runs with limited privileges when the current user is signed in. `StartWhenAvailable` handles missed intervals. The cloud continues while the laptop sleeps.
 

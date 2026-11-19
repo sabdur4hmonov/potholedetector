@@ -1,5 +1,13 @@
 # Current project status
 
+## 2026-11-20 TRAIN-001-FIX
+
+Kaggle version 1 stopped in dependency setup. Its Python 3.13 image tried to build the pinned ONNX 1.17.0 from source, and pip reported `ERROR: Failed building wheel for onnx`. The repair uses Python 3.12.12 in a Kaggle-only environment so the existing ONNX and NumPy pins can use their published Linux wheels. Smoke version 2 installed those dependencies and prepared RDD2022, then exposed a late-installed YOLOX editable import hook. Smoke version 3 loaded that hook and exposed a DataLoader index type mismatch. Smoke version 4 from `2508deba2001eb4505b4bc937583935b1c58bb3d` uses Python integer indices in the full-frame sampler. Watcher logs and cloud outcomes are in [the training report](../ml/TRAINING_REPORT.md).
+
+The watcher records failed and cancelled version outputs, reasons and log tails. It can relaunch once for an explicit transient network or infrastructure failure. Smoke version 4 completed one epoch and passed 20 ONNX comparisons in 704 seconds. Its verified receipt started private full version 5, which hit HTTP 403 at the public RDD2022 download. The subsequent fix uses the documented Figshare API for the identical file with the original official URL as fallback and enforces the SHA-256 measured by smoke. Local tests and the full-frame dry-run passed.
+
+Smoke version 6 passed in 956 seconds, with one completed epoch and 20 ONNX comparisons. The watcher verified its file digest and launched [private full version 7](https://www.kaggle.com/code/sardor007/pothole-yolox-train/log) from `26dbf306969e0a2637f80cd34253d0a78e1be603`. Its live log confirmed epoch 1 advancing through batch 720 of 1,799 at 01:30 +0500. Full validation, model installation and APK verification are pending.
+
 ## 2026-11-19 TRAIN-001
 
 Private Kaggle T4 job [pothole-yolox-train](https://www.kaggle.com/code/sardor007/pothole-yolox-train) was submitted from pushed `train-001` commit `8c1c606c676d2c5f29666df6263d522f45461183`. The API reports RUNNING; downloaded server metadata confirms private/GPU/internet and the exact source revision. `PotholeTrainWatch` is registered every 15 minutes for the current user, with missed-start catch-up, limited privileges and no stored password. A scheduler-started status tick returned exit 0. After reboot it runs when this user signs in. No power settings changed.
