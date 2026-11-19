@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## Current TRAIN-001 handoff — 2026-11-19
+
+The private [Kaggle run](https://www.kaggle.com/code/sardor007/pothole-yolox-train) is RUNNING. The exact next task is the registered `PotholeTrainWatch` automatic completion path: download results, resume from a private checkpoint at most twice if validation precision is below 0.80, or verify/install/exported model and build/test/verify the split APKs. Follow [TRAINING_REPORT.md](../ml/TRAINING_REPORT.md) for pending/ready/permanent-error status. Leave this Windows user signed in for local watcher execution; after sleep or reboot/sign-in it catches up. Cloud training continues independently. On a ready report, install the arm64 APK for parked and physical-road acceptance. No accuracy or phone claim exists before those results. FINISH-001 draft review remains separate; no merge is performed here.
+
 ## Current FINISH-001 handoff — 2026-11-18
 
 Review the FINISH-001 draft PR and CI checks before deciding whether to merge. Run the [Colab notebook](../ml/train_pothole_yolox.ipynb) from `finish-001`, keep the training receipt and metrics, then supply the ONNX and manifest for a model-bearing debug build. Install `app-arm64-v8a-debug.apk` for the parked and physical-drive checks. Follow the [setup instructions](../ml/README.md).

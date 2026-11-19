@@ -1,5 +1,11 @@
 # Current project status
 
+## 2026-11-19 TRAIN-001
+
+Private Kaggle T4 job [pothole-yolox-train](https://www.kaggle.com/code/sardor007/pothole-yolox-train) was submitted from pushed `train-001` commit `8c1c606c676d2c5f29666df6263d522f45461183`. The API reports RUNNING; downloaded server metadata confirms private/GPU/internet and the exact source revision. `PotholeTrainWatch` is registered every 15 minutes for the current user, with missed-start catch-up, limited privileges and no stored password. A scheduler-started status tick returned exit 0. After reboot it runs when this user signs in. No power settings changed.
+
+The watcher allows two private-checkpoint resumes within 30 requested kernel hours, validates metrics/configuration/digests before installation, and requires fresh passing real ONNX JVM fixtures and verified split APKs before reporting ready. Eight watcher tests, existing ML preparation/contract/full-frame checks, PowerShell syntax and the three-frame dry-run passed. Training results, actual GPU execution logs, model export and model-bearing APK/device/road validation are pending. Live progress and any permanent failure are recorded in [TRAINING_REPORT.md](../ml/TRAINING_REPORT.md); operational details are in [ml/kaggle](../ml/kaggle/README.md).
+
 ## 2026-11-18 FINISH-001
 
 The `finish-001` branch produces separate debug APKs for arm64-v8a, armeabi-v7a and x86_64. Install `app-arm64-v8a-debug.apk` on the owner's phone. CI uses the x86_64 build. The Colab notebook records initialization provenance and can transfer official Nano features once the exact weights have a verified permissive license. The publisher's checkpoint grant could not be confirmed, so scratch initialization remains the default. Model training and physical-phone validation remain pending. See the [worklog](AGENT_WORKLOG.md) and [Colab instructions](../ml/README.md).

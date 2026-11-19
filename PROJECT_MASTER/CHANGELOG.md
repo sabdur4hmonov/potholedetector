@@ -1,5 +1,11 @@
 # Recorded work history
 
+## 2026-11-19 — TRAIN-001
+
+- Added a private, exact-commit Kaggle T4 bootstrap with shared pinned setup, scratch full-frame training, nested country extraction, checkpoint retention, deadline, metrics on gate failure and resumable export.
+- Added a durable 15-minute Windows watcher with two-resume/30-hour limits, private checkpoint uploads, model/manifest acceptance, automatic split APK build and fresh real ONNX JVM/APK verification. Failures stop retries and remove the task.
+- Eight new offline tests and existing ML/full-frame checks passed. Pushed only `train-001`, launched the private kernel and verified server settings. The registered limited, password-free task passed a scheduler-started status check. Training/model/build/phone outcomes remain pending in the live training report.
+
 ## 2026-11-18 — FINISH-001
 
 - Pinned the official Nano checkpoint URL and measured SHA-256. Added a license-gated transfer path and initialization provenance in exported manifests. Scratch remains the default until the checkpoint's permissive license is confirmed.

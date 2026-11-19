@@ -1,5 +1,9 @@
 # Telefon modeli / On-device model
 
+TRAIN-001: private Kaggle job va avtomatik Windows watcher ishga tushirilgan. Joriy holat: [TRAINING_REPORT.md](TRAINING_REPORT.md); ishlash tartibi: [kaggle/README.md](kaggle/README.md). Natijalar kutilmoqda. Quyidagi Colab yo'li muqobil qo'lda ishlatish uchun saqlangan.
+
+TRAIN-001: the private Kaggle job and Windows watcher are launched. See the [live report](TRAINING_REPORT.md) and [operation notes](kaggle/README.md). Results are pending. The Colab instructions below remain an alternative manual workflow.
+
 ## O‘zbekcha
 
 Model hali o‘qitilmagan. Ilova model bo‘lmasa sensor, ogohlantirish, Photo va ixtiyoriy cloud bilan ishlaydi. Aniqlik yoki yo‘ldagi ishlash haqida da’vo yo‘q.
