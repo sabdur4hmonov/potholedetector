@@ -79,7 +79,7 @@ def metrics(samples, threshold):
                                                        for c, v in countries.items()}, iou=.5)
 
 
-def choose_threshold(samples):
+def choose_threshold(samples, minimum_precision=.8):
     from itertools import groupby
     truth_count = sum(len(row[3]) for row in samples)
     decisions = sorted((decision for _, _, _, truth, boxes in samples for decision in matches(boxes, truth)),
@@ -90,7 +90,7 @@ def choose_threshold(samples):
             tp += int(hit)
             fp += int(not hit)
         precision = tp / (tp + fp)
-        if tp and precision >= .8:
+        if tp and precision >= minimum_precision:
             candidate = (2 * tp / (truth_count + tp + fp), precision, score)
             best = candidate if best is None else max(best, candidate)
     if best is None:
@@ -123,6 +123,9 @@ def main():
     p.add_argument('--data', type=Path, required=True)
     p.add_argument('--checkpoint', type=Path, required=True)
     p.add_argument('--output', type=Path, default=Path('/content/model_export'))
+    p.add_argument('--result', type=Path)
+    p.add_argument('--train-commit')
+    p.add_argument('--epochs', type=int, default=0)
     args = p.parse_args()
     here = Path(__file__).resolve().parent
     pins = json.loads((here / 'pins.json').read_text())
@@ -134,12 +137,29 @@ def main():
     model.load_state_dict(torch.load(args.checkpoint, map_location='cpu', weights_only=False)['model'])
     model.head.decode_in_inference = False
     val = collect(model, args.data, 'val')
-    threshold = choose_threshold(val)
+    gate_passed = True
+    try:
+        threshold = choose_threshold(val)
+    except RuntimeError:
+        gate_passed = False
+        try:
+            threshold = choose_threshold(val, minimum_precision=0)
+        except RuntimeError:
+            threshold = .5
     val_metrics = metrics(val, threshold)
     test = collect(model, args.data, 'test')
     test_metrics = metrics(test, threshold)
     print(json.dumps(dict(threshold=threshold, validation=val_metrics, test=test_metrics), indent=2))
     args.output.mkdir(parents=True, exist_ok=True)
+    result = dict(status='gate_failed', epochs=args.epochs, validation=val_metrics, test=test_metrics,
+                  threshold=threshold, dataset_sha256=pins['rdd2022_sha256'], model_sha256=None,
+                  train_commit=args.train_commit, **init)
+    if not gate_passed:
+        (args.output / 'pothole_model.json').unlink(missing_ok=True)
+        if args.result:
+            args.result.write_text(json.dumps(result, indent=2))
+        print('Validation precision gate failed. Checkpoint and metrics retained.')
+        raise SystemExit(2)
     onnx_path = args.output / 'pothole_yolox_nano.onnx'
     torch.onnx.export(model, torch.zeros(1, 3, 416, 416, device='cuda'), str(onnx_path),
                       input_names=['images'], output_names=['output'], opset_version=17,
@@ -169,6 +189,9 @@ def main():
                     dataset_sha256=pins['rdd2022_sha256'], yolox_commit=pins['yolox_commit'],
                     output_format='yolox_raw_bgr_0_255', opset=17, license='CC-BY-SA-4.0', **init)
     (args.output / 'pothole_model.json').write_text(json.dumps(metadata, indent=2))
+    result.update(status='success', model_sha256=metadata['sha256'])
+    if args.result:
+        args.result.write_text(json.dumps(result, indent=2))
     print('Parity: 20/20. Exported model and manifest; field accuracy remains unverified.')
 
 

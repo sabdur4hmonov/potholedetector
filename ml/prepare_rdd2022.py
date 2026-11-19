@@ -2,8 +2,10 @@
 import argparse
 import hashlib
 import json
+import os
 import random
 import shutil
+import tarfile
 import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
@@ -56,13 +58,46 @@ def country_for(path):
     return next((c for c in COUNTRIES if c in path.parts), None)
 
 
-def extract(archive, output):
+def extract(archive, output, annotated_only=False):
     with zipfile.ZipFile(archive) as z:
         for item in z.infolist():
             p = PurePosixPath(item.filename)
             if p.is_absolute() or '..' in p.parts or '\\' in item.filename:
                 raise ValueError('Unsafe archive path')
-            if 'China_Drone' in p.parts or not country_for(p) or item.is_dir():
+            if 'China_Drone' in item.filename or item.is_dir():
+                continue
+            if p.name.lower().endswith(('.zip', '.tar.gz', '.tgz')):
+                if not any(country.lower() in p.name.lower() for country in COUNTRIES):
+                    continue
+                output.mkdir(parents=True, exist_ok=True)
+                nested = output / p.name
+                with z.open(item) as src, nested.open('wb') as dest:
+                    shutil.copyfileobj(src, dest)
+                try:
+                    if p.suffix.lower() == '.zip':
+                        extract(nested, output, annotated_only)
+                    else:
+                        with tarfile.open(nested) as tar:
+                            for member in tar:
+                                path = PurePosixPath(member.name)
+                                if path.is_absolute() or '..' in path.parts or '\\' in member.name:
+                                    raise ValueError('Unsafe country archive path')
+                                if not member.isfile() or not country_for(path) or 'China_Drone' in path.parts:
+                                    continue
+                                if annotated_only and 'test' in path.parts:
+                                    continue
+                                if path.suffix.lower() not in ('.xml', '.jpg', '.jpeg', '.png'):
+                                    continue
+                                if member.size > 67108864:
+                                    raise ValueError('Oversize country frame')
+                                target = output.joinpath(*path.parts)
+                                target.parent.mkdir(parents=True, exist_ok=True)
+                                with tar.extractfile(member) as src, target.open('wb') as dest:
+                                    shutil.copyfileobj(src, dest)
+                finally:
+                    nested.unlink()
+                continue
+            if not country_for(p) or (annotated_only and 'test' in p.parts):
                 continue
             if p.suffix.lower() not in ('.xml', '.jpg', '.jpeg', '.png'):
                 continue
@@ -109,7 +144,7 @@ def owner_records(archive, output):
     return records
 
 
-def prepare(root, output, seed=20221105, dataset_hash=None, extra=None):
+def prepare(root, output, seed=20221105, dataset_hash=None, extra=None, link_images=False):
     output = Path(output)
     images = output / 'images'
     images.mkdir(parents=True, exist_ok=True)
@@ -154,7 +189,10 @@ def prepare(root, output, seed=20221105, dataset_hash=None, extra=None):
             name = sha256(source) + source.suffix.lower()
             target = images / name
             if source.resolve() != target.resolve() and not target.exists():
-                shutil.copyfile(source, target)  # Entire original image.
+                if link_images:
+                    os.link(source, target)  # Complete image bytes, no second disk copy.
+                else:
+                    shutil.copyfile(source, target)  # Entire original image.
             coco['images'].append({'id': i, 'file_name': name, 'width': w, 'height': h, 'country': country})
             for box in boxes:
                 coco['annotations'].append({'id': len(coco['annotations']) + 1, 'image_id': i,

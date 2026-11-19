@@ -55,3 +55,6 @@ ml/__pycache__/
 *.onnx
 *.pth
 android-app/android/app/src/main/assets/ml/pothole_model.json
+ml/kaggle/output/
+ml/kaggle/.state/
+ml/kaggle/.upload/

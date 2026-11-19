@@ -40,6 +40,7 @@ LOCAL_TESTS="$LOCAL_TESTS native_dashcam_contract_test track_retention_test fres
 LOCAL_TESTS="$LOCAL_TESTS sensor_drive_contract_test"
 LOCAL_TESTS="$LOCAL_TESTS hazard_alerts_contract_test"
 LOCAL_TESTS="$LOCAL_TESTS ml_prepare_test ondevice_ml_contract_test"
+LOCAL_TESTS="$LOCAL_TESTS kaggle_training_test"
 LIVE_TESTS="footage_test"
 TESTS="$LOCAL_TESTS"
 if [ "${RUN_LIVE_TESTS:-0}" = "1" ]; then
