@@ -400,3 +400,25 @@ IndexError: invalid index of a 0-dim tensor. Use `tensor.item()` in Python or `t
 - 2026-11-27T00:11:02+05:00 — TRAIN-003. UZ: v7 yaroqsiz va karantinda; v8 tugagan. Yangi o'qitish SHA-256 tekshirilgan rasmiy Megvii vaznlari va frame quality gate bilan ishlaydi.
 
   EN: v7 is unusable and quarantined; Kaggle confirms v8 COMPLETE. Prior v7 and v8 runtimes total 19.84 hours, or about 21 hours including short earlier sessions (not a quota reading). At 30 hours that would leave about 9 hours if all sessions counted in the same week. Current availability is determined by Kaggle push, with no reset assumed. The isolated v7 APK repro exited 1 on Gradle's Java stderr note (Windows PowerShell NativeCommandError); Gradle exit and logs now survive that note. Full scratch verification is still running.
+
+- 2026-11-27T00:11:48+05:00 — Private smoke version 9 submitted. https://www.kaggle.com/code/sardor007/pothole-yolox-train
+
+- 2026-11-27T00:30:53+05:00 — Smoke version 9 passed in 719s. Timing: {"epoch_seconds": 68.63102781199996, "validation_seconds": 34.03186786699996, "setup_seconds": 600.811407362}. Full cosine target: 387 epochs. One balanced epoch and 20 ONNX comparisons verified. Submitting full training.
+
+- 2026-11-27T00:30:57+05:00 — Private full training version 10 submitted. https://www.kaggle.com/code/sardor007/pothole-yolox-train
+
+- 2026-11-27T00:44:28+05:00 — Kaggle version 10 is queued.
+
+- 2026-11-27T00:46:17+05:00 — TRAIN-003. UZ: v7 karantinda; v8 tugagan. v9 smoke o‘tdi, watcher 387 epoch bilan v10’ni yubordi. Yakuniy metrikalar kutilmoqda.
+
+  EN: v9 completed one balanced epoch in 68.63 seconds, COCO validation in 34.03 seconds, setup in 600.81 seconds and all 20 ONNX parity checks in a 719.43-second run. Kaggle accepted full v10 with target 387. The 00:44 +05:00 watcher tick recorded queued. The corrected scratch build verified all three splits. Its real ONNX JVM test ran and passed. The only failure out of 360 tests was the known Windows symlink privilege case, with no skips. Both ML asset folders were emptied again. Scratch APKs contain the quarantined fixture and are verification artifacts only.
+
+  Original scratch reproduction, PowerShell exit 1 and empty Gradle log:
+
+    gradlew.bat : NOTE:Picked up JDK_JAVA_OPTIONS: -Djdk.net.unixdomain.tmpdir="D:\Coding
+    projects\pothole-reporter\android-app\android\.gradle\t3-work\android-app\android\.gradle"
+    At D:\Coding projects\pothole-reporter\android-app\android\.gradle\t3-work\ml\kaggle\build_model.ps1:22 char:5
+    +     & .\gradlew.bat --offline --no-daemon --console=plain '-Pkotlin.i ...
+    +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        + CategoryInfo          : NotSpecified: (NOTE: Picked up...ndroid\.gradle":String) [], RemoteException
+        + FullyQualifiedErrorId : NativeCommandError

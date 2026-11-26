@@ -2,7 +2,7 @@
 
 ## Current TRAIN-003 handoff — 2026-11-27
 
-`PotholeTrainWatch` verifies pretrained smoke timing and ONNX parity, then submits a full cosine run sized for approximately nine hours. It uses the frame gate before installing or building any candidate. The quarantined v7 model stays out of app assets. Follow [the live report](../ml/TRAINING_REPORT.md) for Kaggle and APK outcomes.
+`PotholeTrainWatch` verified smoke v9 and submitted private full v10 with a 387-epoch cosine target. The exact next task is the watcher processing v10's final checkpoint/export and the frame gate before installing or building any candidate. The quarantined v7 model stays out of app assets. Follow [the live report](../ml/TRAINING_REPORT.md) for Kaggle and APK outcomes.
 
 ## Current TRAIN-002 handoff — 2026-11-20
 
