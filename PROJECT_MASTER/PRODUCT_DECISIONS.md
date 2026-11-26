@@ -1,5 +1,9 @@
 # Product decisions
 
+## 2026-11-27 — TRAIN-003 owner decision
+
+> use Megvii's official COCO-pretrained `yolox_nano.pth` (release `0.1.1rc0`, SHA-256 `cd28f55fbbc1829f99d9ac9b38a16d259a22889739c8728ea877610201feff7b`) as initialisation. The YOLOX repository is Apache-2.0 and its README links these weights; no separate weight licence is stated, and the owner accepts treating them as Apache-2.0. Keep this caveat in `MODEL_LICENSE.md`.
+
 ## 2026-11-13 — ML-DETECT-001 owner decision
 
 D0 uses Megvii YOLOX-Nano, Apache-2.0, at `6ddff4824372906469a7fae2dc3206c7aa4bbaee`. Evaluate Tiny separately if Nano recall is inadequate. Use pinned ONNX Runtime Android 1.24.3 (MIT) and RDD2022 D40 with other damage as negatives, excluding China_Drone. The official Figshare record lists CC BY 4.0 for its data. The owner selected CC BY-SA 4.0 for trained weights, separate from MIT app code. Display binary Yes/No and the camera/bump origin. With no key, default to local camera when installed plus sensor. A stored key keeps optional cloud Drive unless the user selects the on-device setting. Labelled exports omit location by default. Video sharing includes a GPX when the drive still has a retained track.

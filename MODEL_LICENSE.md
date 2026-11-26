@@ -8,6 +8,10 @@ Source-license discrepancy: the task calls RDD2022 CC BY-SA 4.0, but the officia
 
 Architecture/training implementation: **YOLOX**, Copyright Megvii Inc. and affiliates, Apache License 2.0, pinned commit `6ddff4824372906469a7fae2dc3206c7aa4bbaee`, https://github.com/Megvii-BaseDetection/YOLOX .
 
-The pinned README points to [Megvii's official COCO-trained Nano checkpoint](https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_nano.pth). The historical release tag `0.1.1rc0` points to `e1052df`. FINISH-001 measured SHA-256 `cd28f55fbbc1829f99d9ac9b38a16d259a22889739c8728ea877610201feff7b`. The [publisher release](https://github.com/Megvii-BaseDetection/YOLOX/releases/tag/0.1.1rc0) does not state a separate permissive grant for this checkpoint, so `pins.json` records its license as unverified and the notebook starts from scratch. The optional transfer path requires a verified permissive license and matching hash. It transfers the backbone and neck with a freshly initialized one-class head. The checkpoint is absent from Git and APKs.
+TRAIN-003 owner decision:
+
+> use Megvii's official COCO-pretrained `yolox_nano.pth` (release `0.1.1rc0`, SHA-256 `cd28f55fbbc1829f99d9ac9b38a16d259a22889739c8728ea877610201feff7b`) as initialisation. The YOLOX repository is Apache-2.0 and its README links these weights; no separate weight licence is stated, and the owner accepts treating them as Apache-2.0. Keep this caveat in `MODEL_LICENSE.md`.
+
+The [publisher release](https://github.com/Megvii-BaseDetection/YOLOX/releases/tag/0.1.1rc0) still has no separate checkpoint grant. The pins record the owner's treatment separately from a publisher license. Kaggle checks the exact checkpoint digest and transfers the backbone and neck with a fresh one-class head. The checkpoint stays out of Git and APKs.
 
 Runtime: **ONNX Runtime**, Microsoft, MIT, Android/JVM version **1.24.3**, https://github.com/microsoft/onnxruntime . This runtime's MIT license is independent of model and dataset licenses.

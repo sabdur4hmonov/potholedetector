@@ -1,5 +1,11 @@
 # Current project status
 
+## 2026-11-27 TRAIN-003
+
+Kaggle v8 completed at epoch 204. Its box recall was 0.46%, and v7's was 0.62% on validation. Both results belong to the retired precision-only gate. The v7 ONNX and manifest were moved to `ml/kaggle/output/version-7/quarantined/`. The app's ML assets directory is empty.
+
+The frame gate requires validation precision/recall of .80/.40 and held-out test precision/recall of .75/.35 at the same validation-selected threshold. Training transfers the SHA-pinned official Megvii backbone and neck into a fresh pothole head, balances training negatives per epoch and evaluates the checkpoint with the best validation COCO AP50. The smoke measures the schedule for one full run. Checkpoint resumes are reserved for recoverable crashes. Results and build observations are in [the training report](../ml/TRAINING_REPORT.md).
+
 ## 2026-11-20 TRAIN-002
 
 The local watcher now plans exactly one checkpoint resume for the running Kaggle v7. V7 measured 313 seconds per training epoch (median of seven), 34 seconds for the first five-epoch validation and 816 seconds from submission to training. Budgeting within 10 h 15 min with a 105-minute evaluation/export reserve allows 93 additional epochs. The private resume plan will use the actual completed checkpoint epoch plus 93. The planning estimate is epoch 205 if v7 completes epoch 112. Future fresh runs plan 186 epochs and start with a 93-epoch first leg at the full budget.

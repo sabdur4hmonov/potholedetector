@@ -4,9 +4,16 @@ import json
 import math
 from pathlib import Path
 import re
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from frame_gate import frame_gate_passes
+from training_init import initialization_receipt
 
 MAX_RESUMES = 1
 SMOKE_BUDGET = 44*60
+PINS = json.loads((Path(__file__).resolve().parents[1] / 'pins.json').read_text(encoding='utf-8'))
+EXPECTED_INIT = initialization_receipt(PINS, use_pretrained=True)
 
 
 def classify_failure(reason, log):
@@ -56,20 +63,13 @@ def run_budget(gpu_seconds):
     return budget
 
 
-def next_action(kernel_status, result_status, resumes, final_f1=None, first_f1=None):
-    if kernel_status in ('new',):
-        return 'push'
-    if kernel_status in ('queued', 'running', 'pushed'):
-        return 'wait'
-    if kernel_status != 'complete' or not 0 <= resumes <= MAX_RESUMES:
-        return 'fail'
-    if result_status == 'gate_failed':
-        return 'resume' if resumes == 0 else 'final_gate_failed'
-    if result_status == 'success':
-        if resumes == 0:
-            return 'install_resume'
-        return 'install' if first_f1 is None or final_f1 > first_f1 else 'keep'
-    return 'fail'
+def is_quota_rejection(message):
+    return re.search(r'(?i)(?:gpu|accelerator)[^\n]{0,100}(?:quota|hours remaining|limit exceeded)|'
+                     r'(?:quota exceeded|insufficient quota|out of quota|quota for.*(?:gpu|accelerator))', message) is not None
+
+
+def expected_initialization(receipt):
+    return all(receipt.get(key) == value for key, value in EXPECTED_INIT.items())
 
 
 def read_json(path):
@@ -80,7 +80,7 @@ def read_json(path):
 
 def verify_smoke(directory, result, commit):
     if (result.get('status') != 'smoke_success' or result.get('train_commit') != commit or
-        result.get('epochs') != 1 or result.get('parity_images') != 20 or result.get('init') != 'scratch'):
+        result.get('epochs') != 1 or result.get('parity_images') != 20 or not expected_initialization(result)):
         raise ValueError('Smoke run did not complete one epoch and 20 export comparisons')
     if not 0 < result.get('wall_seconds', 0) < 45*60:
         raise ValueError('Smoke run exceeded 45 minutes or has no duration')
@@ -118,12 +118,13 @@ def verify_artifacts(directory, commit):
     digest = hashlib.sha256(model.read_bytes()).hexdigest()
     if digest != manifest.get('sha256') or digest != result.get('model_sha256'):
         raise ValueError('Model SHA-256 mismatch')
-    if (manifest.get('init') != 'scratch' or result.get('init') != 'scratch' or
-        manifest.get('init_weights_sha256') is not None or result.get('init_weights_sha256') is not None):
-        raise ValueError('TRAIN-001 requires scratch initialization')
+    if not expected_initialization(manifest) or not expected_initialization(result):
+        raise ValueError('TRAIN-003 requires the pinned pretrained initialization')
+    if dataset_hash != PINS['rdd2022_sha256'] or not frame_gate_passes(result):
+        raise ValueError('Frame quality gate or dataset pin failed')
     metrics = manifest.get('metrics', {})
-    if (metrics.get('parity_images') != 20 or metrics.get('validation') != result.get('validation') or
-        metrics.get('test') != result.get('test') or result.get('threshold') != manifest['score_threshold']):
+    if (metrics.get('parity_images') != 20 or result.get('threshold') != manifest['score_threshold'] or
+        any(metrics.get(key) != result.get(key) for key in ('validation', 'test', 'frame_validation', 'frame_test', 'val_coco_ap50'))):
         raise ValueError('Missing export parity or validation receipt')
     if not isinstance(result.get('epochs'), int) or result['epochs'] <= 0:
         raise ValueError('Missing completed training epochs')
@@ -132,7 +133,7 @@ def verify_artifacts(directory, commit):
             value = result[split].get(field)
             if isinstance(value, bool) or not isinstance(value, (float, int)) or not math.isfinite(value) or not 0 <= value <= 1:
                 raise ValueError('Invalid measured metrics')
-    precision = result['validation'].get('precision')
-    if precision < .8:
-        raise ValueError('Validation precision gate failed')
+    ap50 = result.get('val_coco_ap50')
+    if type(ap50) not in (float, int) or not 0 <= ap50 <= 1:
+        raise ValueError('Missing measured COCO AP50')
     return model, manifest_path

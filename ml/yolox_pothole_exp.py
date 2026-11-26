@@ -1,8 +1,11 @@
 """One complete image per sample; no spatial-subset augmentation, including no-aug epochs."""
 import os
+import json
+from pathlib import Path
 import numpy as np
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from balanced_sampling import epoch_indices
 from yolox.data import InfiniteSampler
 from yolox.exp import Exp as BaseExp
 
@@ -31,6 +34,29 @@ class FullFrameSampler(InfiniteSampler):
     def __iter__(self):
         # COCODataset treats non-int indices as augmentation-control tuples.
         return map(int, super().__iter__())
+
+
+class BalancedBatchSampler:
+    def __init__(self, dataset_ids, annotations, batch_size, seed, start_epoch):
+        self.batch_size, self.seed, self.start_epoch = batch_size, seed, start_epoch
+        positives = {row['image_id'] for row in annotations['annotations']}
+        images = {row['id']: row for row in annotations['images']}
+        self.positive, self.hard, self.clean = [], [], []
+        for index, image_id in enumerate(dataset_ids):
+            group = self.positive if image_id in positives else (
+                self.hard if images[image_id]['other_damage'] else self.clean)
+            group.append(index)
+
+    def __len__(self):
+        return (2 * len(self.positive) + self.batch_size - 1) // self.batch_size
+
+    def __iter__(self):
+        epoch = self.start_epoch
+        while True:
+            indices = epoch_indices(self.positive, self.hard, self.clean, self.seed, epoch)
+            for offset in range(0, len(indices), self.batch_size):
+                yield indices[offset:offset+self.batch_size]
+            epoch += 1
 
 
 class Exp(BaseExp):
@@ -71,8 +97,6 @@ class Exp(BaseExp):
             self.model.head.initialize_biases(1e-2)
             checkpoint = os.environ.get('POTHOLE_INITIAL_WEIGHTS')
             if checkpoint:
-                import json
-                from pathlib import Path
                 import torch
                 from training_init import initialization_receipt, verify_weights
 
@@ -85,6 +109,9 @@ class Exp(BaseExp):
                 missing, unexpected = self.model.load_state_dict(feature_state, strict=False)
                 if not feature_state or unexpected or any(not k.startswith('head.') for k in missing):
                     raise ValueError('Official checkpoint does not match the pinned Nano backbone')
+                print(f'Loaded {len(feature_state)} pretrained backbone/neck tensors: {sorted(feature_state)}', flush=True)
+                print(f'Skipped pretrained tensors: {sorted(set(state) - set(feature_state))}. '
+                      f'Fresh one-class tensors: {sorted(missing)}', flush=True)
         return self.model
 
     def get_dataset(self, cache=False, cache_type='ram'):
@@ -97,6 +124,12 @@ class Exp(BaseExp):
         if is_distributed:
             raise ValueError('This notebook uses one Colab GPU')
         self.dataset = self.get_dataset()
+        if os.environ.get('POTHOLE_BALANCED') == '1':
+            annotations = json.loads((Path(self.data_dir) / 'annotations' / self.train_ann).read_text())
+            batches = BalancedBatchSampler(self.dataset.ids, annotations, batch_size, self.seed,
+                                           int(os.environ.get('POTHOLE_START_EPOCH', '0')))
+            return FullFrameLoader(self.dataset, batch_sampler=batches, num_workers=self.data_num_workers,
+                                   pin_memory=True, worker_init_fn=worker_init_reset_seed)
         sampler = FullFrameSampler(len(self.dataset), seed=self.seed)
         return FullFrameLoader(self.dataset, num_workers=self.data_num_workers, pin_memory=True,
                                sampler=sampler, batch_size=batch_size, worker_init_fn=worker_init_reset_seed)

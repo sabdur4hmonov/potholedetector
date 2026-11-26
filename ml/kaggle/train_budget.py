@@ -1,11 +1,14 @@
 """YOLOX trainer with a wall-clock deadline and two durable checkpoints."""
 import os
+import json
 from pathlib import Path
 import shutil
 import time
 import numpy as np
 import torch
+from loguru import logger
 from yolox.core import Trainer
+from yolox.utils import adjust_status
 
 
 class TrainingBudgetReached(Exception):
@@ -36,6 +39,7 @@ class BudgetTrainer(Trainer):
         if self.epoch >= self.stop_epoch:
             raise TrainingBudgetReached(f'Planned epoch {self.stop_epoch} completed; evaluating checkpoint')
         super().before_epoch()
+        self.epoch_started = time.monotonic()
 
     def before_iter(self):
         if time.monotonic() >= float(os.environ['POTHOLE_DEADLINE']):
@@ -43,8 +47,14 @@ class BudgetTrainer(Trainer):
         super().before_iter()
 
     def after_epoch(self):
+        self.epoch_seconds = time.monotonic() - self.epoch_started
         super().after_epoch()
         directory = Path(self.file_name)
+        progress = directory.parents[1] / 'resume_progress.json'
+        temporary = progress.with_suffix('.tmp')
+        temporary.write_text(json.dumps(dict(epochs=self.epoch+1, target_epoch=self.max_epoch,
+                                             train_commit=os.environ['POTHOLE_TRAIN_COMMIT'])))
+        temporary.replace(progress)
         # Retain a first-epoch fallback until validation can select a better checkpoint.
         if not (directory / 'best_ckpt.pth').exists():
             shutil.copyfile(directory / 'latest_ckpt.pth', directory / 'best_ckpt.pth')
@@ -52,6 +62,19 @@ class BudgetTrainer(Trainer):
         for file in directory.glob('*_ckpt.pth'):
             if file.name not in ('latest_ckpt.pth', 'best_ckpt.pth'):
                 file.unlink()
+
+    def evaluate_and_save_model(self):
+        started = time.monotonic()
+        model = self.ema_model.ema if self.use_model_ema else self.model
+        with adjust_status(model, training=False):
+            ap, ap50, summary = self.exp.eval(model, self.evaluator, self.is_distributed)
+        self.validation_seconds = time.monotonic() - started
+        logger.info("\n{}", summary)
+        self.tblogger.add_scalar('val/COCOAP50', ap50, self.epoch + 1)
+        self.tblogger.add_scalar('val/COCOAP50_95', ap, self.epoch + 1)
+        best = float(ap50) >= self.best_ap
+        self.best_ap = max(float(ap50), self.best_ap)
+        self.save_ckpt('last_epoch', best, ap=float(ap50))
 
 
 def train(exp, args, stop_epoch):
@@ -64,4 +87,5 @@ def train(exp, args, stop_epoch):
     latest = Path(trainer.file_name) / 'latest_ckpt.pth'
     if not latest.is_file():
         raise RuntimeError('Budget ended before one complete epoch; no resumable checkpoint')
-    return latest
+    return latest, dict(epoch_seconds=getattr(trainer, 'epoch_seconds', 0),
+                        validation_seconds=getattr(trainer, 'validation_seconds', 0))

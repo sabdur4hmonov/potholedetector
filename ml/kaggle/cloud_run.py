@@ -55,7 +55,7 @@ def dry_run(root):
     print('TRAIN-001 DRY RUN PASS: three full-frame VOC fixtures, COCO split and scratch wiring; no GPU/download')
 
 
-def run(root, commit, started, budget_seconds, smoke=False):
+def run(root, commit, started, budget_seconds, smoke=False, target_epoch=0):
     working = Path('/kaggle/working')
     working.mkdir(exist_ok=True)
     result_path = working / 'result.json'
@@ -63,8 +63,8 @@ def run(root, commit, started, budget_seconds, smoke=False):
     try:
         from runtime_setup import install_torch, install_yolox
         from prepare_rdd2022 import extract, prepare, sha256, verify_archive
-        from training_init import SCRATCH, load_training_receipt
-        from training_plan import epochs_per_run, resume_target, training_deadline_seconds
+        from training_init import initialization_receipt, load_training_receipt, prepare_initial_weights
+        from training_plan import training_deadline_seconds
         install_torch()
         checkout = Path('/kaggle/tmp/YOLOX')
         install_yolox(root, checkout)
@@ -80,6 +80,8 @@ def run(root, commit, started, budget_seconds, smoke=False):
         print(f'Python {sys.version.split()[0]} / torch {torch.__version__} / {torch.cuda.get_device_name(0)}', flush=True)
         pins_path = root / 'ml/pins.json'
         pins = json.loads(pins_path.read_text())
+        init = initialization_receipt(pins, use_pretrained=True)
+        initial_weights = Path('/kaggle/tmp/yolox_nano.pth')
         attached = list(Path('/kaggle/input').rglob('latest_ckpt.pth'))
         if len(attached) > 1:
             raise ValueError('Ambiguous attached checkpoints')
@@ -101,27 +103,29 @@ def run(root, commit, started, budget_seconds, smoke=False):
         extract(archive, source, annotated_only=True)
         archive.unlink()
         data = Path('/kaggle/tmp/data')
-        limits = {'train': 128, 'val': 24, 'test': 24} if smoke else None
-        stats = prepare(source, data, pins['seed'], digest, link_images=True, split_limits=limits)
+        stats = prepare(source, data, pins['seed'], digest, link_images=True)
         print('Prepared full-frame splits:', stats['splits'], flush=True)
         shutil.rmtree(source)  # Data retains complete images through same-volume hard links.
         (working / 'dataset_stats.json').write_text(json.dumps(stats, indent=2))
         shutil.copyfile(pins_path, working / 'measured_pins.json')
         ckpt = working / 'ckpt/pothole_nano'
         ckpt.mkdir(parents=True, exist_ok=True)
+        start_epoch = 0
         if attached:
             prior = attached[0]
             receipt = load_training_receipt(prior.with_name('training_init.json'), pins)
-            if receipt != SCRATCH:
-                raise ValueError('TRAIN-001 resumes scratch training only')
+            if receipt != init:
+                raise ValueError('Crash resume requires the same pretrained initialization receipt')
             for name in ('latest_ckpt.pth', 'best_ckpt.pth'):
                 old = prior.with_name(name)
                 if old.is_file():
                     shutil.copyfile(old, ckpt / name)
-        (ckpt / 'training_init.json').write_text(json.dumps(SCRATCH))
+        else:
+            prepare_initial_weights(pins, initial_weights)
+        (ckpt / 'training_init.json').write_text(json.dumps(init))
         train_seconds = budget_seconds - 5*60 if smoke else training_deadline_seconds(budget_seconds)
         if smoke:
-            target_epoch = stop_epoch = 1
+            target_epoch = 1
         elif attached:
             plan = json.loads(prior.with_name('resume_plan.json').read_text())
             if plan['train_commit'] != commit or sha256(prior) != plan['checkpoint_sha256']:
@@ -130,15 +134,16 @@ def run(root, commit, started, budget_seconds, smoke=False):
                 checkpoint = torch.load(ckpt / 'latest_ckpt.pth', map_location='cpu', weights_only=True)
             start_epoch = checkpoint['start_epoch']
             del checkpoint
-            target_epoch = stop_epoch = resume_target(start_epoch, budget_seconds)
             if start_epoch != plan['start_epoch'] or target_epoch != plan['target_epoch']:
                 raise ValueError('Resume plan does not match the checkpoint epoch or kernel budget')
-        else:
-            stop_epoch = epochs_per_run(budget_seconds)
-            target_epoch = 2 * stop_epoch
+        if type(target_epoch) is not int or target_epoch <= start_epoch:
+            raise ValueError('Missing measured training target or no remaining epochs')
         os.environ.update(POTHOLE_DATA=str(data), POTHOLE_CHECKPOINTS=str(working / 'ckpt'),
-                          POTHOLE_EPOCHS=str(target_epoch), POTHOLE_DEADLINE=str(started + train_seconds))
+                          POTHOLE_EPOCHS=str(target_epoch), POTHOLE_DEADLINE=str(started + train_seconds),
+                          POTHOLE_BALANCED='1', POTHOLE_START_EPOCH=str(start_epoch), POTHOLE_TRAIN_COMMIT=commit)
         os.environ.pop('POTHOLE_INITIAL_WEIGHTS', None)
+        if not attached:
+            os.environ['POTHOLE_INITIAL_WEIGHTS'] = str(initial_weights)
         args_list = ['-f', str(root / 'ml/yolox_pothole_exp.py'), '-d', '1', '-b', '16', '--fp16']
         if attached:
             args_list += ['--resume', '-c', str(ckpt / 'latest_ckpt.pth')]
@@ -148,11 +153,14 @@ def run(root, commit, started, budget_seconds, smoke=False):
         # Preserve the experiment's five-epoch validation and best-checkpoint selection.
         if args.experiment_name is None:
             args.experiment_name = exp.exp_name
-        print(f'Training initialization: scratch. Schedule target {target_epoch}, run stops after epoch {stop_epoch}.', flush=True)
-        latest = train(exp, args, stop_epoch)
-        epochs = int(torch.load(latest, map_location='cpu', weights_only=False)['start_epoch'])
+        print(f'Training initialization: {init}. Schedule target {target_epoch}.', flush=True)
+        setup = time.monotonic() - started
+        latest, timing = train(exp, args, target_epoch)
+        progress = json.loads(latest.parents[2].joinpath('resume_progress.json').read_text())
+        epochs = progress['epochs']
+        os.environ.pop('POTHOLE_INITIAL_WEIGHTS', None)
         command = [sys.executable, str(root / 'ml/evaluate_export.py'), '--data', str(data),
-            '--checkpoint', str(latest), '--output', str(working / 'model'), '--result', str(result_path),
+            '--checkpoint', str(latest.with_name('best_ckpt.pth')), '--output', str(working / 'model'), '--result', str(result_path),
             '--train-commit', commit, '--epochs', str(epochs)]
         if smoke:
             command.append('--smoke')
@@ -162,7 +170,7 @@ def run(root, commit, started, budget_seconds, smoke=False):
         result = json.loads(result_path.read_text())
         result['wall_seconds'] = time.monotonic() - started
         result['schedule_target_epoch'] = target_epoch
-        result['run_stop_epoch'] = stop_epoch
+        result['timing'] = dict(timing, setup_seconds=setup)
         result_path.write_text(json.dumps(result, indent=2))
         print(result_path.read_text(), flush=True)
     except Exception as error:
@@ -178,5 +186,6 @@ if __name__ == '__main__':
     parser.add_argument('started', type=float)
     parser.add_argument('budget', type=int)
     parser.add_argument('--smoke', action='store_true')
+    parser.add_argument('--target-epoch', type=int, default=0)
     args = parser.parse_args()
-    run(args.root, args.commit, args.started, args.budget, args.smoke)
+    run(args.root, args.commit, args.started, args.budget, args.smoke, args.target_epoch)

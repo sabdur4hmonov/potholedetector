@@ -53,18 +53,20 @@ def main() -> int:
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     index = STATIC / "index.html"
+    raw_index = index.read_bytes()
     current = index.read_text(encoding="utf-8")
     updated = with_current_hashes(current)
     stale = []
     if updated != current:
         stale.append("static/index.html CSP hashes")
         if not args.check:
-            index.write_text(updated, encoding="utf-8")
+            newline = "\r\n" if b"\r\n" in raw_index and b"\n" not in raw_index.replace(b"\r\n", b"") else "\n"
+            index.write_text(updated, encoding="utf-8", newline=newline)
     for mirror in MIRRORS:
         for name in WEB_FILES:
             source = STATIC / name
             target = mirror / name
-            want = updated.encode("utf-8") if name == "index.html" else source.read_bytes()
+            want = source.read_bytes()
             if not target.exists() or target.read_bytes() != want:
                 stale.append(f"{mirror.relative_to(ROOT)}/{name}")
                 if not args.check:

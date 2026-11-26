@@ -1,5 +1,11 @@
 # Recorded work history
 
+## 2026-11-27 — TRAIN-003
+
+- Quarantined v7 and replaced the precision-only model filter with a validation and held-out test frame gate.
+- Added SHA-pinned official initialization, balanced full-frame training batches and AP50 checkpoint selection. Smoke timing sizes one full run. The watcher waits for GPU quota and only resumes recoverable crashes.
+- Fixed Windows native stderr handling in the APK build and byte comparisons in the web sync step.
+
 ## 2026-11-20 — TRAIN-002
 
 - Planned the cosine schedule from v7 timings. A verified private checkpoint receipt supplies the single resume's target, while fresh runs plan both legs before training.

@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import torch
 from training_init import load_training_receipt
+from frame_gate import choose_frame_threshold, frame_gate_passes, frame_metrics
 
 
 def letterbox(image):
@@ -79,26 +80,12 @@ def metrics(samples, threshold):
                                                        for c, v in countries.items()}, iou=.5)
 
 
-def choose_threshold(samples, minimum_precision=.8):
-    from itertools import groupby
-    truth_count = sum(len(row[3]) for row in samples)
-    decisions = sorted((decision for _, _, _, truth, boxes in samples for decision in matches(boxes, truth)),
-                       key=lambda item: -item[0])
-    tp, fp, best = 0, 0, None
-    for score, group in groupby(decisions, key=lambda item: item[0]):
-        for _, hit in group:
-            tp += int(hit)
-            fp += int(not hit)
-        precision = tp / (tp + fp)
-        if tp and precision >= minimum_precision:
-            candidate = (2 * tp / (truth_count + tp + fp), precision, score)
-            best = candidate if best is None else max(best, candidate)
-    if best is None:
-        raise RuntimeError('Validation precision 0.80 not reached. Train longer, review data, or evaluate Tiny separately.')
-    return min(best[2], float(np.nextafter(np.float32(1), np.float32(0))))
+def frame_scores(samples):
+    return [(bool(truth), float(boxes[0][4]) if len(boxes) else None)
+            for _, _, _, truth, boxes in samples]
 
 
-def collect(model, data, split):
+def collect(model, data, split, smoke=False):
     ann = json.loads((data / 'annotations' / f'{split}.json').read_text())
     truth = {}
     for a in ann['annotations']:
@@ -106,7 +93,7 @@ def collect(model, data, split):
         truth.setdefault(a['image_id'], []).append(np.array([x, y, x+w, y+h]))
     result = []
     with torch.inference_mode():
-        for row in ann['images']:
+        for row in ann['images'][:24] if smoke else ann['images']:
             image = cv2.imread(str(data / 'images' / row['file_name']))
             if image is None:
                 raise ValueError('Unreadable full frame')
@@ -135,31 +122,33 @@ def main():
     expmodule = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(expmodule)
     model = expmodule.Exp().get_model().cuda().eval()
-    model.load_state_dict(torch.load(args.checkpoint, map_location='cpu', weights_only=False)['model'])
+    checkpoint = torch.load(args.checkpoint, map_location='cpu', weights_only=False)
+    model.load_state_dict(checkpoint['model'])
+    ap50 = checkpoint.get('curr_ap')
+    ap50 = float(ap50) if ap50 is not None else None
+    evaluated_epoch = int(checkpoint['start_epoch'])
     model.head.decode_in_inference = False
-    val = collect(model, args.data, 'val')
-    gate_passed = True
-    try:
-        threshold = choose_threshold(val)
-    except RuntimeError:
-        gate_passed = False
-        try:
-            threshold = choose_threshold(val, minimum_precision=0)
-        except RuntimeError:
-            threshold = .5
+    val = collect(model, args.data, 'val', args.smoke)
+    val_frames = frame_scores(val)
+    threshold = choose_frame_threshold(val_frames)
+    # Keep diagnostic metrics at a fixed threshold if no validation threshold qualifies.
+    selected = threshold is not None
+    threshold = threshold if selected else .5
     val_metrics = metrics(val, threshold)
-    test = collect(model, args.data, 'test')
+    test = collect(model, args.data, 'test', args.smoke)
     test_metrics = metrics(test, threshold)
-    print(json.dumps(dict(threshold=threshold, validation=val_metrics, test=test_metrics), indent=2))
     args.output.mkdir(parents=True, exist_ok=True)
-    result = dict(status='gate_failed', epochs=args.epochs, validation=val_metrics, test=test_metrics,
+    result = dict(status='gate_failed', epochs=args.epochs, evaluated_epoch=evaluated_epoch,
+                  validation=val_metrics, test=test_metrics, val_coco_ap50=ap50,
+                  frame_validation=frame_metrics(val_frames, threshold), frame_test=frame_metrics(frame_scores(test), threshold),
                   threshold=threshold, dataset_sha256=pins['rdd2022_sha256'], model_sha256=None,
                   train_commit=args.train_commit, **init)
-    if not gate_passed and not args.smoke:
+    print(json.dumps(result, indent=2))
+    if not (selected and frame_gate_passes(result)) and not args.smoke:
         (args.output / 'pothole_model.json').unlink(missing_ok=True)
         if args.result:
             args.result.write_text(json.dumps(result, indent=2))
-        print('Validation precision gate failed. Checkpoint and metrics retained.')
+        print('Frame quality gate failed. Checkpoint and metrics retained.')
         raise SystemExit(2)
     onnx_path = args.output / 'pothole_yolox_nano.onnx'
     torch.onnx.export(model, torch.zeros(1, 3, 416, 416, device='cuda'), str(onnx_path),
@@ -195,7 +184,8 @@ def main():
         return
     metadata = dict(version='yolox-nano-rdd2022-v1', input_size=416, score_threshold=threshold,
                     nms_iou=.45, sha256=hashlib.sha256(onnx_path.read_bytes()).hexdigest(),
-                    metrics=dict(validation=val_metrics, test=test_metrics, parity_images=20),
+                    metrics={k: result[k] for k in ('validation', 'test', 'frame_validation', 'frame_test', 'val_coco_ap50')}
+                            | {'parity_images': 20},
                     dataset_sha256=pins['rdd2022_sha256'], yolox_commit=pins['yolox_commit'],
                     output_format='yolox_raw_bgr_0_255', opset=17, license='CC-BY-SA-4.0', **init)
     (args.output / 'pothole_model.json').write_text(json.dumps(metadata, indent=2))

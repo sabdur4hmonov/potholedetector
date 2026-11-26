@@ -4,7 +4,8 @@
     "url": "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_nano.pth",
     "release_tag": "0.1.1rc0",
     "sha256": "cd28f55fbbc1829f99d9ac9b38a16d259a22889739c8728ea877610201feff7b",
-    "license": null
+    "license": null,
+    "owner_license_treatment": "Apache-2.0"
   },
   "onnxruntime": "1.24.3",
   "opset": 17,

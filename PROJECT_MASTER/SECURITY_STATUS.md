@@ -1,5 +1,7 @@
 # Recorded security status
 
+2026-11-27 TRAIN-003 scope note. The old v7 model is quarantined. The watcher requires verified provenance and both validation and test frame metrics before installation. The exact official pretrained checkpoint is digest-checked before loading. Its publisher license caveat and the owner's decision are in [MODEL_LICENSE.md](../MODEL_LICENSE.md). Full-frame and prior remediation requirements remain in force.
+
 2026-11-20 TRAIN-002 scope note. The private resume plan binds the actual checkpoint digest and epoch to an exact pushed revision and measured target. Checkpoint inspection uses PyTorch weights-only loading, with the NumPy float64 types used for the pinned trainer's COCO AP. Existing model acceptance, scratch provenance and repository security dispositions remain in force.
 
 2026-11-20 TRAIN-001-FIX scope note. Kaggle failure artifacts remain in ignored per-version folders, and the tracked report copies only the sanitized reason and log tail. The private smoke and full runs verify the measured official RDD2022 digest before preparation. Smoke exports omit an installable model manifest. The production validation and model acceptance gates remain in force.

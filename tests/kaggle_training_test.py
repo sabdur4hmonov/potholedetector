@@ -15,12 +15,14 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'ml/kaggle'))
-from watch_logic import classify_failure, next_action, run_budget, should_relaunch, verify_artifacts
-from training_plan import epochs_per_run, estimate_seconds, resume_target, training_deadline_seconds
+from watch_logic import classify_failure, EXPECTED_INIT, PINS, run_budget, should_relaunch, verify_artifacts
+from training_plan import epochs_per_run, estimate_seconds, resume_target, training_deadline_seconds, measured_epoch_target
 import watch
 import cloud_run
 sys.path.insert(0, str(ROOT / 'ml'))
 from prepare_rdd2022 import extract
+from balanced_sampling import epoch_indices
+from frame_gate import choose_frame_threshold, frame_gate_passes, frame_metrics
 
 
 class WatcherTest(unittest.TestCase):
@@ -104,7 +106,8 @@ class WatcherTest(unittest.TestCase):
             model.parent.mkdir(parents=True)
             model.write_bytes(b'smoke fixture')
             result_path = model.parents[1] / 'result.json'
-            receipt = dict(status='smoke_success', train_commit='a'*40, epochs=1, parity_images=20, init='scratch',
+            receipt = dict(status='smoke_success', train_commit='a'*40, epochs=1, parity_images=20, **EXPECTED_INIT,
+                           timing=dict(setup_seconds=800, epoch_seconds=99, validation_seconds=32),
                            model_sha256=hashlib.sha256(model.read_bytes()).hexdigest(), wall_seconds=1200)
             def kaggle(group, command, ref, *args, **kwargs):
                 if command == 'status':
@@ -124,21 +127,6 @@ class WatcherTest(unittest.TestCase):
                 promoted = push.call_args.args[0]
                 self.assertEqual(('full', 'new', 2, 2640), (promoted['mode'], promoted['phase'],
                                                            promoted['smoke_version'], promoted['gpu_seconds']))
-
-    def test_push_running_complete_and_failure_transitions(self):
-        self.assertEqual('push', next_action('new', None, 0))
-        for state in ('pushed', 'queued', 'running'):
-            self.assertEqual('wait', next_action(state, None, 0))
-        self.assertEqual('install', next_action('complete', 'success', 1))
-        self.assertEqual('fail', next_action('error', None, 0))
-        self.assertEqual('fail', next_action('complete', 'error', 0))
-
-    def test_one_resume_is_the_absolute_limit(self):
-        self.assertEqual('resume', next_action('complete', 'gate_failed', 0))
-        self.assertEqual('final_gate_failed', next_action('complete', 'gate_failed', 1))
-        for count in (2, 3, 100):
-            self.assertEqual('fail', next_action('complete', 'gate_failed', count))
-            self.assertEqual('fail', next_action('complete', 'success', count))
 
     def test_full_resume_transient_error_does_not_submit_a_third_run(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -166,37 +154,61 @@ class WatcherTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             resume_target(0, 43_200)
 
-    def test_watcher_full_result_matrix_installs_and_resumes_at_most_once(self):
-        commit, new_commit = 'a'*40, 'b'*40
-        for first_passed, final_f1, expect_install in ((True, None, False), (False, None, False),
-                (True, .71, True), (True, .70, False), (True, .69, False), (False, .64, True)):
-            with self.subTest(first_passed=first_passed, final_f1=final_f1), tempfile.TemporaryDirectory() as tmp:
-                directory = Path(tmp)
-                state = dict(commit=commit, resumes=0, version=7, gpu_seconds=54_900)
-                first = dict(train_commit=commit, init='scratch', epochs=112,
-                             status='success' if first_passed else 'gate_failed', validation={'F1': .7})
-                with patch.object(watch, 'STATE', directory/'state.json'), patch.object(watch, 'report') as report, \
-                     patch.object(watch, 'published_commit', return_value=new_commit), patch.object(watch, 'verify_artifacts'), \
-                     patch.object(watch, 'install_and_build', return_value=[{'path': 'apk'}]) as install, \
-                     patch.object(watch, 'upload_checkpoint') as upload, patch.object(watch, 'unregister') as unregister:
-                    watch.handle_full_result(directory, state, first)
-                    self.assertEqual(int(first_passed), install.call_count)
-                    self.assertEqual(dict(start_epoch=112, target_epoch=205, train_commit=new_commit), upload.call_args.args[2])
-                    unregister.assert_not_called()
-                    state.update(commit=new_commit, resumes=1, resume_target=205)
-                    last = dict(train_commit=new_commit, init='scratch', epochs=205, schedule_target_epoch=205,
-                                status='success' if final_f1 is not None else 'gate_failed', validation={'F1': final_f1})
-                    if final_f1 is None:
-                        with self.assertRaisesRegex(RuntimeError, 'single resume is exhausted'):
-                            watch.handle_full_result(directory, state, last)
-                        self.assertIn('egasining', report.call_args.args[1])
-                        self.assertIn('owner’s decision', report.call_args.args[1])
-                    else:
-                        watch.handle_full_result(directory, state, last)
-                        self.assertEqual('ready', state['phase'])
-                        unregister.assert_called_once()
-                    self.assertEqual(int(first_passed) + int(expect_install), install.call_count)
-                    upload.assert_called_once()
+    def test_gate_failure_never_installs_or_resumes(self):
+        state = dict(commit='a'*40, resumes=0, resume_target=250)
+        result = dict(train_commit=state['commit'], epochs=250, schedule_target_epoch=250,
+                      status='gate_failed', **EXPECTED_INIT)
+        with patch.object(watch, 'report'), patch.object(watch, 'install_and_build') as install, \
+             patch.object(watch, 'upload_checkpoint') as upload:
+            with self.assertRaisesRegex(RuntimeError, 'Frame gate failed'):
+                watch.handle_full_result(Path('.'), state, result)
+            install.assert_not_called()
+            upload.assert_not_called()
+
+    def test_v7_frame_pattern_and_threshold_boundaries(self):
+        weak = [(True, .9)]*4 + [(False, .9)] + [(True, None)]*642
+        selected = choose_frame_threshold(weak)
+        self.assertEqual(.9, selected)
+        v7 = frame_metrics(weak, selected)
+        self.assertEqual((4, 1, 642), (v7['tp'], v7['fp'], v7['fn']))
+        self.assertFalse(frame_gate_passes(dict(frame_validation=v7, frame_test=v7)))
+        self.assertIsNone(choose_frame_threshold([(True, .8), (False, .8)]))
+        self.assertIsNone(choose_frame_threshold([(True, None)]))
+        self.assertEqual(.7, choose_frame_threshold([(True, .9)]*4 + [(False, .8)] + [(True, .7)]*2))
+        good = frame_metrics([(True, .9)]*4 + [(False, .9)] + [(True, None)]*6, .8)
+        self.assertTrue(frame_gate_passes(dict(frame_validation=good, frame_test=good)))
+        bad_test = frame_metrics([(True, .9)]*2 + [(True, None)]*8, .8)
+        self.assertFalse(frame_gate_passes(dict(frame_validation=good, frame_test=bad_test)))
+
+    def test_balanced_sampler_preserves_positive_coverage_and_changes_negatives(self):
+        positive, hard, clean = list(range(6)), list(range(10, 20)), list(range(20, 30))
+        first = epoch_indices(positive, hard, clean, 27, 0)
+        self.assertEqual(first, epoch_indices(positive, hard, clean, 27, 0))
+        self.assertEqual(12, len(set(first)))
+        self.assertTrue(set(positive) <= set(first))
+        self.assertEqual(3, len(set(first) & set(hard)))
+        self.assertNotEqual(set(first), set(epoch_indices(positive, hard, clean, 27, 1)))
+        self.assertEqual(12, len(epoch_indices(positive, hard[:1], clean, 27, 0)))
+
+    def test_smoke_timing_budget_and_quota_delayed_tick(self):
+        n = measured_epoch_target(dict(setup_seconds=950, epoch_seconds=110, validation_seconds=30), 43200)
+        self.assertEqual(253, n)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ('kernel-metadata.json', 'train_kaggle.py'):
+                (root/name).write_text((ROOT/'ml/kaggle'/name).read_text())
+            state = dict(phase='new', mode='smoke', commit='a'*40, resumes=0)
+            with patch.object(watch, 'HERE', root), patch.object(watch, 'STATE', root/'state.json'), \
+                 patch.object(watch, 'report'), patch.object(watch.time, 'time', return_value=100) as now, \
+                 patch.object(watch, 'kaggle', side_effect=watch.CommandFailed('403', 'GPU quota exceeded; resets in 8 hours')) as cli:
+                watch.push(state)
+                self.assertEqual('waiting_quota', state['phase'])
+                self.assertEqual(100+9*3600, state['retry_after'])
+                watch.tick(False)
+                cli.assert_called_once()
+                now.return_value = state['retry_after']
+                watch.tick(False)
+                self.assertEqual(2, cli.call_count)
 
     def test_private_checkpoint_carries_both_revisions_and_target(self):
         commit, new_commit = 'a'*40, 'b'*40
@@ -206,7 +218,8 @@ class WatcherTest(unittest.TestCase):
             latest = directory/'ckpt/pothole_nano/latest_ckpt.pth'
             latest.parent.mkdir(parents=True)
             latest.write_bytes(b'checkpoint from first run')
-            (directory/'result.json').write_text(json.dumps(dict(train_commit=commit, init='scratch')))
+            latest.with_name('training_init.json').write_text(json.dumps(EXPECTED_INIT))
+            (directory/'resume_progress.json').write_text(json.dumps(dict(train_commit=commit, epochs=112, target_epoch=205)))
             for file in ('measured_pins.json','dataset_stats.json'):
                 (directory/file).write_text('{}')
             state = dict(commit=commit, resumes=0, version=7)
@@ -244,9 +257,12 @@ class WatcherTest(unittest.TestCase):
             val = dict(precision=.81, recall=.2, F1=.32)
             manifest = dict(version='yolox-test', input_size=416, opset=17, output_format='yolox_raw_bgr_0_255',
                 yolox_commit='6ddff4824372906469a7fae2dc3206c7aa4bbaee', score_threshold=.7, nms_iou=.45,
-                dataset_sha256='1'*64, sha256=digest, init='scratch', metrics=dict(parity_images=20, validation=val, test=val))
-            result = dict(status='success', train_commit='2'*40, dataset_sha256='1'*64, model_sha256=digest,
-                          validation=val, test=val, epochs=1, threshold=.7, init='scratch')
+                dataset_sha256=PINS['rdd2022_sha256'], sha256=digest, **EXPECTED_INIT, metrics=dict(parity_images=20, validation=val, test=val))
+            result = dict(status='success', train_commit='2'*40, dataset_sha256=PINS['rdd2022_sha256'], model_sha256=digest,
+                          validation=val, test=val, epochs=1, threshold=.7, **EXPECTED_INIT)
+            good = frame_metrics([(True, .9)]*8 + [(False, .9)]*2, .7)
+            for key, value in dict(frame_validation=good, frame_test=good, val_coco_ap50=.3).items():
+                result[key] = manifest['metrics'][key] = value
             def write():
                 (directory / 'result.json').write_text(json.dumps(result))
                 (directory / 'model/pothole_model.json').write_text(json.dumps(manifest))
@@ -258,9 +274,9 @@ class WatcherTest(unittest.TestCase):
             manifest['score_threshold'] = 0; write()
             with self.assertRaisesRegex(ValueError, 'numeric'): verify_artifacts(directory, '2'*40)
             manifest['score_threshold'] = .7; write()
-            result['validation']['precision'] = .79; write()
-            with self.assertRaisesRegex(ValueError, 'precision'): verify_artifacts(directory, '2'*40)
-            result['validation']['precision'] = .81; write()
+            del result['frame_validation']; write()
+            with self.assertRaisesRegex(ValueError, 'Frame quality'): verify_artifacts(directory, '2'*40)
+            result['frame_validation'] = good; write()
             model.write_bytes(b'changed')
             with self.assertRaisesRegex(ValueError, 'SHA-256'): verify_artifacts(directory, '2'*40)
 
@@ -269,7 +285,7 @@ class WatcherTest(unittest.TestCase):
             directory = Path(tmp)
             for name in ('kernel-metadata.json', 'train_kaggle.py'):
                 (directory / name).write_text((ROOT / 'ml/kaggle' / name).read_text())
-            state = dict(phase='new', commit='2'*40, resumes=0)
+            state = dict(phase='new', mode='smoke', commit='2'*40, resumes=0)
             with patch.object(watch, 'HERE', directory), patch.object(watch, 'STATE', directory / 'state.json'), \
                  patch.object(watch, 'kaggle', return_value='Kernel push error: GPU unavailable'), patch.object(watch, 'report') as report:
                 with self.assertRaisesRegex(RuntimeError, 'acknowledge'): watch.push(state)

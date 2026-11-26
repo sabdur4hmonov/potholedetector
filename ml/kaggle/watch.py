@@ -9,10 +9,12 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
-from watch_logic import (MAX_RESUMES, SMOKE_BUDGET, classify_failure, log_lines, next_action, read_json,
-                         run_budget, safe_diagnostic, should_relaunch, verify_artifacts, verify_smoke)
-from training_plan import resume_target
+from watch_logic import (MAX_RESUMES, SMOKE_BUDGET, classify_failure, expected_initialization,
+                         is_quota_rejection, log_lines, read_json, run_budget, safe_diagnostic,
+                         should_relaunch, verify_artifacts, verify_smoke)
+from training_plan import measured_epoch_target
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -43,14 +45,22 @@ def report(status, message):
     path.write_text(header + marker + history + f'\n- {stamp} — {message}\n', encoding='utf-8')
 
 
-def run_command(command, timeout=300):
+class CommandFailed(RuntimeError):
+    def __init__(self, message, output):
+        super().__init__(message)
+        self.output = output
+
+
+def run_command(command, timeout=300, log=None):
     result = subprocess.run(command, cwd=ROOT, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, encoding='utf-8', errors='replace', timeout=timeout,
                             creationflags=NO_WINDOW)
+    if log is not None:
+        log.write_text(safe_diagnostic(result.stdout), encoding='utf-8')
     if result.returncode:
         codes = re.findall(r'\b(?:401|403|404|429|500|502|503)\b', result.stdout)
         detail = ' HTTP ' + ','.join(sorted(set(codes))) if codes else ''
-        raise RuntimeError(f'{command[0]} command failed with exit {result.returncode}{detail}')
+        raise CommandFailed(f'{command[0]} command failed with exit {result.returncode}{detail}', result.stdout)
     return result.stdout
 
 
@@ -123,14 +133,30 @@ def push(state):
     if smoke:
         budget = min(SMOKE_BUDGET, budget)
         code = code.replace('SMOKE = False', 'SMOKE = True')
+    else:
+        code = code.replace('TARGET_EPOCH = 0', f'TARGET_EPOCH = {state["resume_target"]}')
     code = code.replace('RUN_BUDGET_SECONDS = 43_200', f'RUN_BUDGET_SECONDS = {budget}')
     (upload / 'train_kaggle.py').write_text(code.replace('__PUSHED_TRAIN_COMMIT__', state['commit']), encoding='utf-8')
     # Persist intent before the network mutation. A crash cannot trigger another automatic push.
     state['phase'] = 'pushing'
     atomic_json(STATE, state)
-    response = kaggle('kernels', 'push', '-p', str(upload), '--accelerator', 'NvidiaTeslaT4', '--timeout', str(budget))
+    try:
+        response = kaggle('kernels', 'push', '-p', str(upload), '--accelerator', 'NvidiaTeslaT4', '--timeout', str(budget))
+    except CommandFailed as error:
+        if not is_quota_rejection(error.output):
+            raise
+        response = error.output
     # Some CLI API failures print an error while returning exit code zero.
     version = re.search(r'Kernel version (\d+) successfully pushed', response)
+    if not version and is_quota_rejection(response):
+        retry_hours = re.search(r'(?i)(?:resets?|renews?|try again)\s+in\s+(\d{1,3})\s*hours?', response)
+        # If Kaggle does not state a reset time, probe once a day until it accepts.
+        delay = (int(retry_hours[1]) + 1) * 3600 if retry_hours else 24*3600
+        state.update(phase='waiting_quota', retry_after=int(time.time()) + delay)
+        atomic_json(STATE, state)
+        next_check = datetime.fromtimestamp(state['retry_after'], timezone(timedelta(hours=5))).isoformat()
+        report('running', f'Kaggle GPU quota refused the push. The watcher will try again after {next_check}.')
+        return
     if not version or 'not valid' in response.lower():
         raise RuntimeError('Kaggle did not acknowledge a successful GPU push; check account GPU/phone/internet access')
     state['run_budget'] = budget
@@ -161,8 +187,10 @@ def upload_checkpoint(directory, state, plan):
     latest = directory / 'ckpt/pothole_nano/latest_ckpt.pth'
     if not latest.is_file() or not 0 < latest.stat().st_size <= 64*1024*1024:
         raise ValueError('Missing or oversize resume checkpoint')
-    result = read_json(directory / 'result.json')
-    if result.get('train_commit') != state['commit'] or result.get('init') != 'scratch':
+    receipt = read_json(latest.with_name('training_init.json'))
+    progress = read_json(directory / 'resume_progress.json')
+    if (not expected_initialization(receipt) or progress.get('train_commit') != state['commit'] or
+        progress.get('epochs') != plan['start_epoch'] or progress.get('target_epoch') != plan['target_epoch']):
         raise ValueError('Resume checkpoint source/init mismatch')
     stage = HERE / '.state/checkpoint_upload' / f'version-{state["version"]}'
     stage.mkdir(parents=True, exist_ok=True)
@@ -209,7 +237,7 @@ def install_and_build(directory, state):
     atomic_json(STATE, state)
     report('running', 'Model SHA-256 and metadata accepted. Building and running real ONNX JVM fixtures.')
     run_command(['powershell.exe', '-NoProfile', '-NonInteractive', '-File', str(HERE/'build_model.ps1'),
-                 '-OutputDirectory', str(directory)], timeout=7000)
+                 '-OutputDirectory', str(directory)], timeout=7000, log=directory/'build-driver.log')
     built = read_json(directory / 'build_report.json')
     if built.get('status') != 'ready' or not built.get('real_runtime_passed'):
         raise ValueError('Build verification did not complete')
@@ -224,60 +252,21 @@ def finish(state, message):
 
 
 def handle_full_result(directory, state, result):
-    if result.get('train_commit') != state['commit'] or result.get('init') != 'scratch':
+    if result.get('train_commit') != state['commit'] or not expected_initialization(result):
         raise ValueError('Full result source or initialization mismatch')
     epochs = result.get('epochs')
     if type(epochs) is not int or epochs <= 0:
         raise ValueError('Full result must include a completed checkpoint epoch')
-    status = result.get('status')
-    f1 = None
-    if status == 'success':
-        verify_artifacts(directory, state['commit'])
-        f1 = result['validation']['F1']
-    action = next_action('complete', status, state['resumes'], f1, state.get('first_f1'))
-    if state['resumes']:
-        if result.get('schedule_target_epoch') != state['resume_target']:
-            raise ValueError('Final result does not match the planned resume schedule')
-        report('running', f'Final run finished at epoch {epochs}; planned target {state["resume_target"]}. '
-               f'Validation metrics: {json.dumps(result.get("validation"))}')
-    if action in ('install_resume', 'resume'):
-        report('running', f'First run ended at epoch {epochs} with {status}. '
-               f'Validation metrics: {json.dumps(result.get("validation"))}')
-        plan = {'start_epoch': epochs, 'target_epoch': resume_target(epochs, run_budget(state['gpu_seconds'])),
-                'train_commit': published_commit()}
-        if action == 'install_resume':
-            state['first_f1'] = f1
-            try:
-                apks = install_and_build(directory, state)
-            except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
-                state['first_build_error'] = safe_diagnostic(str(error))
-                report('running', f'First model passed the gate. APK verification failed: {state["first_build_error"]}. '
-                       'The scheduled training resume will still run.')
-            else:
-                state['first_apks'] = apks
-                report('running', f'First model installed and split APKs verified (val F1 {f1:.6g}). '
-                       'One training resume remains. ' + json.dumps(apks))
-        state['phase'] = 'uploading'
-        atomic_json(STATE, state)
-        upload_checkpoint(directory, state, plan)
-    elif action == 'install':
-        apks = install_and_build(directory, state)
-        finish(state, f'Final model accepted (val F1 {f1:.6g}) and split APKs verified. '
-               'Physical-phone and road validation pending. ' + json.dumps(apks))
-    elif action == 'keep':
-        message = f'Kept the first model (val F1 {state["first_f1"]:.6g}). Final val F1 was {f1:.6g}.'
-        if not state.get('first_apks'):
-            raise RuntimeError(message + ' First APK verification failed; see the earlier build log.')
-        finish(state, message + ' ' + json.dumps(state['first_apks']))
-    elif action == 'final_gate_failed':
-        kept = ' The previously accepted model is retained.' if 'first_f1' in state else ''
-        report('failed', 'UZ: Yakuniy run precision ≥ 0.80 talabidan o‘tmadi. Checkpoint va metrikalar saqlandi. '
-               'Keyingi qadam — egasining rasmiy pretrained YOLOX-Nano vaznlari bo‘yicha qarori.\n\n'
-               '  EN: The final run missed precision ≥ 0.80. Checkpoint and metrics are retained. '
-               "The next lever is the owner’s decision on the official pretrained YOLOX-Nano weights." + kept)
-        raise RuntimeError('Final validation gate failed; the single resume is exhausted')
-    else:
-        raise RuntimeError('Unexpected full training result or resume count')
+    if result.get('schedule_target_epoch') != state['resume_target']:
+        raise ValueError('Result does not match the planned cosine schedule')
+    report('running', f'Training ended at epoch {epochs}/{state["resume_target"]}. '
+           f'Validation frames: {json.dumps(result.get("frame_validation"))}. '
+           f'Test frames: {json.dumps(result.get("frame_test"))}.')
+    if result.get('status') == 'gate_failed':
+        raise RuntimeError('Frame gate failed; model installation skipped. Checkpoint and metrics retained.')
+    apks = install_and_build(directory, state)
+    finish(state, 'The model passed the frame gate and split APK verification. '
+           'Physical phone and road validation pending. ' + json.dumps(apks))
 
 
 def tick(launch):
@@ -290,7 +279,7 @@ def tick(launch):
             if commit == state['commit']:
                 raise ValueError('A stopped run requires a new pushed revision for manual launch')
             atomic_json(STATE.with_name(f'failed-{state["commit"][:12]}.json'), state)
-            spent = state.get('gpu_seconds', state.get('run_budget', 0))
+            # The archived campaign's reservations are not provider weekly usage.
             dataset_created = state.get('dataset_created', False)
         state = {'phase': 'new', 'commit': commit, 'resumes': 0, 'mode': 'smoke', 'gpu_seconds': spent,
                  'dataset_created': dataset_created}
@@ -302,6 +291,10 @@ def tick(launch):
         return
     if state['phase'] == 'new':
         push(state)
+        return
+    if state['phase'] == 'waiting_quota':
+        if time.time() >= state['retry_after']:
+            push(state)
         return
     if state['phase'] == 'waiting_dataset':
         status = kaggle('datasets', 'status', DATASET).lower()
@@ -344,6 +337,17 @@ def tick(launch):
             atomic_json(STATE, state)
             report('running', evidence + '\n\n  Transient failure confirmed. One automatic relaunch is scheduled.')
             return
+        if (state.get('mode') == 'full' and state['resumes'] == 0 and
+            classify_failure(reason, tail) == 'transient' and (directory/'resume_progress.json').is_file()):
+            progress = read_json(directory/'resume_progress.json')
+            target = state['resume_target']
+            if type(progress.get('epochs')) is int and 0 < progress['epochs'] < target:
+                report('running', evidence)
+                state['phase'] = 'uploading'
+                atomic_json(STATE, state)
+                upload_checkpoint(directory, state, dict(start_epoch=progress['epochs'], target_epoch=target,
+                                                        train_commit=state['commit']))
+                return
         report('failed', evidence)
         if classify_failure(reason, tail) == 'account':
             report('failed', "Kaggle → Settings sahifasida telefon verifikatsiyasini tekshiring. "
@@ -352,12 +356,14 @@ def tick(launch):
         raise RuntimeError(f'Kaggle version {version} stopped. See downloaded failure evidence in the report.')
     if state.get('mode') == 'smoke':
         verify_smoke(directory, result, state['commit'])
+        state['resume_target'] = measured_epoch_target(result.get('timing'), run_budget(state['gpu_seconds']))
         state['mode'] = 'full'
         state['phase'] = 'new'
         state['smoke_version'] = version
         atomic_json(STATE, state)
         report('running', f'Smoke version {version} passed in {result["wall_seconds"]:.0f}s. '
-               'One epoch and 20 ONNX comparisons verified. Submitting full training.')
+               f'Timing: {json.dumps(result["timing"])}. Full cosine target: {state["resume_target"]} epochs. '
+               'One balanced epoch and 20 ONNX comparisons verified. Submitting full training.')
         push(state)
         return
     handle_full_result(directory, state, result)

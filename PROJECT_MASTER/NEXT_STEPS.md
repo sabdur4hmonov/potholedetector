@@ -1,5 +1,9 @@
 # Next steps from the preserved tree
 
+## Current TRAIN-003 handoff — 2026-11-27
+
+`PotholeTrainWatch` verifies pretrained smoke timing and ONNX parity, then submits a full cosine run sized for approximately nine hours. It uses the frame gate before installing or building any candidate. The quarantined v7 model stays out of app assets. Follow [the live report](../ml/TRAINING_REPORT.md) for Kaggle and APK outcomes.
+
 ## Current TRAIN-002 handoff — 2026-11-20
 
 `PotholeTrainWatch` will evaluate v7's receipt when it finishes, install and build it if it passes, then submit one private resume from its latest checkpoint. The target is the completed v7 epoch plus 93 at the full budget. After the final gate, install a passing model if there is no accepted first model or if its validation F1 is higher. A final gate miss preserves metrics and checkpoints for the owner's official pretrained YOLOX-Nano weights decision. See [the live report](../ml/TRAINING_REPORT.md).

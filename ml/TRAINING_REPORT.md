@@ -254,3 +254,149 @@ IndexError: invalid index of a 0-dim tensor. Use `tensor.item()` in Python or `t
 - 2026-11-20T02:16:28+05:00 — TRAIN-002. V7 ishlashda davom etmoqda. Median trening epochi 313 s (7 ta), validation 34 s (1 ta), o‘qitishgacha tayyorgarlik 816 s. 105 daqiqa evaluation/export zaxirasidan keyin bitta resume uchun 93 epoch. Dastlabki maqsad 205 (v7 112 da tugasa). Aniq maqsad v7 checkpoint epoch + 93.
 
   EN: One resume is armed. The measured budget leaves 29,784 seconds, enough for 93 whole epochs and validation. The watcher will build a passing v7 model before resuming, and replace it only if the final passing validation F1 is higher. PotholeTrainWatch tick returned 0 at 02:15:34 +05:00. V7 reported RUNNING before and after and continues on 26dbf30.
+
+- 2026-11-20T02:27:35+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T02:42:34+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T02:57:37+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T03:12:36+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T03:27:36+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T03:38:05+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T03:42:31+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T03:57:31+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T04:12:36+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T04:27:35+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T04:42:34+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T04:57:34+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T05:12:34+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T05:27:31+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T05:42:31+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T05:57:32+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T06:12:32+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T06:27:32+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T06:42:32+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T06:57:32+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T07:12:32+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T07:27:34+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T07:42:32+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T07:57:33+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T08:12:31+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T08:27:31+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T08:42:31+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T08:57:32+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T09:12:32+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T09:27:31+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T09:42:31+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T09:57:32+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T10:12:40+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T10:27:36+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T10:42:31+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T10:57:30+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T11:12:31+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T11:27:30+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T11:42:31+05:00 — Kaggle version 7 is running.
+
+- 2026-11-20T11:58:11+05:00 — First run ended at epoch 111 with success. Validation metrics: {"precision": 0.8, "recall": 0.006191950464396285, "F1": 0.01228878648233487, "tp": 4, "fp": 1, "fn": 642, "per_country_recall": {"Japan": 0.01652892561983471, "India": 0.0, "Czech": 0.0, "Norway": 0.0, "United_States": 0.0, "China_MotorBike": 0.0}, "iou": 0.5}
+
+- 2026-11-20T11:58:13+05:00 — Model SHA-256 and metadata accepted. Building and running real ONNX JVM fixtures.
+
+- 2026-11-20T12:03:53+05:00 — First model passed the gate. APK verification failed: powershell.exe command failed with exit 1. The scheduled training resume will still run.
+
+- 2026-11-20T12:04:28+05:00 — Private checkpoint uploaded at epoch 111. The single resume will target epoch 204. Waiting for Kaggle dataset processing.
+
+- 2026-11-20T12:12:37+05:00 — Private full training version 8 submitted. https://www.kaggle.com/code/sardor007/pothole-yolox-train
+
+- 2026-11-20T12:27:32+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T12:42:36+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T12:57:32+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T13:12:31+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T13:27:47+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T13:42:33+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T13:57:31+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T14:12:31+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T14:27:30+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T14:42:38+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T14:57:31+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T15:12:30+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T15:27:30+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T18:48:19+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T18:57:32+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T19:12:33+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T19:27:35+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T19:42:32+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T20:10:05+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T20:12:32+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T20:27:33+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T20:42:34+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T20:57:39+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T21:12:35+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T21:27:33+05:00 — Kaggle version 8 is running.
+
+- 2026-11-20T21:43:03+05:00 — Final run finished at epoch 204; planned target 204. Validation metrics: {"precision": 1.0, "recall": 0.0046439628482972135, "F1": 0.009244992295839752, "tp": 3, "fp": 0, "fn": 643, "per_country_recall": {"Japan": 0.004132231404958678, "India": 0.0064516129032258064, "Czech": 0.0, "Norway": 0.0, "United_States": 0.0, "China_MotorBike": 0.0}, "iou": 0.5}
+
+- 2026-11-20T21:43:03+05:00 — RuntimeError: Kept the first model (val F1 0.0122888). Final val F1 was 0.00924499. First APK verification failed; see the earlier build log.
+
+- 2026-11-27T00:11:02+05:00 — TRAIN-003. UZ: v7 yaroqsiz va karantinda; v8 tugagan. Yangi o'qitish SHA-256 tekshirilgan rasmiy Megvii vaznlari va frame quality gate bilan ishlaydi.
+
+  EN: v7 is unusable and quarantined; Kaggle confirms v8 COMPLETE. Prior v7 and v8 runtimes total 19.84 hours, or about 21 hours including short earlier sessions (not a quota reading). At 30 hours that would leave about 9 hours if all sessions counted in the same week. Current availability is determined by Kaggle push, with no reset assumed. The isolated v7 APK repro exited 1 on Gradle's Java stderr note (Windows PowerShell NativeCommandError); Gradle exit and logs now survive that note. Full scratch verification is still running.

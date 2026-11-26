@@ -15,8 +15,12 @@ def initialization_receipt(pins, use_pretrained):
     if not use_pretrained:
         return SCRATCH.copy()
     weights = pins["nano_pretrained"]
-    if weights["license"] not in PERMISSIVE_LICENSES:
-        raise ValueError("Megvii checkpoint requires a verified permissive weights license")
+    if weights["license"] not in PERMISSIVE_LICENSES and not (
+        weights.get('owner_license_treatment') == 'Apache-2.0'
+        and weights['release_tag'] == '0.1.1rc0'
+        and weights['sha256'] == 'cd28f55fbbc1829f99d9ac9b38a16d259a22889739c8728ea877610201feff7b'
+    ):
+        raise ValueError('Megvii checkpoint requires a permissive weights license or the pinned owner decision')
     if not re.fullmatch(r"[0-9a-f]{64}", weights["sha256"]):
         raise ValueError("Missing pinned SHA-256 for the Megvii checkpoint")
     return {"init": "megvii_coco_pretrained", "init_weights_sha256": weights["sha256"]}

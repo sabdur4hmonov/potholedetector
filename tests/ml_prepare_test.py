@@ -55,6 +55,8 @@ with tempfile.TemporaryDirectory() as tmp:
     checks += 1
     weight_pins = json.loads((ROOT / 'ml/pins.json').read_text())
     assert training_init.initialization_receipt(weight_pins, False) == training_init.SCRATCH
+    assert training_init.initialization_receipt(weight_pins, True)['init'] == 'megvii_coco_pretrained'
+    del weight_pins['nano_pretrained']['owner_license_treatment']
     try:
         training_init.initialization_receipt(weight_pins, True)
         raise AssertionError('Unverified weights license accepted')

@@ -11,6 +11,7 @@ import time
 TRAIN_COMMIT = "__PUSHED_TRAIN_COMMIT__"
 RUN_BUDGET_SECONDS = 43_200
 SMOKE = False
+TARGET_EPOCH = 0
 REPOSITORY = "https://github.com/sabdur4hmonov/potholedetector.git"
 
 
@@ -62,6 +63,8 @@ def main():
                    str(started), str(budget)]
         if smoke:
             command.append('--smoke')
+        else:
+            command += ['--target-epoch', str(TARGET_EPOCH)]
         subprocess.run(command, env=env, check=True)
     except Exception as error:
         if not result.exists():

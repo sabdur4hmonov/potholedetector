@@ -36,14 +36,16 @@ def verify_archive(path, pins_path):
     return digest
 
 
-def voc_boxes(xml):
+def voc_record(xml):
     root = ET.parse(xml).getroot()
     w, h = int(root.findtext('size/width')), int(root.findtext('size/height'))
     if w <= 0 or h <= 0:
         raise ValueError('Invalid dimensions')
     boxes = []
+    other_damage = False
     for obj in root.findall('object'):
         if obj.findtext('name', '').strip().upper() != 'D40':
+            other_damage = True
             continue  # All cracks/other classes are hard negatives.
         b = obj.find('bndbox')
         x, y = max(0., float(b.findtext('xmin')) - 1), max(0., float(b.findtext('ymin')) - 1)
@@ -51,7 +53,11 @@ def voc_boxes(xml):
         if not (0 <= x < right <= w and 0 <= y < bottom <= h):
             raise ValueError('Invalid D40 box')
         boxes.append([x, y, right - x, bottom - y])
-    return w, h, boxes
+    return w, h, boxes, other_damage
+
+
+def voc_boxes(xml):
+    return voc_record(xml)[:3]
 
 
 def country_for(path):
@@ -163,10 +169,10 @@ def prepare(root, output, seed=20221105, dataset_hash=None, extra=None, link_ima
         if digest in seen:
             continue
         seen.add(digest)
-        w, h, boxes = voc_boxes(xml)
-        rows.append((country, source, w, h, boxes))
+        w, h, boxes, other_damage = voc_record(xml)
+        rows.append((country, source, w, h, boxes, other_damage))
     if extra:
-        rows.extend(owner_records(extra, images))
+        rows.extend((*record, False) for record in owner_records(extra, images))
     if not rows:
         raise ValueError('No annotated frames; official unlabelled test frames are NOT negatives')
     splits = {s: [] for s in ('train', 'val', 'test')}
@@ -195,7 +201,7 @@ def prepare(root, output, seed=20221105, dataset_hash=None, extra=None, link_ima
     for split, records in splits.items():
         coco = {'info': {'description': 'RDD2022 D40 full frames'}, 'images': [], 'annotations': [],
                 'categories': [{'id': 1, 'name': 'pothole'}]}
-        for i, (country, source, w, h, boxes) in enumerate(records, 1):
+        for i, (country, source, w, h, boxes, other_damage) in enumerate(records, 1):
             name = sha256(source) + source.suffix.lower()
             target = images / name
             if source.resolve() != target.resolve() and not target.exists():
@@ -204,6 +210,8 @@ def prepare(root, output, seed=20221105, dataset_hash=None, extra=None, link_ima
                 else:
                     shutil.copyfile(source, target)  # Entire original image.
             coco['images'].append({'id': i, 'file_name': name, 'width': w, 'height': h, 'country': country})
+            if split == 'train':
+                coco['images'][-1]['other_damage'] = other_damage
             for box in boxes:
                 coco['annotations'].append({'id': len(coco['annotations']) + 1, 'image_id': i,
                     'category_id': 1, 'bbox': box, 'area': box[2] * box[3], 'iscrowd': 0})
